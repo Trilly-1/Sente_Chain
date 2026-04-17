@@ -8,6 +8,17 @@ import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
 
+// Mobile detection hook
+function useWindowSize() {
+  const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+  return size;
+}
+
 const methodBadge = {
   MPESA:{ bg:T.greenLite, color:T.green,   bdr:T.greenBdr, label:"M-Pesa" },
   ADMIN:{ bg:T.goldLite,  color:T.goldMid, bdr:T.goldBdr,  label:"Admin"  },
@@ -20,6 +31,8 @@ const TH = (h) => (
 
 export default function MemberDashboard() {
   const { auth } = useAuth()
+  const { width } = useWindowSize()
+  const isMobile = width < 900
   const [txs,     setTxs]     = useState([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState("")
@@ -39,29 +52,29 @@ export default function MemberDashboard() {
   return (
     <div style={{ minHeight:"100vh", background:T.pageBg, fontFamily:T.font }}>
       <Nav />
-      <div style={{ maxWidth:"1160px", margin:"0 auto", padding:"48px 40px 80px" }}>
+      <div style={{ maxWidth:"1160px", margin:"0 auto", padding: isMobile ? "24px 16px 60px" : "48px 40px 80px" }}>
 
-        <div style={{ marginBottom:"36px" }}>
+        <div style={{ marginBottom: isMobile ? "24px" : "36px" }}>
           <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, marginBottom:"8px", letterSpacing:"1.5px", textTransform:"uppercase" }}>
             {SACCO_INFO.name} {auth?.member_id}
           </p>
-          <h1 style={{ fontSize:"36px", fontWeight:900, color:T.textHi, margin:"0 0 8px", letterSpacing:"-0.5px" }}>
+          <h1 style={{ fontSize: isMobile ? "28px" : "36px", fontWeight:900, color:T.textHi, margin:"0 0 8px", letterSpacing:"-0.5px" }}>
             Welcome back, <span style={{color:T.green}}>{auth?.name?.split(" ")[0]}</span>
           </h1>
-          <p style={{ fontSize:"16px", color:T.textMid }}>Your personal financial record, blockchain verified on Stellar</p>
+          <p style={{ fontSize: isMobile ? "14px" : "16px", color:T.textMid }}>Your personal financial record, blockchain verified on Stellar</p>
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"16px", marginBottom:"24px" }}>
+        <div style={{ display:"grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap:"16px", marginBottom:"24px" }}>
           {[
             { label:"My Balance",      value:auth?.balance_kes||0, accent:T.green   },
             { label:"Total Deposited", value:totalDeposited,        accent:T.green   },
             { label:"Loans Received",  value:totalLoans,            accent:T.goldMid },
             { label:"Total Repaid",    value:totalRepaid,           accent:"#059669" },
           ].map(c => (
-            <div key={c.label} style={{ ...card(), padding:"24px", position:"relative", overflow:"hidden" }}>
+            <div key={c.label} style={{ ...card(), padding: isMobile ? "16px" : "24px", position:"relative", overflow:"hidden" }}>
               <div style={{ position:"absolute", top:0, left:0, right:0, height:"3px", background:c.accent, borderRadius:"18px 18px 0 0" }} />
-              <p style={{ fontSize:"11px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"1px", marginBottom:"10px", fontFamily:T.fontMono }}>{c.label}</p>
-              <p style={{ fontSize:"22px", fontWeight:900, color:T.textHi, fontVariantNumeric:"tabular-nums" }}>KES {c.value.toLocaleString()}</p>
+              <p style={{ fontSize:"10px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"1px", marginBottom:"10px", fontFamily:T.fontMono }}>{c.label}</p>
+              <p style={{ fontSize: isMobile ? "18px" : "22px", fontWeight:900, color:T.textHi, fontVariantNumeric:"tabular-nums" }}>KES {c.value.toLocaleString()}</p>
             </div>
           ))}
         </div>

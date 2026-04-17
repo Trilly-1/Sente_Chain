@@ -7,6 +7,17 @@ import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
 
+// Mobile detection hook
+function useWindowSize() {
+  const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+  return size;
+}
+
 const typeColor = { Deposit:T.green, Loan:T.goldMid, Repayment:"#059669" }
 const TABS = ["SACCO Summary","Members and Roles","Register Member","All Transactions","Audit Log"]
 
@@ -14,15 +25,17 @@ const TH = (h) => (
   <th key={h} style={{ padding:"12px 20px", textAlign:"left", fontSize:"11px", fontWeight:700, textTransform:"uppercase", letterSpacing:"1px", color:T.textDim, borderBottom:`1.5px solid ${T.border}`, background:T.surface, whiteSpace:"nowrap", fontFamily:T.fontMono }}>{h}</th>
 )
 
-const statCard = (label, value, accent) => (
-  <div style={{ ...card(), padding:"22px", position:"relative", overflow:"hidden" }}>
+const statCard = (label, value, accent, isMobile) => (
+  <div style={{ ...card(), padding: isMobile ? "16px" : "22px", position:"relative", overflow:"hidden" }}>
     <div style={{ position:"absolute", top:0, left:0, right:0, height:"3px", background:accent, borderRadius:"16px 16px 0 0" }} />
-    <p style={{ fontSize:"11px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"1px", marginBottom:"8px", fontFamily:T.fontMono }}>{label}</p>
-    <p style={{ fontSize:"24px", fontWeight:900, color:T.textHi, margin:0 }}>{value}</p>
+    <p style={{ fontSize:"10px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"1px", marginBottom:"8px", fontFamily:T.fontMono }}>{label}</p>
+    <p style={{ fontSize: isMobile ? "18px" : "24px", fontWeight: 900, color: T.textHi, margin: 0 }}>{value}</p>
   </div>
 )
 
 export default function AdminDashboard() {
+  const { width } = useWindowSize()
+  const isMobile = width < 900
   const [tab,        setTab]        = useState("SACCO Summary")
   const [members,    setMembers]    = useState([])
   const [allTxs,     setAllTxs]     = useState([])
@@ -83,17 +96,17 @@ export default function AdminDashboard() {
   return (
     <div style={{ minHeight:"100vh", background:T.pageBg, fontFamily:T.font }}>
       <Nav />
-      <div style={{ maxWidth:"1160px", margin:"0 auto", padding:"48px 40px 80px" }}>
+      <div style={{ maxWidth:"1160px", margin:"0 auto", padding: isMobile ? "24px 16px 60px" : "48px 40px 80px" }}>
 
-        <div style={{ marginBottom:"32px" }}>
+        <div style={{ marginBottom: isMobile ? "24px" : "32px" }}>
           <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, marginBottom:"8px", letterSpacing:"1.5px", textTransform:"uppercase" }}>{SACCO_INFO.name} Admin Portal</p>
-          <h1 style={{ fontSize:"36px", fontWeight:900, color:T.textHi, margin:"0 0 6px", letterSpacing:"-0.5px" }}>Admin <span style={{color:T.green}}>Dashboard</span></h1>
-          <p style={{ fontSize:"15px", color:T.textMid }}>Full SACCO oversight, members, transactions, and audit log</p>
+          <h1 style={{ fontSize: isMobile ? "28px" : "36px", fontWeight:900, color:T.textHi, margin:"0 0 6px", letterSpacing:"-0.5px" }}>Admin <span style={{color:T.green}}>Dashboard</span></h1>
+          <p style={{ fontSize: isMobile ? "14px" : "15px", color:T.textMid }}>Full SACCO oversight, members, transactions, and audit log</p>
         </div>
 
-        <div style={{ display:"flex", gap:"6px", marginBottom:"28px", flexWrap:"wrap", padding:"4px", background:"#fff", borderRadius:"12px", border:`1.5px solid ${T.border}`, boxShadow:T.shadow, width:"fit-content" }}>
+        <div style={{ display:"flex", gap:"6px", marginBottom: isMobile ? "20px" : "28px", flexWrap:"wrap", padding:"4px", background:"#fff", borderRadius:"12px", border:`1.5px solid ${T.border}`, boxShadow:T.shadow, width:"fit-content" }}>
           {TABS.map(t => (
-            <button key={t} onClick={()=>setTab(t)} style={{ padding:"9px 18px", borderRadius:"9px", fontFamily:T.font, border:"none", cursor:"pointer", fontSize:"13px", fontWeight:700, background:tab===t?T.green:"transparent", color:tab===t?"#fff":T.textDim, transition:"all 0.18s", boxShadow:tab===t?`0 2px 8px ${T.green}44`:"none" }}>{t}</button>
+            <button key={t} onClick={()=>setTab(t)} style={{ padding: isMobile ? "8px 12px" : "9px 18px", borderRadius:"9px", fontFamily:T.font, border:"none", cursor:"pointer", fontSize: isMobile ? "12px" : "13px", fontWeight:700, background:tab===t?T.green:"transparent", color:tab===t?"#fff":T.textDim, transition:"all 0.18s", boxShadow:tab===t?`0 2px 8px ${T.green}44`:"none" }}>{t}</button>
           ))}
         </div>
 
@@ -102,11 +115,11 @@ export default function AdminDashboard() {
         {/* SUMMARY */}
         {!loading && tab==="SACCO Summary" && (
           <div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"16px", marginBottom:"28px" }}>
-              {statCard("Total Deposits",   `KES ${(totalDeposits/1000).toFixed(0)}K`,   T.green  )}
-              {statCard("Total Loans",      `KES ${(totalLoans/1000).toFixed(0)}K`,      T.goldMid)}
-              {statCard("Total Repayments", `KES ${(totalRepayments/1000).toFixed(0)}K`, "#059669")}
-              {statCard("Active Members",   activeMembers,                                "#7c3aed")}
+            <div style={{ display:"grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap:"16px", marginBottom:"28px" }}>
+              {statCard("Total Deposits",   `KES ${(totalDeposits/1000).toFixed(0)}K`,   T.green, isMobile  )}
+              {statCard("Total Loans",      `KES ${(totalLoans/1000).toFixed(0)}K`,      T.goldMid, isMobile)}
+              {statCard("Total Repayments", `KES ${(totalRepayments/1000).toFixed(0)}K`, "#059669", isMobile)}
+              {statCard("Active Members",   activeMembers,                                "#7c3aed", isMobile)}
             </div>
             <div style={{ ...cardMd(), overflow:"hidden" }}>
               <div style={{ padding:"18px 24px", borderBottom:`1.5px solid ${T.border}`, background:"#fff" }}>

@@ -1,9 +1,20 @@
 // src/pages/Login.jsx
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { DEMO_USERS } from "../data/demo"
 import { T } from "../styles/theme"
+
+// Mobile detection hook
+function useWindowSize() {
+  const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+  return size;
+}
 
 export default function Login() {
   const [phone,    setPhone]    = useState("")
@@ -17,6 +28,8 @@ export default function Login() {
 
   const { login } = useAuth()
   const navigate  = useNavigate()
+  const { width } = useWindowSize()
+  const isMobile  = width < 900
 
   async function handleSubmit(e) {
     e.preventDefault(); setError(""); setLoading(true)
@@ -89,11 +102,11 @@ export default function Login() {
 
       {/* ══ LEFT — form ══ */}
       <div style={{
-        flex: "0 0 500px", minHeight: "100vh",
+        flex: isMobile ? "1" : "0 0 500px", minHeight: "100vh",
         display: "flex", flexDirection: "column",
-        justifyContent: "center", padding: "56px 52px",
+        justifyContent: "center", padding: isMobile ? "40px 24px" : "56px 52px",
         background: "#060606",
-        borderRight: "1px solid rgba(255,255,255,0.06)",
+        borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,0.06)",
         position: "relative", zIndex: 10,
       }}>
 
@@ -101,7 +114,7 @@ export default function Login() {
         <div style={{ marginBottom: "44px" }}>
           {/* Icon mark */}
           <div style={{
-            width: "50px", height: "50px", borderRadius: "14px", marginBottom: "22px",
+            width: "64px", height: "64px", borderRadius: "18px", marginBottom: "26px",
             background: "linear-gradient(135deg, rgba(74,222,128,0.18), rgba(74,222,128,0.06))",
             border: "1px solid rgba(74,222,128,0.30)",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -116,7 +129,7 @@ export default function Login() {
             </div>
           </div>
 
-          <h1 style={{ fontSize: "32px", fontWeight: 900, letterSpacing: "6px",
+          <h1 style={{ fontSize: "38px", fontWeight: 900, letterSpacing: "6px",
             fontFamily: T.font, margin: "0 0 10px", lineHeight: 1 }}>
             <span style={{ color: "#ffffff" }}>SENTE</span>
             <span style={{
@@ -314,128 +327,130 @@ export default function Login() {
       </div>
 
       {/* ══ RIGHT — img5 panel ══ */}
-      <div style={{ flex: 1, position: "relative", overflow: "hidden", minHeight: "100vh" }}>
+      {!isMobile && (
+        <div style={{ flex: 1, position: "relative", overflow: "hidden", minHeight: "100vh" }}>
 
-        {/* img5 — full bleed */}
-        <img src="/img5.jpg" alt="SenteChain financial empowerment" style={{
-          position: "absolute", inset: 0,
-          width: "100%", height: "100%",
-          objectFit: "cover", objectPosition: "center",
-        }} />
+          {/* img5 — full bleed */}
+          <img src="/image5.jpg" alt="SenteChain financial empowerment" style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%",
+            objectFit: "cover", objectPosition: "center",
+          }} />
 
-        {/* Layered scrims */}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(160deg, rgba(0,0,0,0.38) 0%, rgba(5,46,22,0.55) 100%)",
-        }} />
-        {/* Left bleed into form */}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(90deg, rgba(6,6,6,0.85) 0%, rgba(6,6,6,0.08) 28%, transparent 52%)",
-        }} />
-        {/* Bottom fade for stats */}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(to top, rgba(0,0,0,0.80) 0%, transparent 48%)",
-        }} />
+          {/* Layered scrims */}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(160deg, rgba(0,0,0,0.38) 0%, rgba(5,46,22,0.55) 100%)",
+          }} />
+          {/* Left bleed into form */}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(90deg, rgba(6,6,6,0.85) 0%, rgba(6,6,6,0.08) 28%, transparent 52%)",
+          }} />
+          {/* Bottom fade for stats */}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(to top, rgba(0,0,0,0.80) 0%, transparent 48%)",
+          }} />
 
-        {/* Overlaid content */}
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", flexDirection: "column",
-          justifyContent: "space-between",
-          padding: "52px 48px 52px 56px",
-        }}>
+          {/* Overlaid content */}
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", flexDirection: "column",
+            justifyContent: "space-between",
+            padding: "52px 48px 52px 56px",
+          }}>
 
-          {/* Top — live badge + headline */}
-          <div>
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: "8px",
-              padding: "7px 16px", borderRadius: "99px",
-              background: "rgba(0,0,0,0.50)",
-              backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-              border: `1px solid rgba(74,222,128,0.28)`,
-              marginBottom: "22px",
-            }}>
-              <span style={{
-                width: "7px", height: "7px", borderRadius: "50%",
-                background: T.green, display: "inline-block",
-                boxShadow: "0 0 8px rgba(74,222,128,0.80)",
-                animation: "pulse 2s infinite",
-              }} />
-              <span style={{
-                fontSize: "11px", fontFamily: T.fontMono, color: T.green,
-                letterSpacing: "1.5px", fontWeight: 600, textTransform: "uppercase",
-              }}>Live on Stellar Testnet</span>
+            {/* Top — live badge + headline */}
+            <div>
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: "8px",
+                padding: "7px 16px", borderRadius: "99px",
+                background: "rgba(0,0,0,0.50)",
+                backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+                border: `1px solid rgba(74,222,128,0.28)`,
+                marginBottom: "22px",
+              }}>
+                <span style={{
+                  width: "7px", height: "7px", borderRadius: "50%",
+                  background: T.green, display: "inline-block",
+                  boxShadow: "0 0 8px rgba(74,222,128,0.80)",
+                  animation: "pulse 2s infinite",
+                }} />
+                <span style={{
+                  fontSize: "11px", fontFamily: T.fontMono, color: T.green,
+                  letterSpacing: "1.5px", fontWeight: 600, textTransform: "uppercase",
+                }}>Live on Stellar Testnet</span>
+              </div>
+
+              <h2 style={{
+                fontSize: "34px", fontWeight: 900, color: "#ffffff",
+                lineHeight: 1.14, maxWidth: "400px", margin: 0,
+                textShadow: "0 2px 20px rgba(0,0,0,0.55)",
+              }}>
+                Financial transparency for every SACCO member
+              </h2>
             </div>
 
-            <h2 style={{
-              fontSize: "34px", fontWeight: 900, color: "#ffffff",
-              lineHeight: 1.14, maxWidth: "400px", margin: 0,
-              textShadow: "0 2px 20px rgba(0,0,0,0.55)",
-            }}>
-              Financial transparency for every SACCO member
-            </h2>
-          </div>
-
-          {/* Middle — feature cards */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {FEATURES.map(f => (
-              <div key={f.title} style={{
-                display: "flex", gap: "14px", alignItems: "flex-start",
-                padding: "15px 18px", borderRadius: "16px",
-                background: "rgba(0,0,0,0.46)",
-                backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)",
-                border: "1px solid rgba(255,255,255,0.09)",
-                boxShadow: "-4px 0 20px rgba(255,255,255,0.03), 4px 0 20px rgba(255,255,255,0.03), 0 8px 28px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.09)",
-              }}>
-                <div style={{
-                  width: "8px", height: "8px", borderRadius: "50%",
-                  background: T.green, flexShrink: 0, marginTop: "5px",
-                  boxShadow: "0 0 10px rgba(74,222,128,0.70)",
-                }} />
-                <div>
-                  <p style={{ fontSize: "15px", fontWeight: 800, color: "#ffffff", margin: "0 0 3px" }}>
-                    {f.title}
-                  </p>
-                  <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.52)", margin: 0 }}>
-                    {f.body}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Bottom — stats */}
-          <div>
-            <div style={{
-              width: "36px", height: "2px", borderRadius: "99px",
-              background: `linear-gradient(90deg, #16a34a, ${T.green})`,
-              marginBottom: "18px", boxShadow: "0 0 12px rgba(74,222,128,0.50)",
-            }} />
-            <div style={{ display: "flex" }}>
-              {STATS.map((s, i) => (
-                <div key={s.label} style={{
-                  flex: 1,
-                  paddingRight: i < STATS.length - 1 ? "24px" : 0,
-                  borderRight: i < STATS.length - 1 ? "1px solid rgba(255,255,255,0.12)" : "none",
-                  paddingLeft: i > 0 ? "24px" : 0,
+            {/* Middle — feature cards */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {FEATURES.map(f => (
+                <div key={f.title} style={{
+                  display: "flex", gap: "14px", alignItems: "flex-start",
+                  padding: "15px 18px", borderRadius: "16px",
+                  background: "rgba(0,0,0,0.46)",
+                  backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)",
+                  border: "1px solid rgba(255,255,255,0.09)",
+                  boxShadow: "-4px 0 20px rgba(255,255,255,0.03), 4px 0 20px rgba(255,255,255,0.03), 0 8px 28px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.09)",
                 }}>
-                  <p style={{
-                    fontSize: "28px", fontWeight: 900, color: T.green,
-                    margin: "0 0 4px", lineHeight: 1,
-                    textShadow: "0 0 22px rgba(74,222,128,0.42)",
-                  }}>{s.value}</p>
-                  <p style={{
-                    fontSize: "11px", color: "rgba(255,255,255,0.45)", margin: 0,
-                    fontFamily: T.fontMono, textTransform: "uppercase", letterSpacing: "1px",
-                  }}>{s.label}</p>
+                  <div style={{
+                    width: "8px", height: "8px", borderRadius: "50%",
+                    background: T.green, flexShrink: 0, marginTop: "5px",
+                    boxShadow: "0 0 10px rgba(74,222,128,0.70)",
+                  }} />
+                  <div>
+                    <p style={{ fontSize: "15px", fontWeight: 800, color: "#ffffff", margin: "0 0 3px" }}>
+                      {f.title}
+                    </p>
+                    <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.52)", margin: 0 }}>
+                      {f.body}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
+
+            {/* Bottom — stats */}
+            <div>
+              <div style={{
+                width: "36px", height: "2px", borderRadius: "99px",
+                background: `linear-gradient(90deg, #16a34a, ${T.green})`,
+                marginBottom: "18px", boxShadow: "0 0 12px rgba(74,222,128,0.50)",
+              }} />
+              <div style={{ display: "flex" }}>
+                {STATS.map((s, i) => (
+                  <div key={s.label} style={{
+                    flex: 1,
+                    paddingRight: i < STATS.length - 1 ? "24px" : 0,
+                    borderRight: i < STATS.length - 1 ? "1px solid rgba(255,255,255,0.12)" : "none",
+                    paddingLeft: i > 0 ? "24px" : 0,
+                  }}>
+                    <p style={{
+                      fontSize: "28px", fontWeight: 900, color: T.green,
+                      margin: "0 0 4px", lineHeight: 1,
+                      textShadow: "0 0 22px rgba(74,222,128,0.42)",
+                    }}>{s.value}</p>
+                    <p style={{
+                      fontSize: "11px", color: "rgba(255,255,255,0.45)", margin: 0,
+                      fontFamily: T.fontMono, textTransform: "uppercase", letterSpacing: "1px",
+                    }}>{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
     </div>
   )
