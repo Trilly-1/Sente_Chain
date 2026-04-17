@@ -5,6 +5,17 @@ import { useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { apiLogin, apiRegister, apiContact } from "../services/api"
 
+// Mobile detection hook
+function useWindowSize() {
+  const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  useEffect(() => {
+    const handleResize = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+  return size;
+}
+
 const C = {
   green:"#15803d", greenMid:"#16a34a", greenLite:"#dcfce7", greenBdr:"#bbf7d0", greenDark:"#14532d",
   goldMid:"#d97706", goldLite:"#fef3c7", goldBdr:"#fde68a",
@@ -23,6 +34,8 @@ const disBtn   = { ...greenBtn, background:C.border, color:C.textXdim, cursor:"n
 
 function AuthNav() {
   const navigate = useNavigate()
+  const { width } = useWindowSize()
+  const isMobile = width < 900
 
   return (
     <nav style={{
@@ -33,7 +46,7 @@ function AuthNav() {
       WebkitBackdropFilter:"blur(20px)",
       borderBottom:`1px solid ${C.border}`,
       display:"flex", alignItems:"center",
-      padding:"0 64px",
+      padding: isMobile ? "0 16px" : "0 64px",
       boxShadow:"0 1px 16px rgba(0,0,0,0.06)",
     }}>
 
@@ -51,7 +64,7 @@ function AuthNav() {
           src="/image10.png"
           alt="SenteChain"
           style={{
-            height: "42px",
+            height: isMobile ? "32px" : "56px",
             objectFit: "contain",
             display: "block",
           }}
@@ -59,12 +72,14 @@ function AuthNav() {
 
         <span
           style={{
-            fontSize: "22px",
+            fontSize: isMobile ? "15px" : "26px",
             fontWeight: 900,
+            letterSpacing: isMobile ? "0px" : "2px",
             fontFamily: C.font,
             display: "flex",
             alignItems: "center",
-            marginLeft: "2px",
+            marginLeft: "6px",
+            whiteSpace: "nowrap"
           }}
         >
           <span style={{ color: "black" }}>SENTE</span>
@@ -76,7 +91,8 @@ function AuthNav() {
       <button
         onClick={() => navigate("/")}
         style={{
-          padding: "10px 18px",
+          padding: isMobile ? "7px 12px" : "10px 18px",
+          fontSize: isMobile ? "12px" : "15px",
           borderRadius: "10px",
           border: `1px solid ${C.greenBdr}`,
           background: C.greenLite,
@@ -85,6 +101,7 @@ function AuthNav() {
           fontFamily: C.font,
           cursor: "pointer",
           transition: "all 0.2s",
+          whiteSpace: "nowrap"
         }}
         onMouseEnter={(e) =>
           (e.currentTarget.style.background = C.greenBdr)
@@ -280,6 +297,8 @@ export default function AuthPage() {
   const [searchParams] = useSearchParams()
   const [tab, setTab]  = useState(searchParams.get("tab") === "signup" ? "signup" : "login")
   const contactRef     = useRef(null)
+  const { width }      = useWindowSize()
+  const isMobile       = width < 900
 
   useEffect(() => {
     const t = searchParams.get("tab")
@@ -335,10 +354,10 @@ export default function AuthPage() {
 
         <AuthNav />
 
-        <div style={{ flex:1, maxWidth:"1100px", margin:"0 auto", padding:"56px 40px 80px", width:"100%" }}>
+        <div style={{ flex:1, maxWidth:"1100px", margin:"0 auto", padding: isMobile ? "40px 24px 60px" : "56px 40px 80px", width:"100%" }}>
 
-          <div style={{ textAlign:"center", marginBottom:"48px" }}>
-            <h1 style={{ fontSize:"42px", fontWeight:900, color:C.textHi, margin:"0 0 12px", fontFamily:C.font, letterSpacing:"-0.5px" }}>
+          <div style={{ textAlign:"center", marginBottom: isMobile ? "32px" : "48px" }}>
+            <h1 style={{ fontSize: isMobile ? "32px" : "42px", fontWeight:900, color:C.textHi, margin:"0 0 12px", fontFamily:C.font, letterSpacing:"-0.5px" }}>
               Your SACCO, <span style={{color:C.green}}>on the blockchain</span>
             </h1>
             <p style={{ fontSize:"17px", color:C.textMid, fontFamily:C.font }}>
@@ -347,16 +366,16 @@ export default function AuthPage() {
           </div>
 
           {/* Tab toggle */}
-          <div style={{ display:"flex", justifyContent:"center", marginBottom:"40px" }}>
+          <div style={{ display:"flex", justifyContent:"center", marginBottom: isMobile ? "30px" : "40px" }}>
             <div style={{ display:"flex", background:"rgba(255,255,255,0.80)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", border:`1.5px solid ${C.border}`, borderRadius:"12px", padding:"4px", gap:"4px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
               {[["signup","Create Account"],["login","Sign In"]].map(([t,lbl]) => (
-                <button key={t} onClick={() => setTab(t)} style={{ padding:"11px 34px", borderRadius:"9px", fontFamily:C.font, fontSize:"15px", fontWeight:700, cursor:"pointer", border:"none", background:tab===t?C.green:"transparent", color:tab===t?"#fff":C.textMid, transition:"all 0.18s", boxShadow:tab===t?`0 2px 12px ${C.green}44`:"none" }}>{lbl}</button>
+                <button key={t} onClick={() => setTab(t)} style={{ padding: isMobile ? "10px 20px" : "11px 34px", borderRadius:"9px", fontFamily:C.font, fontSize: isMobile ? "14px" : "15px", fontWeight:700, cursor:"pointer", border:"none", background:tab===t?C.green:"transparent", color:tab===t?"#fff":C.textMid, transition:"all 0.18s", boxShadow:tab===t?`0 2px 12px ${C.green}44`:"none" }}>{lbl}</button>
               ))}
             </div>
           </div>
 
           {/* Two columns */}
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"32px", alignItems:"start" }}>
+          <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? "40px" : "32px", alignItems:"start" }}>
             <div>
               {tab === "signup"
                 ? <SignUpPanel onSwitch={() => setTab("login")} />
