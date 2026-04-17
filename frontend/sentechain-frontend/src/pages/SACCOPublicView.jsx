@@ -3,7 +3,10 @@ import { useNavigate, useParams } from "react-router-dom"
 import StellarHashLink from "../components/StellarHashLink"
 import { apiGetSaccoSummary, apiGetMembers, apiGetTransactions } from "../services/api"
 import { T, card, cardMd } from "../styles/theme"
+import { useAuth } from "../context/AuthContext"
+
 export default function SACCOPublicView() {
+  const { auth }    = useAuth()
   const navigate    = useNavigate()
   const { saccoId } = useParams()
   const [summary,   setSummary]   = useState(null)
@@ -42,11 +45,19 @@ export default function SACCOPublicView() {
           </span>
           <span style={{ fontSize:"11px", fontFamily:T.fontMono, fontWeight:700, padding:"4px 12px", borderRadius:"99px", letterSpacing:"1px", background:T.greenLite, color:T.green, border:`1px solid ${T.greenBdr}`, textTransform:"uppercase" }}>Public Ledger</span>
         </div>
-        <button onClick={()=>navigate("/auth")} style={{ padding:"9px 22px", borderRadius:"9px", border:"none", fontFamily:T.font, background:T.green, color:"#fff", fontSize:"14px", fontWeight:700, cursor:"pointer", boxShadow:`0 2px 12px ${T.green}44`, transition:"all 0.18s" }}
-          onMouseEnter={e=>e.currentTarget.style.background=T.greenDark}
-          onMouseLeave={e=>e.currentTarget.style.background=T.green}>
-          Sign In
-        </button>
+        {auth ? (
+          <button onClick={()=>navigate("/dashboard")} style={{ padding:"9px 22px", borderRadius:"9px", border:"none", fontFamily:T.font, background:T.green, color:"#fff", fontSize:"14px", fontWeight:700, cursor:"pointer", boxShadow:`0 2px 12px ${T.green}44`, transition:"all 0.18s" }}
+            onMouseEnter={e=>e.currentTarget.style.background=T.greenDark}
+            onMouseLeave={e=>e.currentTarget.style.background=T.green}>
+            Dashboard
+          </button>
+        ) : (
+          <button onClick={()=>navigate("/auth")} style={{ padding:"9px 22px", borderRadius:"9px", border:"none", fontFamily:T.font, background:T.green, color:"#fff", fontSize:"14px", fontWeight:700, cursor:"pointer", boxShadow:`0 2px 12px ${T.green}44`, transition:"all 0.18s" }}
+            onMouseEnter={e=>e.currentTarget.style.background=T.greenDark}
+            onMouseLeave={e=>e.currentTarget.style.background=T.green}>
+            Sign In
+          </button>
+        )}
       </nav>
 
       <div style={{ maxWidth:"1040px", margin:"0 auto", padding:"60px 40px 80px" }}>
@@ -130,7 +141,11 @@ export default function SACCOPublicView() {
 
             <div style={{ ...card(), padding:"18px 24px", textAlign:"center" }}>
               <p style={{ fontSize:"13px", fontFamily:T.fontMono, color:T.textDim, margin:"0 0 8px" }}>Aggregate figures only. No member personal data displayed. All transactions cross-verified on Stellar.</p>
-              <span onClick={()=>navigate("/auth")} style={{ fontSize:"14px", color:T.green, fontWeight:700, cursor:"pointer", textDecoration:"underline" }}>Sign in to view your personal account</span>
+              {auth ? (
+                <span onClick={()=>navigate("/dashboard")} style={{ fontSize:"14px", color:T.green, fontWeight:700, cursor:"pointer", textDecoration:"underline" }}>Go to your dashboard to view your account</span>
+              ) : (
+                <span onClick={()=>navigate("/auth")} style={{ fontSize:"14px", color:T.green, fontWeight:700, cursor:"pointer", textDecoration:"underline" }}>Sign in to view your personal account</span>
+              )}
             </div>
           </>
         )}
