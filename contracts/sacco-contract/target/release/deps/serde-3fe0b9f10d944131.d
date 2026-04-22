@@ -1,0 +1,14 @@
+/home/codeguru/Sente_Chain/contracts/sacco-contract/target/release/deps/serde-3fe0b9f10d944131.d: /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/codeguru/Sente_Chain/contracts/sacco-contract/target/release/build/serde-b98e64d83ddb6714/out/private.rs
+
+/home/codeguru/Sente_Chain/contracts/sacco-contract/target/release/deps/libserde-3fe0b9f10d944131.rlib: /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/codeguru/Sente_Chain/contracts/sacco-contract/target/release/build/serde-b98e64d83ddb6714/out/private.rs
+
+/home/codeguru/Sente_Chain/contracts/sacco-contract/target/release/deps/libserde-3fe0b9f10d944131.rmeta: /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/codeguru/Sente_Chain/contracts/sacco-contract/target/release/build/serde-b98e64d83ddb6714/out/private.rs
+
+/home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/home/codeguru/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/home/codeguru/Sente_Chain/contracts/sacco-contract/target/release/build/serde-b98e64d83ddb6714/out/private.rs:
+
+# env-dep:OUT_DIR=/home/codeguru/Sente_Chain/contracts/sacco-contract/target/release/build/serde-b98e64d83ddb6714/out
