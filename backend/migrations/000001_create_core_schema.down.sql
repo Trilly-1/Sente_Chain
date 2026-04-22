@@ -1,0 +1,7 @@
+﻿-- Rollback core schema
+
+DROP TABLE IF EXISTS auth_identities CASCADE;
+DROP TABLE IF EXISTS otp_codes CASCADE;
+DROP TABLE IF EXISTS sacco_memberships CASCADE;
+DROP TABLE IF EXISTS saccos CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
