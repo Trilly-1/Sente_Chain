@@ -1,14 +1,13 @@
 // src/pages/MemberDashboard.jsx
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
-import { SACCO_INFO } from "../data/demo"
+import { ALL_SACCOS } from "../data/demo"
 import { T, card, cardMd } from "../styles/theme"
 import { apiGetTransactions } from "../services/api"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
 
-// Mobile detection hook
 function useWindowSize() {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
   useEffect(() => {
@@ -20,7 +19,7 @@ function useWindowSize() {
 }
 
 const methodBadge = {
-  MPESA:{ bg:T.greenLite, color:T.green,   bdr:T.greenBdr, label:"M-Pesa" },
+  MPESA:{ bg:T.greenLite, color:T.green,   bdr:T.greenBdr, label:"Mobile Money" },
   ADMIN:{ bg:T.goldLite,  color:T.goldMid, bdr:T.goldBdr,  label:"Admin"  },
 }
 const typeColor = { Deposit:T.green, Loan:T.goldMid, Repayment:"#059669" }
@@ -49,6 +48,8 @@ export default function MemberDashboard() {
   const totalLoans     = txs.filter(t=>t.type==="Loan").reduce((s,t)=>s+t.amount_kes,0)
   const totalRepaid    = txs.filter(t=>t.type==="Repayment").reduce((s,t)=>s+t.amount_kes,0)
 
+  const mySacco = ALL_SACCOS.find(s => s.id === auth?.sacco_id) || ALL_SACCOS[0]
+
   return (
     <div style={{ minHeight:"100vh", background:T.pageBg, fontFamily:T.font }}>
       <Nav />
@@ -56,7 +57,7 @@ export default function MemberDashboard() {
 
         <div style={{ marginBottom: isMobile ? "24px" : "36px" }}>
           <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, marginBottom:"8px", letterSpacing:"1.5px", textTransform:"uppercase" }}>
-            {SACCO_INFO.name} {auth?.member_id}
+            {mySacco.name} • ID: {auth?.member_id}
           </p>
           <h1 style={{ fontSize: isMobile ? "28px" : "36px", fontWeight:900, color:T.textHi, margin:"0 0 8px", letterSpacing:"-0.5px" }}>
             Welcome back, <span style={{color:T.green}}>{auth?.name?.split(" ")[0]}</span>
@@ -88,7 +89,7 @@ export default function MemberDashboard() {
           </div>
           <div>
             <p style={{ fontSize:"15px", fontWeight:700, color:T.textHi, marginBottom:"4px" }}>Blockchain verified transactions</p>
-            <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.6 }}>Every deposit is automatically sealed on Stellar the moment your M-Pesa payment is received. Click any hash below to verify independently, no trust required.</p>
+            <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.6 }}>Every deposit is automatically sealed on Stellar the moment your mobile money payment is received. Click any hash below to verify independently, no trust required.</p>
           </div>
         </div>
 
@@ -98,7 +99,7 @@ export default function MemberDashboard() {
             <div style={{ padding:"6px 14px", borderRadius:"8px", background:T.greenLite, border:`1px solid ${T.greenBdr}` }}>
               <span style={{ fontSize:"14px", fontWeight:800, color:T.green, fontFamily:T.fontMono }}>Dial *334#</span>
             </div>
-            <span style={{ fontSize:"14px", fontWeight:600, color:T.textMid }}>Safaricom M-Pesa</span>
+            <span style={{ fontSize:"14px", fontWeight:600, color:T.textMid }}>Mobile Money</span>
           </div>
         </div>
 
@@ -110,33 +111,59 @@ export default function MemberDashboard() {
           {loading && <div style={{ padding:"48px", textAlign:"center" }}><p style={{ fontSize:"15px", color:T.textDim, fontFamily:T.fontMono }}>Loading transactions...</p></div>}
           {error   && <div style={{ padding:"24px", background:T.redBg }}><p style={{ fontSize:"14px", color:T.red, margin:0 }}>{error}</p></div>}
           {!loading && !error && (
-            <div style={{ overflowX:"auto" }}>
-              <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                <thead><tr>{["Date","Type","Amount","Via","Status","Stellar Proof"].map(TH)}</tr></thead>
-                <tbody>
-                  {txs.map((tx,i) => {
-                    const m = methodBadge[tx.entry_type] || methodBadge.ADMIN
-                    return (
-                      <tr key={tx.id} style={{ borderBottom:i<txs.length-1?`1px solid ${T.border2}`:"none", background:"#fff", transition:"background 0.15s" }}
-                        onMouseEnter={e=>e.currentTarget.style.background=T.surface}
-                        onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
-                        <td style={{ padding:"15px 20px", fontSize:"13px", fontFamily:T.fontMono, color:T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-KE",{day:"2-digit",month:"short",year:"numeric"})}</td>
-                        <td style={{ padding:"15px 20px", fontSize:"15px", fontWeight:700, color:typeColor[tx.type]||T.textHi }}>{tx.type}</td>
-                        <td style={{ padding:"15px 20px", fontSize:"15px", fontWeight:800, color:T.textHi, fontFamily:T.fontMono }}>{currency} {tx.amount_kes.toLocaleString()}</td>
-                        <td style={{ padding:"15px 20px" }}><span style={{ padding:"3px 10px", borderRadius:"8px", fontSize:"12px", fontFamily:T.fontMono, fontWeight:600, background:m.bg, color:m.color, border:`1px solid ${m.bdr}` }}>{m.label}</span></td>
-                        <td style={{ padding:"15px 20px" }}><StatusBadge status={tx.status} /></td>
-                        <td style={{ padding:"15px 20px" }}><StellarHashLink hash={tx.stellar_tx_hash} /></td>
-                      </tr>
-                    )
-                  })}
-                  {txs.length === 0 && <tr><td colSpan={6} style={{ padding:"48px", textAlign:"center", color:T.textDim, fontSize:"15px" }}>No transactions yet</td></tr>}
-                </tbody>
-              </table>
+            <div>
+              {isMobile ? (
+                <div style={{ padding: "16px", display: "grid", gap: "12px" }}>
+                  {txs.map(tx => (
+                    <div key={tx.id} style={{ padding: "16px", background: "#fff", border: `1px solid ${T.border}`, borderRadius: "12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+                        <span style={{ fontSize: "11px", fontFamily: T.fontMono, color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString()}</span>
+                        <StatusBadge status={tx.status} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                        <div>
+                          <p style={{ fontSize: "15px", fontWeight: 800, color: typeColor[tx.type] || T.textHi, margin: "0 0 2px" }}>{tx.type}</p>
+                          <span style={{ padding: "2px 8px", borderRadius: "6px", fontSize: "10px", fontFamily: T.fontMono, fontWeight: 700, background: (methodBadge[tx.entry_type] || methodBadge.ADMIN).bg, color: (methodBadge[tx.entry_type] || methodBadge.ADMIN).color }}>{(methodBadge[tx.entry_type] || methodBadge.ADMIN).label}</span>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <p style={{ fontSize: "16px", fontWeight: 900, color: T.textHi, fontFamily: T.fontMono, margin: "0 0 4px" }}>{currency} {tx.amount_kes.toLocaleString()}</p>
+                          <StellarHashLink hash={tx.stellar_tx_hash} isCompact />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {txs.length === 0 && <p style={{ padding: "40px", textAlign: "center", color: T.textDim, fontSize: "14px" }}>No transactions yet</p>}
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead><tr>{["Date", "Type", "Amount", "Via", "Status", "Stellar Proof"].map(TH)}</tr></thead>
+                    <tbody>
+                      {txs.map((tx, i) => {
+                        const m = methodBadge[tx.entry_type] || methodBadge.ADMIN
+                        return (
+                          <tr key={tx.id} style={{ borderBottom: i < txs.length - 1 ? `1px solid ${T.border2}` : "none", background: "#fff", transition: "background 0.15s" }}
+                            onMouseEnter={e => e.currentTarget.style.background = T.surface}
+                            onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
+                            <td style={{ padding: "15px 20px", fontSize: "13px", fontFamily: T.fontMono, color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</td>
+                            <td style={{ padding: "15px 20px", fontSize: "15px", fontWeight: 700, color: typeColor[tx.type] || T.textHi }}>{tx.type}</td>
+                            <td style={{ padding: "15px 20px", fontSize: "15px", fontWeight: 800, color: T.textHi, fontFamily: T.fontMono }}>{currency} {tx.amount_kes.toLocaleString()}</td>
+                            <td style={{ padding: "15px 20px" }}><span style={{ padding: "3px 10px", borderRadius: "8px", fontSize: "12px", fontFamily: T.fontMono, fontWeight: 600, background: m.bg, color: m.color, border: `1px solid ${m.bdr}` }}>{m.label}</span></td>
+                            <td style={{ padding: "15px 20px" }}><StatusBadge status={tx.status} /></td>
+                            <td style={{ padding: "15px 20px" }}><StellarHashLink hash={tx.stellar_tx_hash} /></td>
+                          </tr>
+                        )
+                      })}
+                      {txs.length === 0 && <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: T.textDim, fontSize: "15px" }}>No transactions yet</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
           <div style={{ padding:"12px 24px", borderTop:`1px solid ${T.border2}`, background:T.surface }}>
             <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textXdim, margin:0 }}>
-              All deposits confirmed automatically via Safaricom M-Pesa. Every hash independently verifiable on Stellar.
+              All deposits confirmed automatically via Mobile Money. Every hash independently verifiable on Stellar.
             </p>
           </div>
         </div>

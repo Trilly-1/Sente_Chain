@@ -1,8 +1,3 @@
-// src/services/api.js
-// SenteChain API service layer
-// Phase 1: USE_DEMO = true  ->  uses demo data
-// Phase 2: set VITE_API_URL in .env and flip USE_DEMO to false
-
 export const BASE_URL = import.meta.env.VITE_API_URL || "https://api.sentechain.app"
 const USE_DEMO = true
 
@@ -22,10 +17,6 @@ async function apiFetch(path, options = {}) {
   return res.json()
 }
 
-// AUTH
-// POST /auth/login
-// Body: { phone, pin, role_code? }
-// Returns: { token, member_id, role, name, sacco_id, balance_kes }
 export async function apiLogin({ phone, pin, role_code }) {
   if (USE_DEMO) {
     const { DEMO_USERS } = await import("../data/demo")
@@ -40,14 +31,23 @@ export async function apiLogin({ phone, pin, role_code }) {
   return apiFetch("/auth/login", { method:"POST", body:JSON.stringify({ phone, pin, role_code }) })
 }
 
-// POST /members  (register new member)
-// Body: { name, phone, role? }
-export async function apiRegister({ name, phone, role = "member" }) {
-  if (USE_DEMO) { await new Promise(r => setTimeout(r, 900)); return { success:true, member_id:"MBR_NEW" } }
-  return apiFetch("/members", { method:"POST", body:JSON.stringify({ name, phone, role }) })
+export async function apiRegister({ name, phone, role = "member", saccoId = "SACCO01" }) {
+  if (USE_DEMO) { 
+    await new Promise(r => setTimeout(r, 900)); 
+    return { 
+      token: "demo-token", 
+      member_id: "MBR_NEW", 
+      name, 
+      phone, 
+      role, 
+      sacco_id: saccoId, 
+      status: "pending_kyc", 
+      balance_kes: 0 
+    } 
+  }
+  return apiFetch("/members", { method:"POST", body:JSON.stringify({ name, phone, role, saccoId }) })
 }
 
-// GET /members/:id/transactions
 export async function apiGetTransactions(memberId) {
   if (USE_DEMO) {
     const { DEMO_TRANSACTIONS } = await import("../data/demo")
@@ -56,7 +56,6 @@ export async function apiGetTransactions(memberId) {
   return apiFetch(`/members/${memberId}/transactions`)
 }
 
-// GET /members
 export async function apiGetMembers() {
   if (USE_DEMO) {
     const { DEMO_MEMBERS } = await import("../data/demo")
@@ -65,21 +64,16 @@ export async function apiGetMembers() {
   return apiFetch("/members")
 }
 
-// PATCH /members/:id/role
-// Body: { role }
 export async function apiUpdateMemberRole(memberId, role) {
   if (USE_DEMO) { await new Promise(r => setTimeout(r, 300)); return { success:true } }
   return apiFetch(`/members/${memberId}/role`, { method:"PATCH", body:JSON.stringify({ role }) })
 }
 
-// PATCH /members/:id/status
-// Body: { status: "active" | "suspended" }
 export async function apiUpdateMemberStatus(memberId, status) {
   if (USE_DEMO) { await new Promise(r => setTimeout(r, 300)); return { success:true } }
   return apiFetch(`/members/${memberId}/status`, { method:"PATCH", body:JSON.stringify({ status }) })
 }
 
-// GET /loans
 export async function apiGetLoans() {
   if (USE_DEMO) {
     const { LOAN_APPLICATIONS } = await import("../data/demo")
@@ -88,19 +82,16 @@ export async function apiGetLoans() {
   return apiFetch("/loans")
 }
 
-// POST /loans/:id/approve
 export async function apiApproveLoan(loanId) {
   if (USE_DEMO) { await new Promise(r => setTimeout(r, 600)); return { success:true } }
   return apiFetch(`/loans/${loanId}/approve`, { method:"POST" })
 }
 
-// POST /loans/:id/reject
 export async function apiRejectLoan(loanId) {
   if (USE_DEMO) { await new Promise(r => setTimeout(r, 400)); return { success:true } }
   return apiFetch(`/loans/${loanId}/reject`, { method:"POST" })
 }
 
-// GET /sacco/:id/summary
 export async function apiGetSaccoSummary(saccoId) {
   if (USE_DEMO) {
     const { SACCO_TOTALS, SACCO_INFO } = await import("../data/demo")
@@ -109,7 +100,6 @@ export async function apiGetSaccoSummary(saccoId) {
   return apiFetch(`/sacco/${saccoId}/summary`)
 }
 
-// GET /audit
 export async function apiGetAuditLog() {
   if (USE_DEMO) {
     const { AUDIT_LOG } = await import("../data/demo")
@@ -118,14 +108,11 @@ export async function apiGetAuditLog() {
   return apiFetch("/audit")
 }
 
-// POST /contact
-// Body: { name, email, message }
 export async function apiContact({ name, email, message }) {
   if (USE_DEMO) { await new Promise(r => setTimeout(r, 600)); return { success:true } }
   return apiFetch("/contact", { method:"POST", body:JSON.stringify({ name, email, message }) })
 }
 
-// GET /health
 export async function apiHealth() {
   if (USE_DEMO) return { status:"ok", mode:"demo" }
   return apiFetch("/health")

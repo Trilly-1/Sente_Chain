@@ -1,16 +1,21 @@
 // src/data/demo.js
-export const SACCO_INFO = {
-  name:         "Nairobi Teachers SACCO",
-  registration: "SACCO/KE/2019/00142",
-  sacco_id:     "SACCO01",
-  last_updated: "30 March 2026, 10:14 AM",
-}
+export const ALL_SACCOS = [
+  { id: "SACCO01", name: "Nairobi Teachers SACCO", registration: "SACCO/KE/2019/00142", last_updated: "30 March 2026, 10:14 AM", country: "KE" },
+  { id: "SACCO02", name: "Rift Valley Dairy SACCO", registration: "SACCO/KE/2021/00882", last_updated: "24 April 2026, 02:22 PM", country: "KE" },
+  { id: "SACCO03", name: "Mombasa Port Workers SACCO", registration: "SACCO/KE/2020/00331", last_updated: "25 April 2026, 09:15 AM", country: "KE" },
+  { id: "SACCO04", name: "Uganda Coffee Farmers Coop", registration: "SACCO/UG/2022/01042", last_updated: "25 April 2026, 11:30 AM", country: "UG" },
+]
+
+export const SACCO_INFO = ALL_SACCOS[0]
 
 export const DEMO_USERS = [
   { phone:"0700000001", pin:"1234", role_code:null,     role:"member",  name:"Sarah Wanjiku", member_id:"MBR001", sacco_id:"SACCO01", balance_kes:24750, status:"active",    joined:"2024-01-15" },
   { phone:"0700000002", pin:"5678", role_code:"CSH2026", role:"cashier", name:"John Kamau",   member_id:"CSH001", sacco_id:"SACCO01", balance_kes:0,     status:"active",    joined:"2023-06-01" },
   { phone:"0700000003", pin:"9012", role_code:"ADM2026", role:"admin",   name:"Grace Akinyi", member_id:"ADM001", sacco_id:"SACCO01", balance_kes:0,     status:"active",    joined:"2023-01-01" },
   { phone:"+254700000000", pin:"1234", role_code:null,     role:"member",  name:"Jackson J.K.", member_id:"MBR006", sacco_id:"SACCO01", balance_kes:15000, status:"active",    joined:"2024-04-22" },
+  { phone:"0722111222", pin:"2026", role_code:null,     role:"member",  name:"David Kiptoo", member_id:"MBR007", sacco_id:"SACCO02", balance_kes:12500, status:"active",    joined:"2026-04-25" },
+  { phone:"0711222333", pin:"2026", role_code:null,     role:"member",  name:"Jane Doe",     member_id:"MBR008", sacco_id:"SACCO01", balance_kes:0,     status:"pending_kyc", joined:"2026-04-25" },
+  { phone:"0711222444", pin:"2026", role_code:null,     role:"member",  name:"Mark Otieno",  member_id:"MBR009", sacco_id:"SACCO01", balance_kes:0,     status:"under_review", joined:"2026-04-25" },
 ]
 
 export const DEMO_MEMBERS = [
@@ -22,6 +27,7 @@ export const DEMO_MEMBERS = [
   { member_id:"CSH001", name:"John Kamau",    phone:"0700000002", balance_kes:0,     status:"active",    role:"cashier", joined:"2023-06-01" },
   { member_id:"ADM001", name:"Grace Akinyi",  phone:"0700000003", balance_kes:0,     status:"active",    role:"admin",   joined:"2023-01-01" },
   { member_id:"MBR006", name:"Jackson J.K.", phone:"+254700000000", balance_kes:15000, status:"active",    role:"member",  joined:"2024-04-22" },
+  { member_id:"MBR007", name:"David Kiptoo",  phone:"0722111222", balance_kes:12500, status:"active",    role:"member",  joined:"2026-04-25" },
 ]
 
 export const DEMO_TRANSACTIONS = {
@@ -50,6 +56,10 @@ export const DEMO_TRANSACTIONS = {
     { id:"TX014", member_id:"MBR005", type:"Deposit",   amount_kes:30000, entry_type:"MPESA", status:"confirmed", stellar_tx_hash:"n1e6f98012c23456", recorded_at:"2026-03-21T08:00:00Z" },
     { id:"TX015", member_id:"MBR005", type:"Deposit",   amount_kes:21000, entry_type:"MPESA", status:"confirmed", stellar_tx_hash:"o2f7a09123d34567", recorded_at:"2026-03-11T16:00:00Z" },
     { id:"TX016", member_id:"MBR005", type:"Repayment", amount_kes:8000,  entry_type:"MPESA", status:"confirmed", stellar_tx_hash:"p3a8b10234e45678", recorded_at:"2026-02-25T13:00:00Z" },
+  ],
+  MBR007: [
+    { id:"TX017", member_id:"MBR007", type:"Deposit",   amount_kes:5000,  entry_type:"MPESA", status:"confirmed", stellar_tx_hash:"q4b9c21345f56789", recorded_at:"2026-04-25T10:00:00Z" },
+    { id:"TX018", member_id:"MBR007", type:"Deposit",   amount_kes:7500,  entry_type:"MPESA", status:"confirmed", stellar_tx_hash:"r5c0d32456g67890", recorded_at:"2026-04-25T12:30:00Z" },
   ],
 }
 

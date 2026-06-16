@@ -7,19 +7,29 @@ import MemberDashboard  from "./pages/MemberDashboard"
 import CashierDashboard from "./pages/CashierDashboard"
 import AdminDashboard   from "./pages/AdminDashboard"
 import SACCOPublicView  from "./pages/SACCOPublicView"
+import SACCORegistration from "./pages/SACCORegistration"
+import VerificationPending from "./pages/VerificationPending"
+import MemberOnboarding from "./pages/MemberOnboarding"
+import MemberVerificationPending from "./pages/MemberVerificationPending"
+import ProjectAdminDashboard from "./pages/ProjectAdminDashboard"
 
 function RoleRoute() {
   const { auth } = useAuth()
   if (!auth) return <Navigate to="/auth" replace />
-  if (auth.role === "member")  return <MemberDashboard />
+  
+  if (auth.role === "member") {
+    if (auth.status === "pending_kyc") return <Navigate to="/member-onboarding" replace />
+    if (auth.status === "under_review") return <MemberVerificationPending />
+    return <MemberDashboard />
+  }
+  
   if (auth.role === "cashier") return <CashierDashboard />
   if (auth.role === "admin")   return <AdminDashboard />
   return <Navigate to="/auth" replace />
 }
 
 function RootRoute() {
-  const { auth } = useAuth()
-  return auth ? <Navigate to="/dashboard" replace /> : <LandingPage />
+  return <LandingPage />
 }
 
 function AuthRoute() {
@@ -35,6 +45,11 @@ export default function App() {
           <Route path="/"               element={<RootRoute />} />
           <Route path="/auth"           element={<AuthRoute />} />
           <Route path="/sacco/:saccoId" element={<SACCOPublicView />} />
+          <Route path="/register-sacco" element={<SACCORegistration />} />
+          <Route path="/member-onboarding" element={<MemberOnboarding />} />
+          <Route path="/verification-pending" element={<VerificationPending />} />
+          <Route path="/member-verification-pending" element={<MemberVerificationPending />} />
+          <Route path="/sc-project-master-gate" element={<ProjectAdminDashboard />} />
           <Route path="/dashboard"      element={<RoleRoute />} />
           <Route path="*"               element={<Navigate to="/" replace />} />
         </Routes>

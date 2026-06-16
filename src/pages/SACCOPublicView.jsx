@@ -6,7 +6,6 @@ import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
 import { EAC_COUNTRIES } from "../data/countries"
 
-// Mobile detection hook
 function useWindowSize() {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
   useEffect(() => {
@@ -85,11 +84,20 @@ export default function SACCOPublicView() {
             Dashboard
           </button>
         ) : (
-          <button onClick={()=>navigate("/auth")} style={{ padding: isMobile ? "7px 16px" : "9px 22px", borderRadius:"9px", border:"none", fontFamily:T.font, background:T.green, color:"#fff", fontSize: isMobile ? "12px" : "14px", fontWeight:700, cursor:"pointer", boxShadow:`0 2px 12px ${T.green}44`, transition:"all 0.18s" }}
-            onMouseEnter={e=>e.currentTarget.style.background=T.greenDark}
-            onMouseLeave={e=>e.currentTarget.style.background=T.green}>
-            Sign In
-          </button>
+          <div style={{ display: "flex", gap: "8px" }}>
+            {!isMobile && (
+              <button onClick={()=>navigate("/auth", { state: { from: `/sacco/${saccoId}` } })} style={{ padding: "9px 22px", borderRadius:"9px", border:`1.5px solid ${T.border}`, fontFamily:T.font, background:"#fff", color:T.textHi, fontSize: "14px", fontWeight:700, cursor:"pointer", transition:"all 0.18s" }}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=T.green;e.currentTarget.style.color=T.green}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.textHi}}>
+                Sign In
+              </button>
+            )}
+            <button onClick={()=>navigate("/auth?tab=signup", { state: { from: `/sacco/${saccoId}` } })} style={{ padding: isMobile ? "7px 16px" : "9px 22px", borderRadius:"9px", border:"none", fontFamily:T.font, background:T.green, color:"#fff", fontSize: isMobile ? "12px" : "14px", fontWeight:700, cursor:"pointer", boxShadow:`0 2px 12px ${T.green}44`, transition:"all 0.18s" }}
+              onMouseEnter={e=>e.currentTarget.style.background=T.greenDark}
+              onMouseLeave={e=>e.currentTarget.style.background=T.green}>
+              Join SACCO
+            </button>
+          </div>
         )}
         </div>
       </nav>
@@ -134,9 +142,9 @@ export default function SACCOPublicView() {
                   <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.65, marginBottom:"18px" }}>Every transaction is permanently sealed on the Stellar blockchain. Click any hash to verify directly, no trust required.</p>
                   <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
                     {[
-                      {label:"Latest deposit",   sub:"M-Pesa auto-confirmed",  hash:recentTxs.find(t=>t.type==="Deposit")?.stellar_tx_hash  },
+                      {label:"Latest deposit",   sub:"Mobile money auto-confirmed",  hash:recentTxs.find(t=>t.type==="Deposit")?.stellar_tx_hash  },
                       {label:"Latest loan",      sub:"Admin recorded",          hash:recentTxs.find(t=>t.type==="Loan")?.stellar_tx_hash     },
-                      {label:"Latest repayment", sub:"M-Pesa auto-confirmed",  hash:recentTxs.find(t=>t.type==="Repayment")?.stellar_tx_hash },
+                      {label:"Latest repayment", sub:"Mobile money auto-confirmed",  hash:recentTxs.find(t=>t.type==="Repayment")?.stellar_tx_hash },
                     ].map(item => (
                       <div key={item.label} style={{ ...card(), padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                         <div>
@@ -162,7 +170,7 @@ export default function SACCOPublicView() {
                         onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
                         <div>
                           <p style={{ fontSize:"14px", fontWeight:700, color:T.textHi, margin:"0 0 2px" }}>{tx.type}</p>
-                          <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, margin:0 }}>{tx.entry_type==="MPESA"?"M-Pesa":"Admin"}</p>
+                          <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, margin:0 }}>{tx.entry_type==="MPESA"?"Mobile Money":"Admin"}</p>
                         </div>
                         <span style={{ fontFamily:T.fontMono, fontSize:"14px", fontWeight:800, color:typeColor[tx.type]||T.textHi }}>{currency} {tx.amount_kes.toLocaleString()}</span>
                       </div>
@@ -173,13 +181,35 @@ export default function SACCOPublicView() {
               </div>
             </div>
 
-            <div style={{ ...card(), padding:"18px 24px", textAlign:"center" }}>
-              <p style={{ fontSize:"13px", fontFamily:T.fontMono, color:T.textDim, margin:"0 0 8px" }}>Aggregate figures only. No member personal data displayed. All transactions cross-verified on Stellar.</p>
+            <div style={{ ...card(), padding: isMobile ? "24px 20px" : "32px 40px", textAlign:"center", border:`1.5px solid ${T.greenBdr}`, background:`linear-gradient(180deg, #fff, ${T.greenLite}44)` }}>
+              <h3 style={{ fontSize: isMobile ? "18px" : "22px", fontWeight:900, color:T.textHi, marginBottom:"8px" }}>
+                {auth ? "Already a member?" : `Join ${summary.name} today`}
+              </h3>
+              <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.6, marginBottom:"24px", maxWidth:"500px", margin:"0 auto 24px" }}>
+                {auth 
+                  ? "You can view your personal balances and loan status in your private dashboard." 
+                  : "Become a member of this SACCO to start saving, earning interest, and accessing affordable loans on the blockchain."
+                }
+              </p>
+              
               {auth ? (
-                <span onClick={()=>navigate("/dashboard")} style={{ fontSize:"14px", color:T.green, fontWeight:700, cursor:"pointer", textDecoration:"underline" }}>Go to your dashboard to view your account</span>
+                <button onClick={()=>navigate("/dashboard")} style={{ padding:"12px 32px", borderRadius:"12px", border:"none", background:T.green, color:"#fff", fontWeight:800, cursor:"pointer", fontSize:"15px" }}>
+                  Go to Dashboard
+                </button>
               ) : (
-                <span onClick={()=>navigate("/auth")} style={{ fontSize:"14px", color:T.green, fontWeight:700, cursor:"pointer", textDecoration:"underline" }}>Sign in to view your personal account</span>
+                <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", justifyContent:"center", gap:"12px" }}>
+                  <button onClick={()=>navigate("/auth?tab=signup", { state: { from: `/sacco/${saccoId}` } })} style={{ padding:"12px 32px", borderRadius:"12px", border:"none", background:T.green, color:"#fff", fontWeight:800, cursor:"pointer", fontSize:"15px", boxShadow:`0 4px 14px ${T.green}44` }}>
+                    Create Account & Join
+                  </button>
+                  <button onClick={()=>navigate("/auth", { state: { from: `/sacco/${saccoId}` } })} style={{ padding:"12px 32px", borderRadius:"12px", border:`1.5px solid ${T.border}`, background:"#fff", color:T.textHi, fontWeight:700, cursor:"pointer", fontSize:"15px" }}>
+                    Sign In
+                  </button>
+                </div>
               )}
+              
+              <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, marginTop:"24px" }}>
+                Blockchain verified. Safe. Transparent.
+              </p>
             </div>
           </>
         )}

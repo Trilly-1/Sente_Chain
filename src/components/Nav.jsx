@@ -22,7 +22,7 @@ const roleTag = {
   admin:   { color:T.purple,  bg:"rgba(124,58,237,0.10)", bdr:T.purpleBdr, label:"Admin" },
 }
 
-export default function Nav() {
+export default function Nav({ hidePublicView }) {
   const { auth, logout, currency, setCurrency } = useAuth()
   const navigate = useNavigate()
   const { width } = useWindowSize()
@@ -56,17 +56,19 @@ export default function Nav() {
       <div style={{ display:"flex", alignItems:"center", gap: isMobile ? "8px" : "12px" }}>
         {auth && !isMobile && <span style={{ fontSize:"14px", color:T.textMid, fontWeight:500, fontFamily:T.font }}>{auth.name}</span>}
         
-        <button onClick={() => navigate("/sacco/SACCO01")} style={{ 
-          fontSize: isMobile ? "12px" : "14px", fontWeight:600, 
-          padding: isMobile ? "6px 12px" : "8px 18px", 
-          borderRadius:"9px", cursor:"pointer", fontFamily:T.font, 
-          border:`1.5px solid ${T.border}`, background:"#fff", 
-          color:T.textMid, transition:"all 0.18s" 
-        }}
-          onMouseEnter={e=>{e.currentTarget.style.borderColor=T.green;e.currentTarget.style.color=T.green}}
-          onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.textMid}}>
-          Public View
-        </button>
+        {!hidePublicView && (
+          <button onClick={() => navigate("/sacco/SACCO01")} style={{ 
+            fontSize: isMobile ? "12px" : "14px", fontWeight:600, 
+            padding: isMobile ? "6px 12px" : "8px 18px", 
+            borderRadius:"9px", cursor:"pointer", fontFamily:T.font, 
+            border:`1.5px solid ${T.border}`, background:"#fff", 
+            color:T.textMid, transition:"all 0.18s" 
+          }}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor=T.green;e.currentTarget.style.color=T.green}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.textMid}}>
+            Public View
+          </button>
+        )}
 
         {!isMobile && (
           <select 

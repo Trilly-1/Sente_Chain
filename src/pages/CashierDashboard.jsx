@@ -20,7 +20,7 @@ function useWindowSize() {
 }
 
 const methodBadge = {
-  MPESA:{ bg:T.greenLite, color:T.green,   bdr:T.greenBdr, label:"M-Pesa" },
+  MPESA:{ bg:T.greenLite, color:T.green,   bdr:T.greenBdr, label:"Mobile Money" },
   ADMIN:{ bg:T.goldLite,  color:T.goldMid, bdr:T.goldBdr,  label:"Admin"  },
 }
 const typeColor = { Deposit:T.green, Loan:T.goldMid, Repayment:"#059669" }
@@ -132,21 +132,21 @@ export default function CashierDashboard() {
               <div key={loan.id} style={{ ...cardMd(), overflow:"hidden" }}>
                 <div style={{ height:"3px", background:`linear-gradient(90deg, ${T.green}, ${T.goldMid})` }} />
                 <div style={{ padding:"24px 28px" }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"20px" }}>
+                  <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"20px", gap: isMobile ? "12px" : 0 }}>
                     <div>
-                      <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"5px" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"5px", flexWrap: "wrap" }}>
                         <p style={{ fontSize:"18px", fontWeight:800, color:T.textHi, margin:0 }}>{loan.member_name}</p>
                         <span style={{ fontSize:"11px", fontFamily:T.fontMono, fontWeight:600, padding:"2px 8px", borderRadius:"6px", background:T.surface, color:T.textDim, border:`1px solid ${T.border}` }}>{loan.member_id}</span>
                         <StatusBadge status={loan.status} />
                       </div>
                       <p style={{ fontSize:"13px", color:T.textDim, margin:0 }}>Applied {loan.applied_on} {loan.phone}</p>
                     </div>
-                    <div style={{ textAlign:"right" }}>
+                    <div style={{ textAlign: isMobile ? "left" : "right" }}>
                       <p style={{ fontSize:"24px", fontWeight:900, color:T.goldMid, margin:0 }}>{currency} {loan.amount_requested.toLocaleString()}</p>
                       <p style={{ fontSize:"12px", color:T.textDim }}>Requested</p>
                     </div>
                   </div>
-                  <div style={{ display:"grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap:"12px", marginBottom:"20px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4,1fr)", gap: "12px", marginBottom: "20px" }}>
                     {[
                       {label:"Purpose",             value:loan.purpose},
                       {label:"Term",                value:`${loan.term_months} months`},
@@ -157,15 +157,15 @@ export default function CashierDashboard() {
                       {label:"Savings Balance",     value:`${currency} ${loan.savings_balance.toLocaleString()}`},
                       {label:"Collateral",          value:loan.collateral},
                     ].map(f => (
-                      <div key={f.label} style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:"10px", padding:"12px 14px" }}>
-                        <p style={{ fontSize:"10px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:"5px", fontFamily:T.fontMono }}>{f.label}</p>
-                        <p style={{ fontSize:"14px", fontWeight:600, color:T.textHi, margin:0 }}>{f.value}</p>
+                      <div key={f.label} style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:"10px", padding: isMobile ? "10px 14px" : "12px 14px", display: isMobile ? "flex" : "block", justifyContent: isMobile ? "space-between" : "initial", alignItems: isMobile ? "center" : "initial" }}>
+                        <p style={{ fontSize:"10px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom: isMobile ? 0 : "5px", fontFamily:T.fontMono }}>{f.label}</p>
+                        <p style={{ fontSize: isMobile ? "13px" : "14px", fontWeight:600, color:T.textHi, margin:0 }}>{f.value}</p>
                       </div>
                     ))}
                   </div>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", justifyContent:"space-between", alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? "16px" : 0 }}>
                     <p style={{ fontSize:"13px", color:T.textDim }}>Guarantor: <span style={{ color:T.textMid, fontWeight:600 }}>{loan.guarantor}</span></p>
-                    <div style={{ display:"flex", gap:"10px" }}>
+                    <div style={{ display:"flex", gap:"10px", flexDirection: isMobile ? "column" : "row", width: isMobile ? "100%" : "auto" }}>
                       {btnRed(()=>rejectLoan(loan.id), "Reject")}
                       {btnGreen(()=>approveLoan(loan.id), "Approve and Disburse")}
                     </div>
@@ -179,13 +179,13 @@ export default function CashierDashboard() {
                   <p style={{ fontSize:"14px", fontWeight:700, color:T.textDim, margin:0 }}>Rejected Requests</p>
                 </div>
                 {rejectedLoans.map((loan,i) => (
-                  <div key={loan.id} style={{ padding:"16px 24px", borderBottom:i<rejectedLoans.length-1?`1px solid ${T.border2}`:"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div key={loan.id} style={{ padding:"16px 24px", borderBottom:i<rejectedLoans.length-1?`1px solid ${T.border2}`:"none", display:"flex", flexDirection: isMobile ? "column" : "row", justifyContent:"space-between", alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? "12px" : 0 }}>
                     <div>
                       <p style={{ fontSize:"15px", fontWeight:700, color:T.textMid, margin:"0 0 3px" }}>{loan.member_name}</p>
                       <p style={{ fontSize:"12px", color:T.textDim, margin:0 }}>{loan.purpose}</p>
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-                      <p style={{ fontSize:"15px", fontWeight:700, color:T.textMid, fontFamily:T.fontMono }}>{currency} {loan.amount_requested.toLocaleString()}</p>
+                    <div style={{ display:"flex", alignItems:"center", gap:"12px", width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "space-between" : "initial" }}>
+                      <p style={{ fontSize:"15px", fontWeight:700, color:T.textMid, fontFamily:T.fontMono, margin: 0 }}>{currency} {loan.amount_requested.toLocaleString()}</p>
                       <StatusBadge status="rejected" />
                     </div>
                   </div>
@@ -221,9 +221,9 @@ export default function CashierDashboard() {
                     {label:"Repaid So Far",     value:`${currency} ${loan.repaid_so_far.toLocaleString()}`,                                                                                 color:T.green  },
                     {label:"Balance Remaining", value:loan.status==="completed"?"Cleared":`${currency} ${loan.balance_remaining.toLocaleString()}`, color:loan.status==="completed"?T.green:T.red},
                   ].map(f => (
-                    <div key={f.label} style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:"10px", padding:"14px 16px" }}>
-                      <p style={{ fontSize:"10px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:"6px", fontFamily:T.fontMono }}>{f.label}</p>
-                      <p style={{ fontSize:"16px", fontWeight:700, color:f.color, margin:0 }}>{f.value}</p>
+                    <div key={f.label} style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:"10px", padding:"14px 16px", display: isMobile ? "flex" : "block", justifyContent: isMobile ? "space-between" : "initial", alignItems: isMobile ? "center" : "initial" }}>
+                      <p style={{ fontSize:"10px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom: isMobile ? 0 : "6px", fontFamily:T.fontMono }}>{f.label}</p>
+                      <p style={{ fontSize: isMobile ? "15px" : "16px", fontWeight:700, color:f.color, margin:0 }}>{f.value}</p>
                     </div>
                   ))}
                 </div>
@@ -246,24 +246,57 @@ export default function CashierDashboard() {
                       <span style={{ fontSize:"13px", color:T.textDim, fontFamily:T.fontMono }}>{expanded===loan.id?"Hide":"Show"}</span>
                     </div>
                     {expanded===loan.id && (
-                      <div style={{ overflowX:"auto" }}>
-                        <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                          <thead><tr>{["Month","Due Date","Principal","Interest","Total","Status"].map(TH)}</tr></thead>
-                          <tbody>
-                            {loan.payments_schedule.map((p,i) => (
-                              <tr key={p.month} style={{ borderBottom:i<loan.payments_schedule.length-1?`1px solid ${T.border2}`:"none", background:"#fff" }}
-                                onMouseEnter={e=>e.currentTarget.style.background=T.surface}
-                                onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
-                                <td style={{ padding:"13px 20px", fontSize:"13px", fontFamily:T.fontMono, color:T.textDim }}>{p.month}</td>
-                                <td style={{ padding:"13px 20px", fontSize:"13px", fontFamily:T.fontMono, color:T.textMid }}>{p.due_date}</td>
-                                <td style={{ padding:"13px 20px", fontSize:"13px", fontFamily:T.fontMono, fontWeight:600, color:T.textHi }}>{currency} {p.principal.toLocaleString()}</td>
-                                <td style={{ padding:"13px 20px", fontSize:"13px", fontFamily:T.fontMono, color:T.goldMid }}>{currency} {p.interest.toLocaleString()}</td>
-                                <td style={{ padding:"13px 20px", fontSize:"14px", fontFamily:T.fontMono, fontWeight:800, color:T.textHi }}>{currency} {p.total.toLocaleString()}</td>
-                                <td style={{ padding:"13px 20px" }}><StatusBadge status={p.status} /></td>
-                              </tr>
+                      <div style={{ overflowX: isMobile ? "hidden" : "auto" }}>
+                        {isMobile ? (
+                          <div style={{ padding: "16px", display: "grid", gap: "12px", background: "#f9fafb" }}>
+                            {loan.payments_schedule.map((p) => (
+                              <div key={p.month} style={{ padding: "16px", background: "#fff", border: `1px solid ${T.border}`, borderRadius: "12px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                                  <span style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, fontWeight: 700 }}>{p.month}</span>
+                                  <StatusBadge status={p.status} />
+                                </div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                                  <div>
+                                    <p style={{ fontSize: "10px", fontWeight: 700, color: T.textDim, textTransform: "uppercase" }}>Due Date</p>
+                                    <p style={{ fontSize: "13px", fontFamily: T.fontMono, color: T.textMid }}>{p.due_date}</p>
+                                  </div>
+                                  <div>
+                                    <p style={{ fontSize: "10px", fontWeight: 700, color: T.textDim, textTransform: "uppercase" }}>Principal</p>
+                                    <p style={{ fontSize: "13px", fontFamily: T.fontMono, fontWeight: 600, color: T.textHi }}>{currency} {p.principal.toLocaleString()}</p>
+                                  </div>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${T.border2}`, paddingTop: "12px" }}>
+                                  <div>
+                                    <p style={{ fontSize: "10px", fontWeight: 700, color: T.textDim, textTransform: "uppercase" }}>Interest</p>
+                                    <p style={{ fontSize: "13px", fontFamily: T.fontMono, color: T.goldMid }}>{currency} {p.interest.toLocaleString()}</p>
+                                  </div>
+                                  <div style={{ textAlign: "right" }}>
+                                    <p style={{ fontSize: "10px", fontWeight: 700, color: T.textDim, textTransform: "uppercase" }}>Total</p>
+                                    <p style={{ fontSize: "15px", fontFamily: T.fontMono, fontWeight: 800, color: T.textHi }}>{currency} {p.total.toLocaleString()}</p>
+                                  </div>
+                                </div>
+                              </div>
                             ))}
-                          </tbody>
-                        </table>
+                          </div>
+                        ) : (
+                          <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                            <thead><tr>{["Month","Due Date","Principal","Interest","Total","Status"].map(TH)}</tr></thead>
+                            <tbody>
+                              {loan.payments_schedule.map((p,i) => (
+                                <tr key={p.month} style={{ borderBottom:i<loan.payments_schedule.length-1?`1px solid ${T.border2}`:"none", background:"#fff" }}
+                                  onMouseEnter={e=>e.currentTarget.style.background=T.surface}
+                                  onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                                  <td style={{ padding:"13px 20px", fontSize:"13px", fontFamily:T.fontMono, color:T.textDim }}>{p.month}</td>
+                                  <td style={{ padding:"13px 20px", fontSize:"13px", fontFamily:T.fontMono, color:T.textMid }}>{p.due_date}</td>
+                                  <td style={{ padding:"13px 20px", fontSize:"13px", fontFamily:T.fontMono, fontWeight:600, color:T.textHi }}>{currency} {p.principal.toLocaleString()}</td>
+                                  <td style={{ padding:"13px 20px", fontSize:"13px", fontFamily:T.fontMono, color:T.goldMid }}>{currency} {p.interest.toLocaleString()}</td>
+                                  <td style={{ padding:"13px 20px", fontSize:"14px", fontFamily:T.fontMono, fontWeight:800, color:T.textHi }}>{currency} {p.total.toLocaleString()}</td>
+                                  <td style={{ padding:"13px 20px" }}><StatusBadge status={p.status} /></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
                       </div>
                     )}
                   </div>
@@ -279,42 +312,73 @@ export default function CashierDashboard() {
         {/* ALL MEMBERS */}
         {!loading && tab==="All Members" && (
           <div style={{ ...cardMd(), overflow:"hidden" }}>
-            <div style={{ padding:"18px 24px", borderBottom:`1.5px solid ${T.border}`, display:"flex", justifyContent:"space-between", alignItems:"center", background:"#fff" }}>
+            <div style={{ padding:"18px 24px", borderBottom:`1.5px solid ${T.border}`, display:"flex", flexDirection: isMobile ? "column" : "row", justifyContent:"space-between", alignItems: isMobile ? "stretch" : "center", gap: "16px", background:"#fff" }}>
               <h2 style={{ fontSize:"17px", fontWeight:800, color:T.textHi, margin:0 }}>All Member Records</h2>
               <input type="text" placeholder="Search name, phone, ID..." value={search} onChange={e=>setSearch(e.target.value)}
-                style={{ padding:"9px 14px", borderRadius:"9px", border:`1.5px solid ${T.border}`, background:"#f9fafb", color:T.textHi, fontSize:"14px", fontFamily:T.font, outline:"none", width:"240px" }}
+                style={{ padding:"9px 14px", borderRadius:"9px", border:`1.5px solid ${T.border}`, background:"#f9fafb", color:T.textHi, fontSize:"14px", fontFamily:T.font, outline:"none", width: isMobile ? "100%" : "240px" }}
                 onFocus={e=>{e.target.style.borderColor=T.green;e.target.style.boxShadow=`0 0 0 3px ${T.greenLite}`}}
                 onBlur={e=>{e.target.style.borderColor=T.border;e.target.style.boxShadow="none"}} />
             </div>
-            <div style={{ overflowX:"auto" }}>
-              <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                <thead><tr>{["ID","Name","Phone","Balance","Role","Status","Action"].map(TH)}</tr></thead>
-                <tbody>
-                  {filtered.map((m,i) => (
-                    <tr key={m.member_id} style={{ borderBottom:i<filtered.length-1?`1px solid ${T.border2}`:"none", background:"#fff", transition:"background 0.15s" }}
-                      onMouseEnter={e=>e.currentTarget.style.background=T.surface}
-                      onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
-                      <td style={{ padding:"15px 20px", fontFamily:T.fontMono, fontSize:"12px", fontWeight:700, color:T.textDim }}>{m.member_id}</td>
-                      <td style={{ padding:"15px 20px", fontSize:"15px", fontWeight:700, color:T.textHi }}>{m.name}</td>
-                      <td style={{ padding:"15px 20px", fontFamily:T.fontMono, fontSize:"13px", color:T.textDim }}>{m.phone}</td>
-                      <td style={{ padding:"15px 20px", fontFamily:T.fontMono, fontSize:"14px", fontWeight:800, color:T.green }}>{m.balance_kes>0?`${currency} ${m.balance_kes.toLocaleString()}`:"None"}</td>
-                      <td style={{ padding:"15px 20px" }}>
-                        <span style={{ padding:"3px 10px", borderRadius:"99px", fontSize:"11px", fontFamily:T.fontMono, fontWeight:700, textTransform:"uppercase", background:m.role==="admin"?"rgba(124,58,237,0.08)":m.role==="cashier"?T.goldLite:T.surface, color:m.role==="admin"?T.purple:m.role==="cashier"?T.goldMid:T.textMid, border:`1px solid ${m.role==="admin"?T.purpleBdr:m.role==="cashier"?T.goldBdr:T.border}` }}>{m.role}</span>
-                      </td>
-                      <td style={{ padding:"15px 20px" }}><StatusBadge status={m.status} /></td>
-                      <td style={{ padding:"15px 20px" }}>
-                        <button onClick={() => { setSelected(m); setTab("Transaction History") }}
-                          style={{ padding:"7px 16px", borderRadius:"8px", border:`1.5px solid ${T.greenBdr}`, background:T.greenLite, color:T.green, fontSize:"13px", fontWeight:600, cursor:"pointer", fontFamily:T.font, transition:"all 0.18s" }}
-                          onMouseEnter={e=>{e.currentTarget.style.background=T.green;e.currentTarget.style.color="#fff"}}
-                          onMouseLeave={e=>{e.currentTarget.style.background=T.greenLite;e.currentTarget.style.color=T.green}}>
-                          View Transactions
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+
+            {isMobile ? (
+              <div style={{ padding: "16px", display: "grid", gap: "12px" }}>
+                {filtered.map(m => (
+                  <div key={m.member_id} style={{ padding: "16px", background: "#fff", border: `1px solid ${T.border}`, borderRadius: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+                      <div>
+                        <p style={{ fontSize: "15px", fontWeight: 700, color: T.textHi, margin: "0 0 2px" }}>{m.name}</p>
+                        <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>{m.member_id}</p>
+                      </div>
+                      <StatusBadge status={m.status} />
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+                      <div>
+                        <p style={{ fontSize: "10px", fontWeight: 700, color: T.textDim, textTransform: "uppercase" }}>Balance</p>
+                        <p style={{ fontSize: "14px", fontWeight: 800, color: T.green }}>{currency} {m.balance_kes.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: "10px", fontWeight: 700, color: T.textDim, textTransform: "uppercase" }}>Role</p>
+                        <p style={{ fontSize: "13px", fontWeight: 600, color: T.textMid }}>{m.role}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => { setSelected(m); setTab("Transaction History") }}
+                      style={{ width: "100%", padding: "10px", borderRadius: "8px", border: `1.5px solid ${T.greenBdr}`, background: T.greenLite, color: T.green, fontSize: "13px", fontWeight: 700 }}>
+                      View Transactions
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ overflowX:"auto" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                  <thead><tr>{["ID","Name","Phone","Balance","Role","Status","Action"].map(TH)}</tr></thead>
+                  <tbody>
+                    {filtered.map((m,i) => (
+                      <tr key={m.member_id} style={{ borderBottom:i<filtered.length-1?`1px solid ${T.border2}`:"none", background:"#fff", transition:"background 0.15s" }}
+                        onMouseEnter={e=>e.currentTarget.style.background=T.surface}
+                        onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                        <td style={{ padding:"15px 20px", fontFamily:T.fontMono, fontSize:"12px", fontWeight:700, color:T.textDim }}>{m.member_id}</td>
+                        <td style={{ padding:"15px 20px", fontSize:"15px", fontWeight:700, color:T.textHi }}>{m.name}</td>
+                        <td style={{ padding:"15px 20px", fontFamily:T.fontMono, fontSize:"13px", color:T.textDim }}>{m.phone}</td>
+                        <td style={{ padding:"15px 20px", fontFamily:T.fontMono, fontSize:"14px", fontWeight:800, color:T.green }}>{m.balance_kes>0?`${currency} ${m.balance_kes.toLocaleString()}`:"None"}</td>
+                        <td style={{ padding:"15px 20px" }}>
+                          <span style={{ padding:"3px 10px", borderRadius:"99px", fontSize:"11px", fontFamily:T.fontMono, fontWeight:700, textTransform:"uppercase", background:m.role==="admin"?"rgba(124,58,237,0.08)":m.role==="cashier"?T.goldLite:T.surface, color:m.role==="admin"?T.purple:m.role==="cashier"?T.goldMid:T.textMid, border:`1px solid ${m.role==="admin"?T.purpleBdr:m.role==="cashier"?T.goldBdr:T.border}` }}>{m.role}</span>
+                        </td>
+                        <td style={{ padding:"15px 20px" }}><StatusBadge status={m.status} /></td>
+                        <td style={{ padding:"15px 20px" }}>
+                          <button onClick={() => { setSelected(m); setTab("Transaction History") }}
+                            style={{ padding:"7px 16px", borderRadius:"8px", border:`1.5px solid ${T.greenBdr}`, background:T.greenLite, color:T.green, fontSize:"13px", fontWeight:600, cursor:"pointer", fontFamily:T.font, transition:"all 0.18s" }}
+                            onMouseEnter={e=>{e.currentTarget.style.background=T.green;e.currentTarget.style.color="#fff"}}
+                            onMouseLeave={e=>{e.currentTarget.style.background=T.greenLite;e.currentTarget.style.color=T.green}}>
+                            View Transactions
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -333,27 +397,53 @@ export default function CashierDashboard() {
                   <p style={{ fontSize:"17px", fontWeight:800, color:T.textHi, margin:"0 0 3px" }}>{selected.name}</p>
                   <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, margin:0 }}>{selected.member_id} Balance: {currency} {selected.balance_kes.toLocaleString()}</p>
                 </div>
-                <div style={{ overflowX:"auto" }}>
-                  <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                    <thead><tr>{["Date","Type","Amount","Via","Status","Stellar Proof"].map(TH)}</tr></thead>
-                    <tbody>
-                      {selTxs.map((tx,i) => {
-                        const m = methodBadge[tx.entry_type]||methodBadge.ADMIN
+                <div style={{ overflowX: isMobile ? "hidden" : "auto" }}>
+                  {isMobile ? (
+                    <div style={{ padding: "16px", display: "grid", gap: "12px" }}>
+                      {selTxs.map(tx => {
+                        const m = methodBadge[tx.entry_type] || methodBadge.ADMIN
                         return (
-                          <tr key={tx.id} style={{ borderBottom:i<selTxs.length-1?`1px solid ${T.border2}`:"none", background:"#fff" }}
-                            onMouseEnter={e=>e.currentTarget.style.background=T.surface}
-                            onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
-                            <td style={{ padding:"15px 20px", fontFamily:T.fontMono, fontSize:"13px", color:T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-KE",{day:"2-digit",month:"short",year:"numeric"})}</td>
-                            <td style={{ padding:"15px 20px", fontSize:"15px", fontWeight:700, color:typeColor[tx.type]||T.textHi }}>{tx.type}</td>
-                            <td style={{ padding:"15px 20px", fontFamily:T.fontMono, fontSize:"15px", fontWeight:800, color:T.textHi }}>{currency} {tx.amount_kes.toLocaleString()}</td>
-                            <td style={{ padding:"15px 20px" }}><span style={{ padding:"3px 10px", borderRadius:"8px", fontSize:"12px", fontFamily:T.fontMono, fontWeight:600, background:m.bg, color:m.color, border:`1px solid ${m.bdr}` }}>{m.label}</span></td>
-                            <td style={{ padding:"15px 20px" }}><StatusBadge status={tx.status} /></td>
-                            <td style={{ padding:"15px 20px" }}><StellarHashLink hash={tx.stellar_tx_hash} /></td>
-                          </tr>
+                          <div key={tx.id} style={{ padding: "16px", background: "#fff", border: `1px solid ${T.border}`, borderRadius: "12px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+                              <span style={{ fontSize: "11px", fontFamily: T.fontMono, color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString()}</span>
+                              <StatusBadge status={tx.status} />
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                              <div>
+                                <p style={{ fontSize: "15px", fontWeight: 800, color: typeColor[tx.type] || T.textHi, margin: "0 0 2px" }}>{tx.type}</p>
+                                <span style={{ padding: "2px 8px", borderRadius: "6px", fontSize: "10px", fontFamily: T.fontMono, fontWeight: 700, background: m.bg, color: m.color, border: `1px solid ${m.bdr}` }}>{m.label}</span>
+                              </div>
+                              <div style={{ textAlign: "right" }}>
+                                <p style={{ fontSize: "16px", fontWeight: 900, color: T.textHi, fontFamily: T.fontMono, margin: "0 0 4px" }}>{currency} {tx.amount_kes.toLocaleString()}</p>
+                                <StellarHashLink hash={tx.stellar_tx_hash} isCompact />
+                              </div>
+                            </div>
+                          </div>
                         )
                       })}
-                    </tbody>
-                  </table>
+                    </div>
+                  ) : (
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead><tr>{["Date", "Type", "Amount", "Via", "Status", "Stellar Proof"].map(TH)}</tr></thead>
+                      <tbody>
+                        {selTxs.map((tx, i) => {
+                          const m = methodBadge[tx.entry_type] || methodBadge.ADMIN
+                          return (
+                            <tr key={tx.id} style={{ borderBottom: i < selTxs.length - 1 ? `1px solid ${T.border2}` : "none", background: "#fff" }}
+                              onMouseEnter={e => e.currentTarget.style.background = T.surface}
+                              onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
+                              <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</td>
+                              <td style={{ padding: "15px 20px", fontSize: "15px", fontWeight: 700, color: typeColor[tx.type] || T.textHi }}>{tx.type}</td>
+                              <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "15px", fontWeight: 800, color: T.textHi }}>{currency} {tx.amount_kes.toLocaleString()}</td>
+                              <td style={{ padding: "15px 20px" }}><span style={{ padding: "3px 10px", borderRadius: "8px", fontSize: "12px", fontFamily: T.fontMono, fontWeight: 600, background: m.bg, color: m.color, border: `1px solid ${m.bdr}` }}>{m.label}</span></td>
+                              <td style={{ padding: "15px 20px" }}><StatusBadge status={tx.status} /></td>
+                              <td style={{ padding: "15px 20px" }}><StellarHashLink hash={tx.stellar_tx_hash} /></td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
             ) : (

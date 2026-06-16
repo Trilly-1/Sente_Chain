@@ -24,6 +24,7 @@ body {
 
 input, select, button, textarea {
   font-family: 'DM Sans', sans-serif;
+  color: #0a0a0a;
 }
 
 * {
