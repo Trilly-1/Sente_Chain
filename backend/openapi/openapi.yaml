@@ -1,0 +1,949 @@
+openapi: 3.0.3
+info:
+  title: SenteChain API
+  description: |
+    Blockchain-enabled financial transparency and SACCO management platform.
+    PostgreSQL is the operational database; Stellar anchors proof hashes for approved transactions.
+  version: 0.1.0
+  contact:
+    name: SenteChain
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Auth
+  - name: Member Onboarding
+  - name: SACCO Onboarding
+  - name: Admin Review
+  - name: Audit
+  - name: Transactions
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new member or SACCO admin
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with phone and PIN
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user profile
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeSuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /members/onboarding/documents:
+    post:
+      tags: [Member Onboarding]
+      summary: Upload member KYC document metadata
+      operationId: uploadMemberDocuments
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberDocumentsRequest'
+      responses:
+        '201':
+          description: Documents recorded; membership moved to under_review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingStatusSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /members/onboarding/status:
+    get:
+      tags: [Member Onboarding]
+      summary: Get member onboarding status
+      operationId: getMemberOnboardingStatus
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Onboarding status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingStatusSuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /saccos:
+    post:
+      tags: [SACCO Onboarding]
+      summary: Create a SACCO application (draft)
+      operationId: createSacco
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSaccoRequest'
+      responses:
+        '201':
+          description: SACCO draft created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaccoStatusSuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /saccos/{saccoId}:
+    get:
+      tags: [SACCO Onboarding]
+      summary: Get SACCO application details
+      operationId: getSacco
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/saccoId'
+      responses:
+        '200':
+          description: SACCO details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaccoDetailSuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /saccos/{saccoId}/documents:
+    post:
+      tags: [SACCO Onboarding]
+      summary: Upload SACCO compliance document metadata
+      operationId: uploadSaccoDocuments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/saccoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaccoDocumentsRequest'
+      responses:
+        '201':
+          description: Documents recorded
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /saccos/{saccoId}/submit:
+    post:
+      tags: [SACCO Onboarding]
+      summary: Submit SACCO application for review
+      operationId: submitSacco
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/saccoId'
+      responses:
+        '200':
+          description: SACCO submitted for review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaccoStatusSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /saccos/{saccoId}/status:
+    get:
+      tags: [SACCO Onboarding]
+      summary: Get SACCO application status
+      operationId: getSaccoStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/saccoId'
+      responses:
+        '200':
+          description: SACCO status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaccoStatusSuccessResponse'
+
+  /admin/members/pending:
+    get:
+      tags: [Admin Review]
+      summary: List members awaiting KYC review
+      operationId: listPendingMembers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pending members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingMembersSuccessResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/members/{memberId}/approve:
+    patch:
+      tags: [Admin Review]
+      summary: Approve a member KYC application
+      operationId: approveMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/memberId'
+      responses:
+        '200':
+          description: Member approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberReviewSuccessResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/members/{memberId}/reject:
+    patch:
+      tags: [Admin Review]
+      summary: Reject a member KYC application
+      operationId: rejectMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/memberId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        '200':
+          description: Member rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberReviewSuccessResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/saccos/pending:
+    get:
+      tags: [Admin Review]
+      summary: List SACCOs awaiting review
+      operationId: listPendingSaccos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pending SACCOs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingSaccosSuccessResponse'
+
+  /admin/saccos/{saccoId}/approve:
+    patch:
+      tags: [Admin Review]
+      summary: Approve a SACCO application
+      operationId: approveSacco
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/saccoId'
+      responses:
+        '200':
+          description: SACCO approved
+
+  /admin/saccos/{saccoId}/reject:
+    patch:
+      tags: [Admin Review]
+      summary: Reject a SACCO application
+      operationId: rejectSacco
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/saccoId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        '200':
+          description: SACCO rejected
+
+  /admin/audit-logs:
+    get:
+      tags: [Audit]
+      summary: List audit log entries
+      operationId: listAuditLogs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogsSuccessResponse'
+
+  /transactions:
+    post:
+      tags: [Transactions]
+      summary: Create a financial transaction
+      operationId: createTransaction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaction recorded
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags: [Transactions]
+      summary: List transactions (scoped by role)
+      operationId: listTransactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sacco_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: membership_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Transaction list
+
+  /transactions/{transactionId}:
+    get:
+      tags: [Transactions]
+      summary: Get transaction by ID
+      operationId: getTransaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/transactionId'
+      responses:
+        '200':
+          description: Transaction detail
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /transactions/{transactionId}/anchor:
+    post:
+      tags: [Transactions]
+      summary: Anchor transaction proof on Stellar
+      operationId: anchorTransaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/transactionId'
+      responses:
+        '200':
+          description: Anchored
+        '503':
+          description: Stellar not configured
+
+  /transactions/{transactionId}/verify:
+    get:
+      tags: [Transactions]
+      summary: Verify transaction proof hash
+      operationId: verifyTransaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/transactionId'
+      responses:
+        '200':
+          description: Verification result
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    saccoId:
+      name: saccoId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    memberId:
+      name: memberId
+      in: path
+      required: true
+      description: SACCO membership ID
+      schema:
+        type: string
+        format: uuid
+    transactionId:
+      name: transactionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Not authorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+
+    SuccessEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+
+    RegisterRequest:
+      type: object
+      required: [full_name, phone, pin, country, sacco_id, role]
+      properties:
+        full_name:
+          type: string
+          minLength: 2
+        phone:
+          type: string
+        pin:
+          type: string
+          minLength: 4
+          maxLength: 6
+          description: Hashed server-side; never stored raw
+        country:
+          type: string
+          minLength: 2
+          maxLength: 3
+        sacco_id:
+          type: string
+          format: uuid
+          description: Existing SACCO to join (members) or admin SACCO context
+        role:
+          type: string
+          enum: [member, admin, cashier]
+
+    LoginRequest:
+      type: object
+      required: [phone, pin]
+      properties:
+        phone:
+          type: string
+        pin:
+          type: string
+          minLength: 4
+          maxLength: 6
+
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        phone:
+          type: string
+        country:
+          type: string
+        membership_id:
+          type: string
+          format: uuid
+        sacco_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [member, admin, cashier]
+        status:
+          type: string
+          enum: [pending_kyc, under_review, active, rejected, suspended]
+        is_project_admin:
+          type: boolean
+
+    AuthSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                token:
+                  type: string
+                user:
+                  $ref: '#/components/schemas/AuthUser'
+
+    MeSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AuthUser'
+
+    DocumentInput:
+      type: object
+      required: [document_type, file_url]
+      properties:
+        document_type:
+          type: string
+          enum: [id_front, id_back, proof_of_address, registration_certificate, compliance_paper, other]
+        file_url:
+          type: string
+          format: uri
+        file_name:
+          type: string
+        mime_type:
+          type: string
+
+    MemberDocumentsRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/DocumentInput'
+
+    OnboardingStatus:
+      type: object
+      properties:
+        membership_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending_kyc, under_review, active, rejected]
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentRecord'
+
+    DocumentRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+        file_name:
+          type: string
+        mime_type:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    OnboardingStatusSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/OnboardingStatus'
+
+    CreateSaccoRequest:
+      type: object
+      required: [name, country]
+      properties:
+        name:
+          type: string
+        country:
+          type: string
+        profile:
+          type: object
+          additionalProperties: true
+
+    SaccoDocumentsRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentInput'
+
+    SaccoStatus:
+      type: object
+      properties:
+        sacco_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+          enum: [draft, under_review, approved, rejected, blocked]
+
+    SaccoStatusSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/SaccoStatus'
+
+    SaccoDetailSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                sacco:
+                  $ref: '#/components/schemas/SaccoStatus'
+                profile:
+                  type: object
+
+    PendingMember:
+      type: object
+      properties:
+        membership_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        phone:
+          type: string
+        sacco_id:
+          type: string
+          format: uuid
+        sacco_name:
+          type: string
+        status:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentRecord'
+
+    PendingMembersSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                members:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PendingMember'
+
+    PendingSacco:
+      type: object
+      properties:
+        sacco_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        country:
+          type: string
+        status:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+
+    PendingSaccosSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                saccos:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PendingSacco'
+
+    RejectRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+
+    MemberReviewSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                membership_id:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+
+    AuditLogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor_user_id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+          format: uuid
+        details:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    AuditLogsSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                logs:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AuditLogEntry'
+                total:
+                  type: integer
+
+    CreateTransactionRequest:
+      type: object
+      required: [sacco_id, transaction_type, amount, currency]
+      properties:
+        sacco_id:
+          type: string
+          format: uuid
+        membership_id:
+          type: string
+          format: uuid
+          description: Required for cashier/admin recording on behalf of a member
+        transaction_type:
+          type: string
+          enum: [deposit, withdrawal, loan_disbursement, loan_repayment, transfer, fee, other]
+        amount:
+          type: string
+          example: "1500.00"
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          example: KES
+        description:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+
+    TransactionRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reference_number:
+          type: string
+        sacco_id:
+          type: string
+          format: uuid
+        membership_id:
+          type: string
+          format: uuid
+        transaction_type:
+          type: string
+        amount:
+          type: string
+        currency:
+          type: string
+        status:
+          type: string
+        proof_hash:
+          type: string
+        stellar_tx_hash:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    VerifyTransactionResult:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+        reference_number:
+          type: string
+        verified:
+          type: boolean
+        status:
+          type: string
+        proof_hash:
+          type: string
+        stellar_tx_hash:
+          type: string
+        message:
+          type: string

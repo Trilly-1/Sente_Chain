@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -24,7 +25,6 @@ func (r *Repository) Create(ctx context.Context, req *CreateMembershipRequest) (
 		return nil, errors.New("CreateMembershipRequest cannot be nil")
 	}
 
-	// Validate role
 	validRole := false
 	for _, vr := range ValidRoles {
 		if req.Role == vr {
@@ -43,7 +43,7 @@ func (r *Repository) Create(ctx context.Context, req *CreateMembershipRequest) (
 		RETURNING id, user_id, sacco_id, role, status, joined_at, created_at, updated_at
 	`
 
-	err := r.db.QueryRow(ctx, query, req.UserID, req.SaccoID, req.Role, StatusPending).Scan(
+	err := r.db.QueryRow(ctx, query, req.UserID, req.SaccoID, req.Role, StatusPendingKYC).Scan(
 		&membership.ID,
 		&membership.UserID,
 		&membership.SaccoID,
@@ -80,7 +80,41 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Membership, error
 		&membership.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, pgx.ErrNoRows
+		}
 		return nil, fmt.Errorf("failed to get membership by ID: %w", err)
+	}
+
+	return membership, nil
+}
+
+// GetLatestByUser retrieves the most recent membership for a user
+func (r *Repository) GetLatestByUser(ctx context.Context, userID string) (*Membership, error) {
+	membership := &Membership{}
+	query := `
+		SELECT id, user_id, sacco_id, role, status, joined_at, created_at, updated_at
+		FROM sacco_memberships
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+		LIMIT 1
+	`
+
+	err := r.db.QueryRow(ctx, query, userID).Scan(
+		&membership.ID,
+		&membership.UserID,
+		&membership.SaccoID,
+		&membership.Role,
+		&membership.Status,
+		&membership.JoinedAt,
+		&membership.CreatedAt,
+		&membership.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, pgx.ErrNoRows
+		}
+		return nil, fmt.Errorf("failed to get latest membership: %w", err)
 	}
 
 	return membership, nil
@@ -106,10 +140,54 @@ func (r *Repository) GetByUserAndSacco(ctx context.Context, userID, saccoID stri
 		&membership.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, pgx.ErrNoRows
+		}
 		return nil, fmt.Errorf("failed to get membership: %w", err)
 	}
 
 	return membership, nil
+}
+
+// ListByStatus retrieves memberships with a given status
+func (r *Repository) ListByStatus(ctx context.Context, status string) ([]*Membership, error) {
+	query := `
+		SELECT id, user_id, sacco_id, role, status, joined_at, created_at, updated_at
+		FROM sacco_memberships
+		WHERE status = $1
+		ORDER BY updated_at DESC
+	`
+
+	rows, err := r.db.Query(ctx, query, status)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list memberships by status: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*Membership
+	for rows.Next() {
+		membership := &Membership{}
+		err := rows.Scan(
+			&membership.ID,
+			&membership.UserID,
+			&membership.SaccoID,
+			&membership.Role,
+			&membership.Status,
+			&membership.JoinedAt,
+			&membership.CreatedAt,
+			&membership.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan membership: %w", err)
+		}
+		result = append(result, membership)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating memberships: %w", err)
+	}
+
+	return result, nil
 }
 
 // ListBySacco retrieves all memberships for a SACCO
@@ -153,9 +231,21 @@ func (r *Repository) ListBySacco(ctx context.Context, saccoID string) ([]*Member
 	return memberships, nil
 }
 
+// CountActiveBySacco returns the number of active memberships in a SACCO.
+func (r *Repository) CountActiveBySacco(ctx context.Context, saccoID string) (int, error) {
+	var count int
+	err := r.db.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM sacco_memberships
+		WHERE sacco_id = $1 AND status = $2
+	`, saccoID, StatusActive).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count active members: %w", err)
+	}
+	return count, nil
+}
+
 // UpdateRole updates the role of a membership
 func (r *Repository) UpdateRole(ctx context.Context, membershipID, role string) (*Membership, error) {
-	// Validate role
 	validRole := false
 	for _, vr := range ValidRoles {
 		if role == vr {
@@ -192,9 +282,8 @@ func (r *Repository) UpdateRole(ctx context.Context, membershipID, role string) 
 	return membership, nil
 }
 
-// UpdateStatus updates the status of a membership
+// UpdateStatus updates the status of a membership (admin-controlled transitions only)
 func (r *Repository) UpdateStatus(ctx context.Context, membershipID, status string) (*Membership, error) {
-	// Validate status
 	validStatus := false
 	for _, vs := range ValidStatuses {
 		if status == vs {
@@ -226,6 +315,33 @@ func (r *Repository) UpdateStatus(ctx context.Context, membershipID, status stri
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update status: %w", err)
+	}
+
+	return membership, nil
+}
+
+// Activate sets membership to active and records joined_at
+func (r *Repository) Activate(ctx context.Context, membershipID string) (*Membership, error) {
+	membership := &Membership{}
+	query := `
+		UPDATE sacco_memberships
+		SET status = $1, joined_at = NOW(), updated_at = NOW()
+		WHERE id = $2
+		RETURNING id, user_id, sacco_id, role, status, joined_at, created_at, updated_at
+	`
+
+	err := r.db.QueryRow(ctx, query, StatusActive, membershipID).Scan(
+		&membership.ID,
+		&membership.UserID,
+		&membership.SaccoID,
+		&membership.Role,
+		&membership.Status,
+		&membership.JoinedAt,
+		&membership.CreatedAt,
+		&membership.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to activate membership: %w", err)
 	}
 
 	return membership, nil

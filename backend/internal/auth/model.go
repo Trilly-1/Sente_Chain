@@ -9,12 +9,13 @@ import (
 // Provider constants
 const (
 	ProviderPhoneOTP = "phone_otp"
+	ProviderPhonePIN = "phone_pin"
 	ProviderGoogle   = "google"
 	ProviderSEP10    = "sep10"
 )
 
 // ValidProviders is a set of valid auth providers
-var ValidProviders = []string{ProviderPhoneOTP, ProviderGoogle, ProviderSEP10}
+var ValidProviders = []string{ProviderPhoneOTP, ProviderPhonePIN, ProviderGoogle, ProviderSEP10}
 
 // Identity represents an authentication identity linked to a user
 type Identity struct {
@@ -69,4 +70,40 @@ type SendOTPResponse struct {
 	Message string `json:"message"`
 	// Raw OTP exposed only in development mode
 	RawOTP string `json:"raw_otp,omitempty"`
+}
+
+// RegisterRequest is the payload for PIN-based registration
+type RegisterRequest struct {
+	FullName string `json:"full_name"`
+	Phone    string `json:"phone"`
+	PIN      string `json:"pin"`
+	Country  string `json:"country"`
+	SaccoID  string `json:"sacco_id"`
+	Role     string `json:"role"`
+}
+
+// LoginRequest is the payload for PIN-based login
+type LoginRequest struct {
+	Phone string `json:"phone"`
+	PIN   string `json:"pin"`
+}
+
+// AuthUserResponse is returned after register/login and from /auth/me
+type AuthUserResponse struct {
+	ID             string `json:"id"`
+	FullName       string `json:"full_name"`
+	Phone          string `json:"phone"`
+	Country        string `json:"country,omitempty"`
+	MembershipID   string `json:"membership_id,omitempty"`
+	SaccoID        string `json:"sacco_id,omitempty"`
+	Role           string `json:"role,omitempty"`
+	Status         string `json:"status,omitempty"`
+	SaccoStatus    string `json:"sacco_status,omitempty"`
+	IsProjectAdmin bool   `json:"is_project_admin"`
+}
+
+// AuthTokenResponse wraps token and user for auth endpoints
+type AuthTokenResponse struct {
+	Token string           `json:"token"`
+	User  AuthUserResponse `json:"user"`
 }

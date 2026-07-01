@@ -8,14 +8,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// Claims represents the JWT claims
 type Claims struct {
 	UserID string `json:"user_id"`
 	Phone  string `json:"phone"`
 	jwt.RegisteredClaims
 }
 
-// GenerateToken generates a new JWT token for a user
 func GenerateToken(userID uuid.UUID, phone string, secret string, expiryHours int) (string, error) {
 	if secret == "" {
 		return "", fmt.Errorf("JWT_SECRET is not set")
@@ -40,7 +38,6 @@ func GenerateToken(userID uuid.UUID, phone string, secret string, expiryHours in
 	return tokenString, nil
 }
 
-// ParseToken parses and validates a JWT token
 func ParseToken(tokenString string, secret string) (*Claims, error) {
 	if secret == "" {
 		return nil, fmt.Errorf("JWT_SECRET is not set")

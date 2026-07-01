@@ -1,0 +1,69 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Connect repo in Render Dashboard → New → Blueprint → point at this file.
+# Set secret env vars in the Render dashboard (never commit real values).
+
+services:
+  - type: web
+    name: sentechain-api
+    runtime: go
+    rootDir: backend
+    buildCommand: go build -o bin/api ./cmd/api
+    startCommand: ./bin/api
+    healthCheckPath: /health
+    plan: free
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+      - key: ENABLE_DOCS
+        value: "false"
+      - key: EXPOSE_OTP_IN_RESPONSE
+        value: "false"
+      - key: AUTH_RATE_LIMIT
+        value: "20"
+      - key: AUTH_RATE_WINDOW_SEC
+        value: "60"
+      - key: JWT_EXPIRY_HOURS
+        value: "24"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: STELLAR_HORIZON_URL
+        sync: false
+      - key: STELLAR_NETWORK_PASSPHRASE
+        sync: false
+      - key: STELLAR_SOURCE_SECRET
+        sync: false
+      - key: STELLAR_SOURCE_PUBLIC_KEY
+        sync: false
+      - key: STELLAR_ANCHOR_AMOUNT
+        value: "0.0000001"
+
+  - type: web
+    name: sentechain-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_USE_DEMO
+        value: "false"
+      - key: VITE_STELLAR_NETWORK
+        value: testnet

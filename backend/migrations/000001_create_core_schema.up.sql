@@ -1,6 +1,8 @@
 ﻿-- Create core schema for SenteChain
 -- Tables: users, saccos, sacco_memberships, otp_codes, auth_identities
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Users table
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

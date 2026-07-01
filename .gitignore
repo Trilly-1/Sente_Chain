@@ -14,16 +14,21 @@ node_modules/
 dist/
 dist-ssr/
 build/
+backend/api.exe
+backend/bin/
 
 # Rust / Stellar smart contracts
 target/
 Cargo.lock
 *.wasm
 
-# Environment files
+# Environment files (secrets — never commit)
 .env
 .env.local
 .env.*.local
+# Keep examples tracked:
+!.env.example
+!**/.env.example
 
 # Editor directories and files
 .vscode/

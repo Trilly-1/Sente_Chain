@@ -2,25 +2,21 @@ package auth
 
 import (
 	"net/http"
-	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
-	"sentechain-backend/internal/users"
 	"sentechain-backend/pkg/response"
 )
 
 // Handler handles auth HTTP requests
 type Handler struct {
-	service  *Service
-	userRepo *users.Repository
+	service            *Service
+	exposeOTPInResponse bool
 }
 
 // NewHandler creates a new auth handler
-func NewHandler(service *Service, userRepo *users.Repository) *Handler {
-	return &Handler{
-		service:  service,
-		userRepo: userRepo,
-	}
+func NewHandler(service *Service, exposeOTPInResponse bool) *Handler {
+	return &Handler{service: service, exposeOTPInResponse: exposeOTPInResponse}
 }
 
 // HandleSendOTP handles POST /auth/otp/send
@@ -37,20 +33,14 @@ func (h *Handler) HandleSendOTP(c *gin.Context) {
 		return
 	}
 
-	// Send OTP
 	rawOTP, err := h.service.SendOTP(c.Request.Context(), req.Phone)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, response.Error("failed to send OTP: "+err.Error()))
 		return
 	}
 
-	// Build response
-	resp := SendOTPResponse{
-		Message: "OTP sent successfully",
-	}
-
-	// Include raw OTP in development mode only
-	if os.Getenv("APP_ENV") == "development" {
+	resp := SendOTPResponse{Message: "OTP sent successfully"}
+	if h.exposeOTPInResponse {
 		resp.RawOTP = rawOTP
 	}
 
@@ -76,17 +66,13 @@ func (h *Handler) HandleVerifyOTP(c *gin.Context) {
 		return
 	}
 
-	// Verify OTP and issue token
 	token, user, err := h.service.VerifyOTP(c.Request.Context(), req.Phone, req.Code, req.FullName)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, response.Error(err.Error()))
 		return
 	}
 
-	// Build response
-	respData := VerifyOTPResponse{
-		Token: token,
-	}
+	respData := VerifyOTPResponse{Token: token}
 	respData.User.ID = user.ID.String()
 	respData.User.FullName = user.FullName
 	respData.User.Phone = user.Phone
@@ -94,32 +80,63 @@ func (h *Handler) HandleVerifyOTP(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(respData))
 }
 
+// HandleRegister handles POST /auth/register
+func (h *Handler) HandleRegister(c *gin.Context) {
+	var req RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("invalid request: "+err.Error()))
+		return
+	}
+
+	token, user, err := h.service.Register(c.Request.Context(), &req)
+	if err != nil {
+		status := http.StatusBadRequest
+		if strings.Contains(err.Error(), "already registered") {
+			status = http.StatusConflict
+		}
+		c.JSON(status, response.Error(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusCreated, response.Success(AuthTokenResponse{
+		Token: token,
+		User:  *user,
+	}))
+}
+
+// HandleLogin handles POST /auth/login
+func (h *Handler) HandleLogin(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("invalid request: "+err.Error()))
+		return
+	}
+
+	token, user, err := h.service.Login(c.Request.Context(), req.Phone, req.PIN)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, response.Error(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(AuthTokenResponse{
+		Token: token,
+		User:  *user,
+	}))
+}
+
 // HandleGetMe handles GET /auth/me (protected route)
 func (h *Handler) HandleGetMe(c *gin.Context) {
-	// Extract user ID from context (set by auth middleware)
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, response.Error("unauthorized"))
 		return
 	}
 
-	userIDStr, ok := userID.(string)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, response.Error("invalid user context"))
-		return
-	}
-
-	// Fetch the actual user from the repository
-	user, err := h.userRepo.GetByID(c.Request.Context(), userIDStr)
+	profile, err := h.service.BuildUserProfile(c.Request.Context(), userID.(string))
 	if err != nil {
-		c.JSON(http.StatusNotFound, response.Error("user not found"))
+		c.JSON(http.StatusNotFound, response.Error(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, response.Success(gin.H{
-		"id":        user.ID.String(),
-		"full_name": user.FullName,
-		"phone":     user.Phone,
-		"email":     user.Email,
-	}))
+	c.JSON(http.StatusOK, response.Success(profile))
 }

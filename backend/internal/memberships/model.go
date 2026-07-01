@@ -13,18 +13,20 @@ const (
 	RoleAdmin   = "admin"
 )
 
-// Status constants
+// Status constants for membership KYC workflow
 const (
-	StatusPending   = "pending"
-	StatusActive    = "active"
-	StatusSuspended = "suspended"
+	StatusPendingKYC  = "pending_kyc"
+	StatusUnderReview = "under_review"
+	StatusActive      = "active"
+	StatusRejected    = "rejected"
+	StatusSuspended   = "suspended"
 )
 
 // ValidRoles is a set of valid membership roles
 var ValidRoles = []string{RoleMember, RoleCashier, RoleAdmin}
 
 // ValidStatuses is a set of valid membership statuses
-var ValidStatuses = []string{StatusPending, StatusActive, StatusSuspended}
+var ValidStatuses = []string{StatusPendingKYC, StatusUnderReview, StatusActive, StatusRejected, StatusSuspended}
 
 // Membership represents a user membership in a SACCO
 type Membership struct {

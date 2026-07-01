@@ -1,0 +1,34 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  deploy-api:
+    runs-on: ubuntu-latest
+    if: github.repository != ''
+    steps:
+      - name: Trigger Render deploy hook (API)
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_API_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_API_DEPLOY_HOOK secret not set — skip deploy"
+            exit 0
+          fi
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+  deploy-web:
+    runs-on: ubuntu-latest
+    if: github.repository != ''
+    steps:
+      - name: Trigger Render deploy hook (frontend)
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_WEB_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_WEB_DEPLOY_HOOK secret not set — skip deploy"
+            exit 0
+          fi
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"

@@ -14,13 +14,19 @@ type User struct {
 	Email            *string   `db:"email" json:"email,omitempty"`
 	GoogleID         *string   `db:"google_id" json:"google_id,omitempty"`
 	StellarPublicKey *string   `db:"stellar_public_key" json:"stellar_public_key,omitempty"`
+	Country          *string   `db:"country" json:"country,omitempty"`
+	PinHash          *string   `db:"pin_hash" json:"-"`
+	IsProjectAdmin   bool      `db:"is_project_admin" json:"is_project_admin"`
 	CreatedAt        time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt        time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // CreateUserRequest is the payload for user creation
 type CreateUserRequest struct {
-	FullName string  `json:"full_name"`
-	Phone    string  `json:"phone"`
-	Email    *string `json:"email,omitempty"`
+	FullName       string  `json:"full_name"`
+	Phone          string  `json:"phone"`
+	Email          *string `json:"email,omitempty"`
+	Country        *string `json:"country,omitempty"`
+	PinHash        *string `json:"-"`
+	IsProjectAdmin bool    `json:"is_project_admin"`
 }

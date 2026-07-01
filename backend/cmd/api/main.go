@@ -28,7 +28,7 @@ func main() {
 	defer database.Close(db)
 
 	// Create and start server
-	srv := server.New(cfg.Port, db)
+	srv := server.New(cfg, db)
 
 	// Start server in a goroutine
 	go func() {
