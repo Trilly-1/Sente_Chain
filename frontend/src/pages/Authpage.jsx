@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { apiLogin, apiRegister, apiContact } from "../services/api"
+import { apiLogin, apiRegister, apiContact, apiListSaccos, apiGetDefaultSaccoId } from "../services/api"
 import { EAC_COUNTRIES } from "../data/countries"
-import { ALL_SACCOS } from "../data/demo"
 
 function useWindowSize() {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -124,19 +123,32 @@ function SignUpPanel({ onSwitch }) {
   const location = useLocation()
   
   const preselectedSaccoId = location.state?.from?.split("/").pop()
-  const initialSacco = ALL_SACCOS.find(s => s.id === preselectedSaccoId) || ALL_SACCOS[0]
-
   const [name, setName] = useState("")
   const [country, setCountry] = useState(EAC_COUNTRIES[0])
   const [phoneNo, setPhoneNo] = useState("")
-  const [saccoId, setSaccoId] = useState(initialSacco.id)
+  const [saccos, setSaccos] = useState([])
+  const [saccoId, setSaccoId] = useState(preselectedSaccoId || "")
+
+  useEffect(() => {
+    apiListSaccos(country.code)
+      .then((list) => {
+        setSaccos(list)
+        if (preselectedSaccoId && list.some((s) => s.id === preselectedSaccoId)) {
+          setSaccoId(preselectedSaccoId)
+        } else if (list[0]) {
+          setSaccoId(list[0].id)
+        }
+      })
+      .catch(() => setSaccos([]))
+  }, [country.code, preselectedSaccoId])
+
   const [pin, setPin] = useState("")
   const [showPin, setShowPin] = useState(false)
   const [ok, setOk] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const filteredSaccos = ALL_SACCOS.filter(s => s.country === country.code)
+  const filteredSaccos = saccos.filter((s) => s.country === country.code)
 
   const handleCountryChange = (e) => {
     const c = EAC_COUNTRIES.find(x => x.code === e.target.value)
@@ -144,7 +156,7 @@ function SignUpPanel({ onSwitch }) {
     setCurrency(c.currency)
     setPhoneNo("")
     
-    const firstInCountry = ALL_SACCOS.find(s => s.country === c.code)
+    const firstInCountry = saccos.find(s => s.country === c.code)
     if (firstInCountry) setSaccoId(firstInCountry.id)
   }
 
@@ -152,9 +164,13 @@ function SignUpPanel({ onSwitch }) {
     e.preventDefault(); setError(""); setLoading(true)
     const fullPhone = country.prefix + phoneNo.replace(/^0+/, "") // Ensure prefix + number (stripping leading zero)
     try {
-      const user = await apiRegister({ name, phone: fullPhone, role: "member", saccoId, pin })
+      const user = await apiRegister({ name, phone: fullPhone, role: "member", saccoId, pin, country: country.code })
       login(user)
-      navigate("/dashboard")
+      if (user.status === "pending_kyc") {
+        navigate("/member-onboarding")
+      } else {
+        navigate("/dashboard")
+      }
     } catch (err) { setError(err.message || "Registration failed.") }
     finally { setLoading(false) }
   }
@@ -262,7 +278,10 @@ function LoginPanel({ onSwitch }) {
   async function handleSubmit(e) {
     e.preventDefault(); setError(""); setLoading(true)
     try {
-      const user = await apiLogin({ phone, pin, role_code: isStaff ? code : undefined })
+      const user = await apiLogin({ phone, pin })
+      if (isStaff && user.role === "member") {
+        throw new Error("Staff access required. Use a cashier or admin account.")
+      }
       login(user)
       const destination = location.state?.from || "/dashboard"
       navigate(destination, { replace: true })
@@ -374,9 +393,14 @@ function ContactPanel({ contactRef }) {
 export default function AuthPage() {
   const [searchParams] = useSearchParams()
   const [tab, setTab] = useState(searchParams.get("tab") === "signup" ? "signup" : "login")
+  const [publicSaccoId, setPublicSaccoId] = useState("")
   const contactRef = useRef(null)
   const { width } = useWindowSize()
   const isMobile = width < 900
+
+  useEffect(() => {
+    apiGetDefaultSaccoId().then((id) => { if (id) setPublicSaccoId(id) }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     const t = searchParams.get("tab")
@@ -461,7 +485,7 @@ export default function AuthPage() {
               }
               <p style={{ textAlign: "center", marginTop: "18px", fontSize: "14px", color: C.textDim, fontFamily: C.font }}>
                 No login needed to view SACCO records.{" "}
-                <a href="/sacco/SACCO01" style={{ color: C.green, textDecoration: "none", fontWeight: 700 }}>View the public ledger</a>
+                <a href={publicSaccoId ? `/sacco/${publicSaccoId}` : "#"} style={{ color: C.green, textDecoration: "none", fontWeight: 700 }}>View the public ledger</a>
               </p>
             </div>
             <div>

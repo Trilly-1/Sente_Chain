@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { apiRegister } from "../services/api"
+import { apiRegister, apiCreateSacco, apiUpdateSacco, apiUploadSaccoDocuments, apiSubmitSacco } from "../services/api"
 import { EAC_COUNTRIES } from "../data/countries"
 
 // Mobile detection hook
@@ -37,7 +37,7 @@ const Label = ({ children }) => (
 
 export default function SACCORegistration() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, updateAuth } = useAuth()
   const { width } = useWindowSize()
   const isMobile = width < 768
   const [step, setStep] = useState(1)
@@ -98,6 +98,20 @@ export default function SACCORegistration() {
 
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
+  const [saccoId, setSaccoId] = useState(null)
+
+  const submitSaccoApplication = async () => {
+    setLoading(true)
+    setErrors({})
+    try {
+      await apiSubmitSacco(saccoId)
+      navigate("/verification-pending")
+    } catch (err) {
+      setErrors({ form: err.message || "Submission failed" })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const next = async () => {
     const newErrors = {}
@@ -111,7 +125,7 @@ export default function SACCORegistration() {
       setLoading(true)
       try {
         const fullPhone = country.prefix + adminData.phoneNo.replace(/^0+/, "")
-        const user = await apiRegister({ name: adminData.name, phone: fullPhone, role: "admin", pin: adminData.pin })
+        const user = await apiRegister({ name: adminData.name, phone: fullPhone, role: "admin", pin: adminData.pin, country: country.code })
         login(user)
         setStep(s => s + 1)
       } catch (err) {
@@ -122,17 +136,55 @@ export default function SACCORegistration() {
     } else if (step === 2) {
       if (!formData.name) newErrors.saccoName = "SACCO name is required"
       if (!formData.type) newErrors.saccoType = "SACCO type is required"
-      
       if (Object.keys(newErrors).length > 0) return setErrors(newErrors)
       setErrors({})
-      setStep(s => s + 1)
+      setLoading(true)
+      try {
+        const result = await apiCreateSacco({
+          name: formData.name,
+          country: country.code,
+          profile: { type: formData.type },
+        })
+        const id = result.sacco_id || result.sacco?.sacco_id
+        setSaccoId(id)
+        updateAuth({ sacco_id: id, sacco_status: "draft" })
+        setStep(s => s + 1)
+      } catch (err) {
+        setErrors({ form: err.message || "Failed to create SACCO draft" })
+      } finally {
+        setLoading(false)
+      }
     } else if (step === 3) {
       if (!formData.address) newErrors.address = "Address is required"
       if (!formData.phone) newErrors.phone = "Phone number is required"
-      
       if (Object.keys(newErrors).length > 0) return setErrors(newErrors)
       setErrors({})
-      setStep(s => s + 1)
+      setLoading(true)
+      try {
+        const officialPhone = country.prefix + formData.phone.replace(/^0+/, "")
+        await apiUpdateSacco(saccoId, {
+          profile: { address: formData.address, phone: officialPhone, email: formData.email },
+        })
+        setStep(s => s + 1)
+      } catch (err) {
+        setErrors({ form: err.message || "Failed to save contact details" })
+      } finally {
+        setLoading(false)
+      }
+    } else if (step === 4) {
+      setLoading(true)
+      try {
+        await apiUploadSaccoDocuments(saccoId, [
+          { document_type: "registration_certificate", file_url: "https://placeholder.sentechain.app/reg-cert.pdf", file_name: "registration_certificate.pdf" },
+          { document_type: "operational_license", file_url: "https://placeholder.sentechain.app/license.pdf", file_name: "operational_license.pdf" },
+          { document_type: "tin_certificate", file_url: "https://placeholder.sentechain.app/tin.pdf", file_name: "tin_certificate.pdf" },
+        ])
+        setStep(s => s + 1)
+      } catch (err) {
+        setErrors({ form: err.message || "Failed to upload documents" })
+      } finally {
+        setLoading(false)
+      }
     } else if (step === 5) {
       if (!formData.chairmanName) newErrors.chairmanName = "Required"
       if (!formData.chairmanID) newErrors.chairmanID = "Required"
@@ -143,9 +195,22 @@ export default function SACCORegistration() {
       
       if (Object.keys(newErrors).length > 0) return setErrors(newErrors)
       setErrors({})
-      setStep(s => s + 1)
-    } else {
-      setStep(s => s + 1)
+      setLoading(true)
+      try {
+        await apiUpdateSacco(saccoId, {
+          profile: {
+            chairman_name: formData.chairmanName,
+            chairman_id: formData.chairmanID,
+            secretary_name: formData.secretaryName,
+            secretary_id: formData.secretaryID,
+          },
+        })
+        setStep(s => s + 1)
+      } catch (err) {
+        setErrors({ form: err.message || "Failed to save officials" })
+      } finally {
+        setLoading(false)
+      }
     }
   }
   const prev = () => setStep(s => s - 1)
@@ -471,7 +536,7 @@ export default function SACCORegistration() {
               </button>
             )}
             <button
-              onClick={step === 6 ? () => navigate("/verification-pending") : next}
+              onClick={step === 6 ? submitSaccoApplication : next}
               disabled={loading || (step === 6 && !agreed)}
               style={{ 
                 flex: 2, padding: "16px", borderRadius: "12px", border: "none", 

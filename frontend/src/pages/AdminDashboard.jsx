@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { SACCO_INFO } from "../data/demo"
-import { apiGetMembers, apiGetTransactions, apiGetAuditLog, apiRegister, apiUpdateMemberRole, apiUpdateMemberStatus } from "../services/api"
+import { apiGetMembers, apiListTransactions, apiRegister, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiCreateTransaction, apiAnchorTransaction, apiVerifyTransaction } from "../services/api"
+import { EAC_COUNTRIES } from "../data/countries"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
@@ -20,7 +20,7 @@ function useWindowSize() {
 }
 
 const typeColor = { Deposit: T.green, Loan: T.goldMid, Repayment: "#059669" }
-const TABS = ["SACCO Summary", "Members and Roles", "Register Member", "All Transactions", "Audit Log"]
+const TABS = ["SACCO Summary", "Members and Roles", "Register Member", "All Transactions"]
 
 const TH = (h) => (
   <th key={h} style={{ padding: "12px 20px", textAlign: "left", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: T.textDim, borderBottom: `1.5px solid ${T.border}`, background: T.surface, whiteSpace: "nowrap", fontFamily: T.fontMono }}>{h}</th>
@@ -35,55 +35,104 @@ const statCard = (label, value, accent, isMobile) => (
 )
 
 export default function AdminDashboard() {
-  const { currency } = useAuth()
+  const { auth, currency } = useAuth()
   const { width } = useWindowSize()
   const isMobile = width < 900
   const [tab, setTab] = useState("SACCO Summary")
   const [members, setMembers] = useState([])
   const [allTxs, setAllTxs] = useState([])
-  const [auditLog, setAuditLog] = useState([])
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
-  const [regForm, setRegForm] = useState({ name: "", phone: "", role: "member" })
+  const [regForm, setRegForm] = useState({ name: "", phone: "", role: "member", pin: "1234" })
+  const [regCountry, setRegCountry] = useState(EAC_COUNTRIES[0])
+  const [txActionId, setTxActionId] = useState(null)
   const [regOk, setRegOk] = useState(false)
   const [regLoading, setRegLoading] = useState(false)
+  const [saccoInfo, setSaccoInfo] = useState({ name: "SACCO" })
   const [regErr, setRegErr] = useState("")
 
 
   useEffect(() => {
+    if (!auth?.sacco_id) return
     async function load() {
       try {
-        const [mems, audit] = await Promise.all([apiGetMembers(), apiGetAuditLog()])
+        const [mems, summary] = await Promise.all([
+          apiGetMembers(auth.sacco_id),
+          apiGetSaccoSummary(auth.sacco_id).catch(() => null),
+        ])
         setMembers(mems)
-        setAuditLog(audit)
-        const txArrays = await Promise.all(mems.filter(m => m.role === "member").map(m => apiGetTransactions(m.member_id)))
-        setAllTxs(txArrays.flat().sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at)))
+        if (summary) setSaccoInfo({ name: summary.name })
+        const txList = await apiListTransactions({ saccoId: auth.sacco_id, limit: 100 })
+        setAllTxs(txList.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at)))
       } catch (err) { console.error(err) }
       finally { setLoading(false) }
     }
     load()
-  }, [])
+  }, [auth?.sacco_id])
 
   const filtered = members.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) || m.phone.includes(search) || m.member_id.toLowerCase().includes(search.toLowerCase()))
 
   async function toggleSuspend(id) {
     const m = members.find(m => m.member_id === id)
     const newStatus = m.status === "active" ? "suspended" : "active"
-    await apiUpdateMemberStatus(id, newStatus)
+    await apiUpdateMemberStatus(id, newStatus, auth?.sacco_id)
     setMembers(prev => prev.map(m => m.member_id === id ? { ...m, status: newStatus } : m))
   }
   async function changeRole(id, role) {
-    await apiUpdateMemberRole(id, role)
+    await apiUpdateMemberRole(id, role, auth?.sacco_id)
     setMembers(prev => prev.map(m => m.member_id === id ? { ...m, role } : m))
   }
   async function handleRegister(e) {
     e.preventDefault(); setRegErr(""); setRegLoading(true)
     try {
-      await apiRegister(regForm)
+      const phone = regCountry.prefix + regForm.phone.replace(/^0+/, "")
+      await apiRegister({
+        name: regForm.name,
+        phone,
+        role: regForm.role,
+        pin: regForm.pin,
+        country: regCountry.code,
+        saccoId: auth.sacco_id,
+      })
+      const mems = await apiGetMembers(auth.sacco_id)
+      setMembers(mems)
       setRegOk(true)
-      setTimeout(() => { setRegOk(false); setRegForm({ name: "", phone: "", role: "member" }) }, 3000)
+      setTimeout(() => { setRegOk(false); setRegForm({ name: "", phone: "", role: "member", pin: "1234" }) }, 3000)
     } catch (err) { setRegErr(err.message || "Registration failed.") }
     finally { setRegLoading(false) }
+  }
+
+  async function handleAnchorTx(txId) {
+    setTxActionId(txId)
+    try {
+      const updated = await apiAnchorTransaction(txId)
+      setAllTxs((prev) => prev.map((t) => (t.id === txId ? { ...t, ...updated } : t)))
+    } catch (err) { alert(err.message || "Anchor failed") }
+    finally { setTxActionId(null) }
+  }
+
+  async function handleVerifyTx(txId) {
+    setTxActionId(txId)
+    try {
+      const result = await apiVerifyTransaction(txId)
+      alert(result.verified ? "Stellar proof verified on-chain" : `Verify result: ${JSON.stringify(result)}`)
+    } catch (err) { alert(err.message || "Verify failed") }
+    finally { setTxActionId(null) }
+  }
+
+  async function handleRecordDeposit(membershipId, amount) {
+    if (!amount || !membershipId) return
+    try {
+      const tx = await apiCreateTransaction({
+        saccoId: auth.sacco_id,
+        membershipId,
+        transactionType: "deposit",
+        amount: String(amount),
+        currency,
+        description: "Admin-recorded deposit",
+      })
+      setAllTxs((prev) => [tx, ...prev])
+    } catch (err) { alert(err.message || "Failed to record transaction") }
   }
 
   const totalDeposits = allTxs.filter(t => t.type === "Deposit").reduce((s, t) => s + t.amount_kes, 0)
@@ -102,7 +151,7 @@ export default function AdminDashboard() {
       <div style={{ maxWidth: "1160px", margin: "0 auto", padding: isMobile ? "24px 16px 60px" : "48px 40px 80px" }}>
 
         <div style={{ marginBottom: isMobile ? "24px" : "32px" }}>
-          <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, marginBottom: "8px", letterSpacing: "1.5px", textTransform: "uppercase" }}>{SACCO_INFO.name} Admin Portal</p>
+          <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, marginBottom: "8px", letterSpacing: "1.5px", textTransform: "uppercase" }}>{saccoInfo.name} Admin Portal</p>
           <h1 style={{ fontSize: isMobile ? "28px" : "36px", fontWeight: 900, color: T.textHi, margin: "0 0 6px", letterSpacing: "-0.5px" }}>Admin <span style={{ color: T.green }}>Dashboard</span></h1>
           <p style={{ fontSize: isMobile ? "14px" : "15px", color: T.textMid }}>Full SACCO oversight, members, transactions, and audit log</p>
         </div>
@@ -273,13 +322,20 @@ export default function AdminDashboard() {
                 <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   {[
                     { label: "Full Name", key: "name", type: "text", placeholder: "e.g. Sarah Wanjiku" },
-                    { label: "Phone Number", key: "phone", type: "tel", placeholder: "e.g. 0700 123 456" },
+                    { label: "Phone Number", key: "phone", type: "tel", placeholder: "e.g. 700 123 456" },
+                    { label: "PIN (4 digits)", key: "pin", type: "password", placeholder: "1234" },
                   ].map(f => (
                     <div key={f.key}>
                       <Lbl text={f.label} />
                       <input type={f.type} value={regForm[f.key]} onChange={e => setRegForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} required style={inp()} onFocus={onF} onBlur={onB} />
                     </div>
                   ))}
+                  <div>
+                    <Lbl text="Country" />
+                    <select value={regCountry.code} onChange={e => setRegCountry(EAC_COUNTRIES.find(c => c.code === e.target.value))} style={{ ...inp(), cursor: "pointer" }}>
+                      {EAC_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
+                    </select>
+                  </div>
                   <div>
                     <Lbl text="Role" />
                     <select value={regForm.role} onChange={e => setRegForm(p => ({ ...p, role: e.target.value }))} style={{ ...inp(), cursor: "pointer" }}>
@@ -333,7 +389,7 @@ export default function AdminDashboard() {
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead><tr>{["Date", "Member", "Type", "Amount", "Via", "Status", "Stellar Proof"].map(TH)}</tr></thead>
+                  <thead><tr>{["Date", "Member", "Type", "Amount", "Status", "Stellar Proof", "Actions"].map(TH)}</tr></thead>
                   <tbody>
                     {allTxs.map((tx, i) => {
                       const mem = members.find(m => m.member_id === tx.member_id)
@@ -343,14 +399,21 @@ export default function AdminDashboard() {
                           onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
                           <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</td>
                           <td style={{ padding: "15px 20px" }}>
-                            <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: "0 0 2px" }}>{mem?.name}</p>
-                            <p style={{ fontSize: "11px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>{tx.member_id}</p>
+                            <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: "0 0 2px" }}>{mem?.name || "—"}</p>
+                            <p style={{ fontSize: "11px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>{tx.member_id?.slice(0, 8)}</p>
                           </td>
                           <td style={{ padding: "15px 20px", fontSize: "15px", fontWeight: 700, color: typeColor[tx.type] || T.textHi }}>{tx.type}</td>
                           <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "15px", fontWeight: 800, color: T.textHi }}>{currency} {tx.amount_kes.toLocaleString()}</td>
-                          <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "12px", color: T.textDim }}>{tx.entry_type === "MPESA" ? "M-Pesa" : "Admin"}</td>
-                          <td style={{ padding: "15px 20px" }}><span style={{ padding: "3px 10px", borderRadius: "99px", fontSize: "11px", fontFamily: T.fontMono, fontWeight: 700, background: T.greenLite, color: T.green, border: `1px solid ${T.greenBdr}` }}>CONFIRMED</span></td>
+                          <td style={{ padding: "15px 20px" }}><StatusBadge status={tx.status || "recorded"} /></td>
                           <td style={{ padding: "15px 20px" }}><StellarHashLink hash={tx.stellar_tx_hash} /></td>
+                          <td style={{ padding: "15px 20px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            {!tx.stellar_tx_hash && (
+                              <button disabled={txActionId === tx.id} onClick={() => handleAnchorTx(tx.id)} style={{ padding: "4px 10px", borderRadius: "6px", border: "none", background: T.green, color: "#fff", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>Anchor</button>
+                            )}
+                            {tx.stellar_tx_hash && (
+                              <button disabled={txActionId === tx.id} onClick={() => handleVerifyTx(tx.id)} style={{ padding: "4px 10px", borderRadius: "6px", border: `1px solid ${T.border}`, background: "#fff", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>Verify</button>
+                            )}
+                          </td>
                         </tr>
                       )
                     })}
@@ -358,35 +421,6 @@ export default function AdminDashboard() {
                 </table>
               </div>
             )}
-          </div>
-        )}
-
-        {/* AUDIT LOG */}
-        {!loading && tab === "Audit Log" && (
-          <div style={{ ...cardMd(), overflow: "hidden" }}>
-            <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
-              <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: "0 0 3px" }}>Admin Audit Log</h2>
-              <p style={{ fontSize: "13px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>Every admin action permanently logged</p>
-            </div>
-            {auditLog.map((log, i) => (
-              <div key={log.id} style={{ padding: "18px 24px", borderBottom: i < auditLog.length - 1 ? `1px solid ${T.border2}` : "none", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", background: "#fff", transition: "background 0.15s" }}
-                onMouseEnter={e => e.currentTarget.style.background = T.surface}
-                onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
-                <div style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
-                  <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: T.greenLite, border: `1.5px solid ${T.greenBdr}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "13px", color: T.green, flexShrink: 0 }}>
-                    {log.admin.split(" ").map(n => n[0]).join("")}
-                  </div>
-                  <div>
-                    <p style={{ fontSize: "15px", fontWeight: 700, color: T.textHi, margin: "0 0 3px" }}>{log.action}</p>
-                    <p style={{ fontSize: "13px", color: T.textMid, margin: "0 0 3px" }}>{log.target}</p>
-                    <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>by {log.admin}</p>
-                  </div>
-                </div>
-                <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, flexShrink: 0 }}>
-                  {new Date(log.time).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}
-                </p>
-              </div>
-            ))}
           </div>
         )}
 

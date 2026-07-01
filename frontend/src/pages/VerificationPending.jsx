@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { T } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { ALL_SACCOS } from "../data/demo"
+import { apiGetSaccoStatus } from "../services/api"
 
 function useWindowSize() {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -42,25 +42,35 @@ export default function VerificationPending() {
   const { auth } = useAuth()
   const { width } = useWindowSize()
   const isMobile = width < 768
-  
-  const mySacco = ALL_SACCOS.find(s => s.id === auth?.sacco_id) || ALL_SACCOS[0]
-  
-  // Mocking status - in a real app this would come from a backend API
-  const [status, setStatus] = useState("under_review") 
-  
-  const steps = [
-    { label: "Submitted", done: true },
-    { label: "Doc Check", done: true },
-    { label: "Gov API", done: false, active: true },
-    { label: "Final Review", done: false },
-    { label: "Active", done: false }
-  ]
 
-  const submittedDocs = [
-    { name: "Registration Certificate", status: "Verified" },
-    { name: "Operational License", status: "Verified" },
-    { name: "TIN Certificate", status: "Action Required", error: "Blurry scan" }
-  ]
+  const [saccoName, setSaccoName] = useState("")
+  const [status, setStatus] = useState("under_review")
+  const [submittedAt, setSubmittedAt] = useState(null)
+  const [submittedDocs, setSubmittedDocs] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!auth?.sacco_id) {
+      setLoading(false)
+      return
+    }
+    apiGetSaccoStatus(auth.sacco_id)
+      .then((data) => {
+        setSaccoName(data.name || "Your SACCO")
+        setStatus(data.status || "under_review")
+        if (data.submitted_at) setSubmittedAt(data.submitted_at)
+        const docs = (data.documents || []).map((d) => ({
+          name: d.document_type?.replace(/_/g, " ") || "Document",
+          status: "Submitted",
+        }))
+        setSubmittedDocs(docs.length ? docs : [
+          { name: "Registration Certificate", status: "Under Review" },
+          { name: "Operational License", status: "Under Review" },
+        ])
+      })
+      .catch(() => setSaccoName("Your SACCO"))
+      .finally(() => setLoading(false))
+  }, [auth?.sacco_id])
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: C.font }}>
@@ -110,10 +120,12 @@ export default function VerificationPending() {
         }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
-              <h1 style={{ fontSize: "24px", fontWeight: 900, color: T.textHi, margin: 0 }}>{mySacco.name}</h1>
-              <StatusBadge status={status} />
+              <h1 style={{ fontSize: "24px", fontWeight: 900, color: T.textHi, margin: 0 }}>{loading ? "Loading..." : saccoName}</h1>
+              <StatusBadge status={status === "draft" ? "under_review" : status} />
             </div>
-            <p style={{ color: T.textMid, margin: 0 }}>Submitted April 24, 2026 • Ref: SC-99210</p>
+            <p style={{ color: T.textMid, margin: 0 }}>
+              {submittedAt ? `Submitted ${new Date(submittedAt).toLocaleDateString()}` : "Application submitted"} • Ref: {auth?.sacco_id?.slice(0, 8) || "—"}
+            </p>
           </div>
           <div style={{ textAlign: isMobile ? "left" : "right" }}>
             <p style={{ fontSize: "12px", fontWeight: 700, color: T.textDim, textTransform: "uppercase", marginBottom: "4px" }}>Est. Completion</p>

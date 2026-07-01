@@ -1,9 +1,8 @@
 // src/pages/MemberDashboard.jsx
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
-import { ALL_SACCOS } from "../data/demo"
+import { apiGetTransactions, apiListSaccos } from "../services/api"
 import { T, card, cardMd } from "../styles/theme"
-import { apiGetTransactions } from "../services/api"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
@@ -36,6 +35,8 @@ export default function MemberDashboard() {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState("")
 
+  const [mySacco, setMySacco] = useState({ name: "SACCO" })
+
   useEffect(() => {
     if (!auth?.member_id) return
     apiGetTransactions(auth.member_id)
@@ -44,11 +45,17 @@ export default function MemberDashboard() {
       .finally(() => setLoading(false))
   }, [auth?.member_id])
 
+  useEffect(() => {
+    if (!auth?.sacco_id) return
+    apiListSaccos().then((list) => {
+      const found = list.find((s) => s.id === auth.sacco_id)
+      if (found) setMySacco(found)
+    }).catch(() => {})
+  }, [auth?.sacco_id])
+
   const totalDeposited = txs.filter(t=>t.type==="Deposit").reduce((s,t)=>s+t.amount_kes,0)
   const totalLoans     = txs.filter(t=>t.type==="Loan").reduce((s,t)=>s+t.amount_kes,0)
   const totalRepaid    = txs.filter(t=>t.type==="Repayment").reduce((s,t)=>s+t.amount_kes,0)
-
-  const mySacco = ALL_SACCOS.find(s => s.id === auth?.sacco_id) || ALL_SACCOS[0]
 
   return (
     <div style={{ minHeight:"100vh", background:T.pageBg, fontFamily:T.font }}>

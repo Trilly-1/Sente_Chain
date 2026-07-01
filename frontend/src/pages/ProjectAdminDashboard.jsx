@@ -1,22 +1,31 @@
-// src/pages/ProjectAdminDashboard.jsx
-import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect, useCallback } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import Nav from "../components/Nav"
 import StatusBadge from "../components/StatusBadge"
+import {
+  apiGetPendingSaccos,
+  apiGetPendingMembers,
+  apiApproveSacco,
+  apiRejectSacco,
+  apiApproveMember,
+  apiRejectMember,
+  apiGetAuditLog,
+  apiListSaccos,
+  apiHealth,
+  apiReady,
+} from "../services/api"
 
-// Mobile detection hook
 function useWindowSize() {
-  const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight })
   useEffect(() => {
-    const handleResize = () => setSize({ width: window.innerWidth, height: window.innerHeight });
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-  return size;
+    const handleResize = () => setSize({ width: window.innerWidth, height: window.innerHeight })
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+  return size
 }
 
-const TABS = ["Project Overview", "SACCO Approvals", "Network Health", "Audit Log"]
+const TABS = ["Project Overview", "SACCO Approvals", "Member KYC", "Network Health", "Audit Log"]
 
 const TH = (h) => (
   <th key={h} style={{ padding: "12px 20px", textAlign: "left", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: T.textDim, borderBottom: `1.5px solid ${T.border}`, background: T.surface, whiteSpace: "nowrap", fontFamily: T.fontMono }}>{h}</th>
@@ -31,29 +40,88 @@ const statCard = (label, value, accent, isMobile) => (
 )
 
 export default function ProjectAdminDashboard() {
-  const navigate = useNavigate()
   const { width } = useWindowSize()
   const isMobile = width < 900
   const [tab, setTab] = useState("Project Overview")
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
-  const [onboarding, setOnboarding] = useState([
-    { id: "S-001", name: "Rift Valley Dairy SACCO", status: "pending", date: "2026-04-24", country: "Kenya", score: 85, officials: "3 Verified" },
-    { id: "S-002", name: "Kampala Boda Boda Cooperative", status: "under_review", date: "2026-04-23", country: "Uganda", score: 72, officials: "2 Verified" },
-    { id: "S-003", name: "Dar Urban Savings", status: "pending", date: "2026-04-25", country: "Tanzania", score: 91, officials: "3 Verified" }
-  ])
+  const [pendingSaccos, setPendingSaccos] = useState([])
+  const [pendingMembers, setPendingMembers] = useState([])
+  const [auditLogs, setAuditLogs] = useState([])
+  const [networkStats, setNetworkStats] = useState({ totalSaccos: 0, pendingSaccos: 0, pendingMembers: 0 })
+  const [health, setHealth] = useState({ api: null, db: null })
 
-  const [networkStats] = useState({
-    totalSaccos: 124,
-    totalMembers: "12,402",
-    totalVolume: "KSh 42.8M",
-    nodesActive: 12,
-    stellarOps: "1.2M"
-  })
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    setError("")
+    try {
+      const [saccos, members, logs, approved] = await Promise.all([
+        apiGetPendingSaccos(),
+        apiGetPendingMembers(),
+        apiGetAuditLog(50, 0),
+        apiListSaccos(),
+      ])
+      setPendingSaccos(saccos)
+      setPendingMembers(members)
+      setAuditLogs(logs)
+      setNetworkStats({
+        totalSaccos: approved.length,
+        pendingSaccos: saccos.length,
+        pendingMembers: members.length,
+      })
+    } catch (err) {
+      setError(err.message || "Failed to load admin data")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  const handleApprove = (id) => {
-    setOnboarding(prev => prev.map(s => s.id === id ? { ...s, status: "approved" } : s))
-    alert(`SACCO ${id} has been approved and notified.`)
+  useEffect(() => { loadData() }, [loadData])
+
+  useEffect(() => {
+    if (tab !== "Network Health") return
+    Promise.all([apiHealth(), apiReady()])
+      .then(([h, r]) => setHealth({ api: h, db: r }))
+      .catch((err) => setHealth({ api: { status: "error" }, db: { error: err.message } }))
+  }, [tab])
+
+  async function handleApproveSacco(saccoId) {
+    try {
+      await apiApproveSacco(saccoId)
+      await loadData()
+    } catch (err) {
+      alert(err.message || "Approval failed")
+    }
+  }
+
+  async function handleRejectSacco(saccoId) {
+    const reason = window.prompt("Rejection reason (optional):") || ""
+    try {
+      await apiRejectSacco(saccoId, reason)
+      await loadData()
+    } catch (err) {
+      alert(err.message || "Rejection failed")
+    }
+  }
+
+  async function handleApproveMember(membershipId) {
+    try {
+      await apiApproveMember(membershipId)
+      await loadData()
+    } catch (err) {
+      alert(err.message || "Approval failed")
+    }
+  }
+
+  async function handleRejectMember(membershipId) {
+    const reason = window.prompt("Rejection reason (optional):") || ""
+    try {
+      await apiRejectMember(membershipId, reason)
+      await loadData()
+    } catch (err) {
+      alert(err.message || "Rejection failed")
+    }
   }
 
   return (
@@ -64,8 +132,14 @@ export default function ProjectAdminDashboard() {
         <div style={{ marginBottom: isMobile ? "24px" : "32px" }}>
           <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, marginBottom: "8px", letterSpacing: "1.5px", textTransform: "uppercase" }}>Master Project Control</p>
           <h1 style={{ fontSize: isMobile ? "28px" : "36px", fontWeight: 900, color: T.textHi, margin: "0 0 6px", letterSpacing: "-0.5px" }}>Project <span style={{ color: T.green }}>Administration</span></h1>
-          <p style={{ fontSize: isMobile ? "14px" : "15px", color: T.textMid }}>Monitor network activities, approve SACCOs, and manage project-wide settings.</p>
+          <p style={{ fontSize: isMobile ? "14px" : "15px", color: T.textMid }}>Approve SACCOs and member KYC, monitor network health, and review audit logs.</p>
         </div>
+
+        {error && (
+          <div style={{ marginBottom: "20px", padding: "12px 16px", background: T.redBg, border: `1px solid ${T.redBdr}`, borderRadius: "10px", color: T.red, fontSize: "14px" }}>
+            {error}
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: "6px", marginBottom: isMobile ? "20px" : "28px", flexWrap: "wrap", padding: "4px", background: "#fff", borderRadius: "12px", border: `1.5px solid ${T.border}`, boxShadow: T.shadow, width: "fit-content" }}>
           {TABS.map(t => (
@@ -73,85 +147,132 @@ export default function ProjectAdminDashboard() {
           ))}
         </div>
 
-        {tab === "Project Overview" && (
+        {loading && <p style={{ color: T.textDim, fontFamily: T.fontMono }}>Loading...</p>}
+
+        {!loading && tab === "Project Overview" && (
           <div>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: "16px", marginBottom: "28px" }}>
-              {statCard("Active SACCOs", networkStats.totalSaccos, T.green, isMobile)}
-              {statCard("Total Members", networkStats.totalMembers, T.goldMid, isMobile)}
-              {statCard("Stellar Volume", networkStats.totalVolume, "#059669", isMobile)}
-              {statCard("Network Nodes", networkStats.nodesActive, "#7c3aed", isMobile)}
-            </div>
-            
-            <div style={{ ...cardMd(), padding: "24px" }}>
-                <h3 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, marginBottom: "16px" }}>Network Activity Map</h3>
-                <div style={{ height: "300px", background: T.surface, borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${T.border}` }}>
-                    <p style={{ color: T.textDim, fontSize: "14px", fontFamily: T.fontMono }}>Geospatial Activity Monitor [Simulation]</p>
-                </div>
+              {statCard("Approved SACCOs", networkStats.totalSaccos, T.green, isMobile)}
+              {statCard("Pending SACCOs", networkStats.pendingSaccos, T.goldMid, isMobile)}
+              {statCard("Pending Members", networkStats.pendingMembers, "#059669", isMobile)}
+              {statCard("Audit Events", auditLogs.length, "#7c3aed", isMobile)}
             </div>
           </div>
         )}
 
-        {tab === "SACCO Approvals" && (
+        {!loading && tab === "SACCO Approvals" && (
           <div style={{ ...cardMd(), overflow: "hidden" }}>
             <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
               <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: 0 }}>Pending SACCO Registrations</h2>
             </div>
+            {pendingSaccos.length === 0 ? (
+              <p style={{ padding: "24px", color: T.textDim }}>No pending SACCO applications.</p>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead><tr>{["Submitted", "SACCO Name", "Admin", "Country", "Status", "Actions"].map(TH)}</tr></thead>
+                  <tbody>
+                    {pendingSaccos.map((s, i) => (
+                      <tr key={s.sacco_id} style={{ borderBottom: i < pendingSaccos.length - 1 ? `1px solid ${T.border2}` : "none", background: "#fff" }}>
+                        <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>
+                          {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}
+                        </td>
+                        <td style={{ padding: "15px 20px" }}>
+                          <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: 0 }}>{s.name}</p>
+                          <p style={{ fontSize: "11px", color: T.textDim, fontFamily: T.fontMono }}>{s.sacco_id}</p>
+                        </td>
+                        <td style={{ padding: "15px 20px", fontSize: "13px", color: T.textMid }}>
+                          <p style={{ margin: 0, fontWeight: 600 }}>{s.admin_name}</p>
+                          <p style={{ margin: 0, fontSize: "12px", color: T.textDim }}>{s.admin_phone}</p>
+                        </td>
+                        <td style={{ padding: "15px 20px", fontSize: "13px", color: T.textMid }}>{s.country}</td>
+                        <td style={{ padding: "15px 20px" }}><StatusBadge status={s.status} /></td>
+                        <td style={{ padding: "15px 20px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                          <button onClick={() => handleApproveSacco(s.sacco_id)} style={{ padding: "6px 12px", borderRadius: "6px", border: "none", background: T.green, color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Approve</button>
+                          <button onClick={() => handleRejectSacco(s.sacco_id)} style={{ padding: "6px 12px", borderRadius: "6px", border: `1px solid ${T.redBdr}`, background: T.redBg, color: T.red, fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Reject</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr>{["Date", "SACCO Name", "Risk Score", "Officials", "Status", "Actions"].map(TH)}</tr></thead>
-                <tbody>
-                  {onboarding.map((s, i) => (
-                    <tr key={s.id} style={{ borderBottom: i < onboarding.length - 1 ? `1px solid ${T.border2}` : "none", background: "#fff" }}>
-                      <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>{s.date}</td>
-                      <td style={{ padding: "15px 20px" }}>
-                        <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: 0 }}>{s.name}</p>
-                        <p style={{ fontSize: "11px", color: T.textDim }}>{s.country}</p>
-                      </td>
+        {!loading && tab === "Member KYC" && (
+          <div style={{ ...cardMd(), overflow: "hidden" }}>
+            <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
+              <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: 0 }}>Pending Member Verifications</h2>
+            </div>
+            {pendingMembers.length === 0 ? (
+              <p style={{ padding: "24px", color: T.textDim }}>No members awaiting KYC approval.</p>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead><tr>{["Submitted", "Member", "SACCO", "Documents", "Actions"].map(TH)}</tr></thead>
+                  <tbody>
+                    {pendingMembers.map((m, i) => (
+                      <tr key={m.membership_id} style={{ borderBottom: i < pendingMembers.length - 1 ? `1px solid ${T.border2}` : "none", background: "#fff" }}>
+                        <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>
+                          {m.submitted_at ? new Date(m.submitted_at).toLocaleDateString() : "—"}
+                        </td>
+                        <td style={{ padding: "15px 20px" }}>
+                          <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: 0 }}>{m.full_name}</p>
+                          <p style={{ fontSize: "11px", color: T.textDim }}>{m.phone}</p>
+                        </td>
+                        <td style={{ padding: "15px 20px", fontSize: "13px", color: T.textMid }}>{m.sacco_name}</td>
+                        <td style={{ padding: "15px 20px", fontSize: "12px", color: T.textDim }}>{(m.documents || []).length} uploaded</td>
+                        <td style={{ padding: "15px 20px", display: "flex", gap: "8px" }}>
+                          <button onClick={() => handleApproveMember(m.membership_id)} style={{ padding: "6px 12px", borderRadius: "6px", border: "none", background: T.green, color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Approve</button>
+                          <button onClick={() => handleRejectMember(m.membership_id)} style={{ padding: "6px 12px", borderRadius: "6px", border: `1px solid ${T.redBdr}`, background: T.redBg, color: T.red, fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Reject</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
-                      <td style={{ padding: "15px 20px" }}>
-                        <span style={{ fontSize: "14px", fontWeight: 800, color: s.score > 80 ? T.green : T.goldMid }}>{s.score}%</span>
-                      </td>
-                      <td style={{ padding: "15px 20px", fontSize: "13px", color: T.textMid }}>{s.officials}</td>
-                      <td style={{ padding: "15px 20px" }}><StatusBadge status={s.status} /></td>
-                      <td style={{ padding: "15px 20px", display: "flex", gap: "8px" }}>
-                        {s.status !== "approved" && (
-                            <button style={{ padding: "6px 12px", borderRadius: "6px", border: "none", background: T.green, color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }} onClick={() => handleApprove(s.id)}>Approve</button>
-                        )}
-                        <button style={{ padding: "6px 12px", borderRadius: "6px", border: `1px solid ${T.border}`, background: "#fff", color: T.textDim, fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>View Docs</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {!loading && tab === "Network Health" && (
+          <div style={{ display: "grid", gap: "16px", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr" }}>
+            <div style={{ ...card(), padding: "24px" }}>
+              <h3 style={{ fontSize: "15px", fontWeight: 800, marginBottom: "12px" }}>API Health</h3>
+              <p style={{ fontFamily: T.fontMono, fontSize: "13px", color: health.api?.status === "ok" ? T.green : T.textDim }}>
+                {health.api ? JSON.stringify(health.api) : "Checking..."}
+              </p>
+            </div>
+            <div style={{ ...card(), padding: "24px" }}>
+              <h3 style={{ fontSize: "15px", fontWeight: 800, marginBottom: "12px" }}>Database Ready</h3>
+              <p style={{ fontFamily: T.fontMono, fontSize: "13px", color: health.db?.status === "ready" ? T.green : T.textDim }}>
+                {health.db ? JSON.stringify(health.db) : "Checking..."}
+              </p>
             </div>
           </div>
         )}
 
-        {tab === "Audit Log" && (
-           <div style={{ ...cardMd(), overflow: "hidden" }}>
-             <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
-               <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: "0 0 3px" }}>Global Project Audit Log</h2>
-               <p style={{ fontSize: "13px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>System-wide master admin actions</p>
-             </div>
-             {[
-               { id: 1, action: "Approved SACCO", target: "Rift Valley Dairy", admin: "Super Admin", time: "2026-04-24T14:20:00" },
-               { id: 2, action: "Suspended SACCO", target: "Nairobi Transport Coop", admin: "Super Admin", time: "2026-04-22T09:15:00" },
-               { id: 3, action: "System Update", target: "V2.4.1 Deployment", admin: "Dev Master", time: "2026-04-21T23:55:00" },
-             ].map((log, i) => (
-               <div key={log.id} style={{ padding: "18px 24px", borderBottom: i < 2 ? `1px solid ${T.border2}` : "none", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", background: "#fff" }}>
-                 <div style={{ display: "flex", gap: "14px" }}>
-                   <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: T.greenLite, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: T.green }}>{log.admin[0]}</div>
-                   <div>
-                     <p style={{ fontSize: "15px", fontWeight: 700, color: T.textHi, margin: "0 0 3px" }}>{log.action}</p>
-                     <p style={{ fontSize: "13px", color: T.textMid, margin: "0 0 3px" }}>{log.target}</p>
-                     <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>by {log.admin}</p>
-                   </div>
-                 </div>
-                 <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim }}>{new Date(log.time).toLocaleDateString()}</p>
-               </div>
-             ))}
-           </div>
+        {!loading && tab === "Audit Log" && (
+          <div style={{ ...cardMd(), overflow: "hidden" }}>
+            <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
+              <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: "0 0 3px" }}>Global Project Audit Log</h2>
+            </div>
+            {auditLogs.length === 0 ? (
+              <p style={{ padding: "24px", color: T.textDim }}>No audit events yet.</p>
+            ) : auditLogs.map((log, i) => (
+              <div key={log.id} style={{ padding: "18px 24px", borderBottom: i < auditLogs.length - 1 ? `1px solid ${T.border2}` : "none", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", background: "#fff" }}>
+                <div>
+                  <p style={{ fontSize: "15px", fontWeight: 700, color: T.textHi, margin: "0 0 3px" }}>{log.action}</p>
+                  <p style={{ fontSize: "13px", color: T.textMid, margin: "0 0 3px" }}>{log.target}</p>
+                  <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>actor: {log.actor}</p>
+                </div>
+                <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim }}>
+                  {log.timestamp ? new Date(log.timestamp).toLocaleString() : "—"}
+                </p>
+              </div>
+            ))}
+          </div>
         )}
 
       </div>

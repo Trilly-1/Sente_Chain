@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { T, card } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { ALL_SACCOS } from "../data/demo"
+import { apiSubmitMemberKYC } from "../services/api"
 
 // Mobile detection hook
 function useWindowSize() {
@@ -33,14 +33,20 @@ export default function MemberOnboarding() {
     else handleSubmit();
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await apiSubmitMemberKYC([
+        { document_type: "id_front", file_url: "https://example.com/id-front.jpg", file_name: "id-front.jpg", mime_type: "image/jpeg" },
+        { document_type: "id_back", file_url: "https://example.com/id-back.jpg", file_name: "id-back.jpg", mime_type: "image/jpeg" },
+      ]);
       updateAuth({ status: "under_review" });
       navigate("/dashboard");
-    }, 2000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
 

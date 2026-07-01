@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { T } from "../styles/theme"
+import { apiGetDefaultSaccoId } from "../services/api"
 import { EAC_COUNTRIES } from "../data/countries"
 
 // Mobile detection hook
@@ -28,6 +29,15 @@ export default function Nav({ hidePublicView }) {
   const { width } = useWindowSize()
   const isMobile = width < 900
   const rt = roleTag[auth?.role] || roleTag.member
+  const [publicSaccoId, setPublicSaccoId] = useState(auth?.sacco_id || "")
+
+  useEffect(() => {
+    if (auth?.sacco_id) {
+      setPublicSaccoId(auth.sacco_id)
+      return
+    }
+    apiGetDefaultSaccoId().then((id) => { if (id) setPublicSaccoId(id) }).catch(() => {})
+  }, [auth?.sacco_id])
 
   function handleLogout() { logout(); navigate("/", { replace:true }) }
 
@@ -57,7 +67,7 @@ export default function Nav({ hidePublicView }) {
         {auth && !isMobile && <span style={{ fontSize:"14px", color:T.textMid, fontWeight:500, fontFamily:T.font }}>{auth.name}</span>}
         
         {!hidePublicView && (
-          <button onClick={() => navigate("/sacco/SACCO01")} style={{ 
+          <button onClick={() => publicSaccoId && navigate(`/sacco/${publicSaccoId}`)} style={{ 
             fontSize: isMobile ? "12px" : "14px", fontWeight:600, 
             padding: isMobile ? "6px 12px" : "8px 18px", 
             borderRadius:"9px", cursor:"pointer", fontFamily:T.font, 

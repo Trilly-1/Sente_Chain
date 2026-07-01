@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import StellarHashLink from "../components/StellarHashLink"
-import { apiGetSaccoSummary, apiGetMembers, apiGetTransactions } from "../services/api"
+import { apiGetSaccoSummary } from "../services/api"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
 import { EAC_COUNTRIES } from "../data/countries"
@@ -29,10 +29,9 @@ export default function SACCOPublicView() {
   useEffect(() => {
     async function load() {
       try {
-        const [sum, mems] = await Promise.all([apiGetSaccoSummary(saccoId), apiGetMembers()])
+        const sum = await apiGetSaccoSummary(saccoId)
         setSummary(sum)
-        const txArrays = await Promise.all(mems.filter(m=>m.role==="member").map(m=>apiGetTransactions(m.member_id)))
-        setRecentTxs(txArrays.flat().sort((a,b)=>new Date(b.recorded_at)-new Date(a.recorded_at)))
+        setRecentTxs((sum.recent_transactions || []).slice(0, 20))
       } catch(err) { console.error(err) }
       finally { setLoading(false) }
     }

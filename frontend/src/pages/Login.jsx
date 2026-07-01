@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { DEMO_USERS } from "../data/demo"
+import { apiLogin, apiGetDefaultSaccoId } from "../services/api"
 import { T } from "../styles/theme"
 
 // Mobile detection hook
@@ -25,30 +25,33 @@ export default function Login() {
   const [isStaff,  setIsStaff]  = useState(false)
   const [error,    setError]    = useState("")
   const [loading,  setLoading]  = useState(false)
+  const [publicSaccoId, setPublicSaccoId] = useState("")
 
   const { login } = useAuth()
   const navigate  = useNavigate()
   const { width } = useWindowSize()
   const isMobile  = width < 900
 
+  useEffect(() => {
+    apiGetDefaultSaccoId().then((id) => { if (id) setPublicSaccoId(id) }).catch(() => {})
+  }, [])
+
   async function handleSubmit(e) {
     e.preventDefault(); setError(""); setLoading(true)
-    await new Promise(r => setTimeout(r, 700))
     const cleaned = phone.replace(/\s/g, "")
-    if (isStaff) {
-      const user = DEMO_USERS.find(u =>
-        u.phone === cleaned && u.pin === pin && u.role_code === roleCode && u.role !== "member"
-      )
-      if (user) { login({ token: "demo-token", ...user }); navigate("/") }
-      else setError("Invalid credentials or access code. Contact your SACCO administrator.")
-    } else {
-      const user = DEMO_USERS.find(u =>
-        u.phone === cleaned && u.pin === pin && u.role === "member"
-      )
-      if (user) { login({ token: "demo-token", ...user }); navigate("/") }
-      else setError("Invalid phone number or PIN.")
+    try {
+      const user = await apiLogin({ phone: cleaned, pin })
+      if (isStaff && user.role === "member") {
+        setError("Invalid credentials or access code. Contact your SACCO administrator.")
+        return
+      }
+      login(user)
+      navigate("/")
+    } catch (err) {
+      setError(isStaff ? "Invalid credentials or access code. Contact your SACCO administrator." : "Invalid phone number or PIN.")
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const inp = (extra = {}) => ({
@@ -306,7 +309,7 @@ export default function Login() {
             <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.28)", marginBottom: "6px" }}>
               No account needed to view public records
             </p>
-            <a href="/sacco/SACCO01" style={{
+            <a href={publicSaccoId ? `/sacco/${publicSaccoId}` : "#"} style={{
               fontSize: "13px", color: T.green, textDecoration: "none",
               fontWeight: 600, borderBottom: `1px solid rgba(74,222,128,0.32)`,
               paddingBottom: "1px", transition: "all 0.2s",

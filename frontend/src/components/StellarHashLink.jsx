@@ -1,8 +1,15 @@
 // src/components/StellarHashLink.jsx
 import { T } from "../styles/theme"
+
+const network = import.meta.env.VITE_STELLAR_NETWORK || "testnet"
+const explorerBase =
+  network === "mainnet"
+    ? "https://stellar.expert/explorer/public/tx"
+    : "https://stellar.expert/explorer/testnet/tx"
+
 export default function StellarHashLink({ hash, isCompact }) {
   if (!hash) return <span style={{ color:T.textXdim, fontSize: isCompact ? "11px" : "13px", fontFamily:T.fontMono }}>None</span>
-  const url   = `https://stellar.expert/explorer/testnet/tx/${hash}`
+  const url   = `${explorerBase}/${hash}`
   const short = hash.slice(0, 6) + ".." + hash.slice(-4)
   return (
     <a href={url} target="_blank" rel="noopener noreferrer" style={{ 

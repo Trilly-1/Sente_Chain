@@ -16,6 +16,8 @@ import ProjectAdminDashboard from "./pages/ProjectAdminDashboard"
 function RoleRoute() {
   const { auth } = useAuth()
   if (!auth) return <Navigate to="/auth" replace />
+
+  if (auth.is_project_admin) return <Navigate to="/sc-project-master-gate" replace />
   
   if (auth.role === "member") {
     if (auth.status === "pending_kyc") return <Navigate to="/member-onboarding" replace />
@@ -23,8 +25,13 @@ function RoleRoute() {
     return <MemberDashboard />
   }
   
+  if (auth.role === "admin") {
+    const saccoPending = auth.sacco_status && auth.sacco_status !== "approved"
+    if (saccoPending && !auth.sacco_id) return <Navigate to="/register-sacco" replace />
+    if (saccoPending) return <Navigate to="/verification-pending" replace />
+    return <AdminDashboard />
+  }
   if (auth.role === "cashier") return <CashierDashboard />
-  if (auth.role === "admin")   return <AdminDashboard />
   return <Navigate to="/auth" replace />
 }
 

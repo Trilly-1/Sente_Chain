@@ -1,39 +1,64 @@
 // src/context/AuthContext.jsx
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
-import { setToken, clearToken } from "../services/api"
+import { setToken, clearToken, persistAuth, loadPersistedAuth, clearPersistedAuth, setSaccoContext, apiGetMe, USE_DEMO } from "../services/api"
 import { EAC_COUNTRIES } from "../data/countries"
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [auth, setAuth] = useState(null)
+  const [auth, setAuth] = useState(() => loadPersistedAuth())
   const [currency, setCurrency] = useState(() => {
     return localStorage.getItem("sente_currency") || "KES"
   })
+
+  useEffect(() => {
+    if (auth?.token) {
+      setToken(auth.token)
+      if (auth.sacco_id) setSaccoContext(auth.sacco_id)
+    }
+  }, [auth])
+
+  useEffect(() => {
+    if (!auth?.token || USE_DEMO) return
+    apiGetMe()
+      .then((fresh) => {
+        if (fresh) setAuth((prev) => {
+          const next = { ...prev, ...fresh }
+          persistAuth(next)
+          return next
+        })
+      })
+      .catch(() => logout())
+  }, [])
 
   useEffect(() => {
     localStorage.setItem("sente_currency", currency)
   }, [currency])
 
   const login = useCallback((data) => {
-    // data: { token, member_id, role, name, sacco_id, balance_kes, phone, ... }
     setToken(data.token)
+    if (data.sacco_id) setSaccoContext(data.sacco_id)
     setAuth(data)
-    
-    // Auto-detect currency from phone prefix
+    persistAuth(data)
+
     if (data.phone) {
-      const country = EAC_COUNTRIES.find(c => data.phone.startsWith(c.prefix))
+      const country = EAC_COUNTRIES.find((c) => data.phone.startsWith(c.prefix))
       if (country) setCurrency(country.currency)
     }
   }, [])
 
   const logout = useCallback(() => {
     clearToken()
+    clearPersistedAuth()
     setAuth(null)
   }, [])
 
   const updateAuth = useCallback((updates) => {
-    setAuth(prev => prev ? { ...prev, ...updates } : null)
+    setAuth((prev) => {
+      const next = prev ? { ...prev, ...updates } : null
+      if (next) persistAuth(next)
+      return next
+    })
   }, [])
 
   return (

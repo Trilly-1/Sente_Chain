@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
 import { SACCO_INFO } from "../data/demo"
-import { apiGetLoans, apiApproveLoan, apiRejectLoan, apiGetMembers, apiGetTransactions } from "../services/api"
+import { apiGetLoans, apiApproveLoan, apiRejectLoan, apiGetMembers, apiListTransactions, apiCreateTransaction, apiAnchorTransaction } from "../services/api"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
@@ -39,7 +39,7 @@ const statCard = (label, value, accent, isMobile) => (
 )
 
 export default function CashierDashboard() {
-  const { currency } = useAuth()
+  const { auth, currency } = useAuth()
   const { width } = useWindowSize()
   const isMobile = width < 900
   const [tab,      setTab]      = useState("Loan Requests")
@@ -47,20 +47,24 @@ export default function CashierDashboard() {
   const [members,  setMembers]  = useState([])
   const [selected, setSelected] = useState(null)
   const [selTxs,   setSelTxs]   = useState([])
+  const [allTxs,   setAllTxs]   = useState([])
   const [expanded, setExpanded] = useState(null)
+  const [depositForm, setDepositForm] = useState({ memberId: "", amount: "" })
   const [search,   setSearch]   = useState("")
   const [loading,  setLoading]  = useState(true)
 
   useEffect(() => {
-    Promise.all([apiGetLoans(), apiGetMembers()])
-      .then(([l,m]) => { setLoans(l); setMembers(m) })
+    if (!auth?.sacco_id) { setLoading(false); return }
+    Promise.all([apiGetLoans(), apiGetMembers(auth.sacco_id), apiListTransactions({ saccoId: auth.sacco_id, limit: 100 })])
+      .then(([l, m, txs]) => { setLoans(l); setMembers(m); setAllTxs(txs) })
       .finally(() => setLoading(false))
-  }, [])
+  }, [auth?.sacco_id])
 
   useEffect(() => {
     if (!selected) return
-    apiGetTransactions(selected.member_id).then(setSelTxs)
-  }, [selected])
+    apiListTransactions({ saccoId: auth.sacco_id, membershipId: selected.member_id, limit: 50 })
+      .then(setSelTxs)
+  }, [selected, auth?.sacco_id])
 
   async function approveLoan(id) {
     await apiApproveLoan(id)
@@ -69,6 +73,38 @@ export default function CashierDashboard() {
   async function rejectLoan(id) {
     await apiRejectLoan(id)
     setLoans(prev => prev.map(l => l.id===id ? { ...l, status:"rejected" } : l))
+  }
+
+  async function recordDeposit(e) {
+    e.preventDefault()
+    if (!depositForm.memberId || !depositForm.amount) return
+    try {
+      const tx = await apiCreateTransaction({
+        saccoId: auth.sacco_id,
+        membershipId: depositForm.memberId,
+        transactionType: "deposit",
+        amount: depositForm.amount,
+        currency,
+        description: "Cashier-recorded deposit",
+      })
+      setAllTxs((prev) => [tx, ...prev])
+      if (selected?.member_id === depositForm.memberId) {
+        setSelTxs((prev) => [tx, ...prev])
+      }
+      setDepositForm({ memberId: depositForm.memberId, amount: "" })
+    } catch (err) {
+      alert(err.message || "Failed to record deposit")
+    }
+  }
+
+  async function anchorTx(txId) {
+    try {
+      const updated = await apiAnchorTransaction(txId)
+      setSelTxs((prev) => prev.map((t) => (t.id === txId ? { ...t, ...updated } : t)))
+      setAllTxs((prev) => prev.map((t) => (t.id === txId ? { ...t, ...updated } : t)))
+    } catch (err) {
+      alert(err.message || "Anchor failed")
+    }
   }
 
   const pendingLoans   = loans.filter(l=>l.status==="pending")
@@ -385,6 +421,21 @@ export default function CashierDashboard() {
         {/* TRANSACTION HISTORY */}
         {!loading && tab==="Transaction History" && (
           <div>
+            <form onSubmit={recordDeposit} style={{ ...card(), padding: "16px 20px", marginBottom: "20px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "flex-end" }}>
+              <div style={{ flex: "1 1 200px" }}>
+                <p style={{ fontSize: "11px", fontWeight: 700, color: T.textDim, marginBottom: "6px" }}>RECORD DEPOSIT</p>
+                <select value={depositForm.memberId} onChange={e => setDepositForm(p => ({ ...p, memberId: e.target.value }))} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${T.border}` }} required>
+                  <option value="">Select member</option>
+                  {members.filter(m => m.role === "member").map(m => (
+                    <option key={m.member_id} value={m.member_id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: "0 1 140px" }}>
+                <input type="number" min="1" placeholder="Amount" value={depositForm.amount} onChange={e => setDepositForm(p => ({ ...p, amount: e.target.value }))} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${T.border}` }} required />
+              </div>
+              <button type="submit" style={{ padding: "10px 18px", borderRadius: "8px", border: "none", background: T.green, color: "#fff", fontWeight: 700, cursor: "pointer" }}>Record</button>
+            </form>
             <div style={{ display:"flex", gap:"8px", marginBottom:"20px", flexWrap:"wrap", alignItems:"center" }}>
               <p style={{ fontSize:"14px", fontWeight:600, color:T.textMid, margin:0 }}>Select member:</p>
               {members.filter(m=>m.role==="member").map(m => (
