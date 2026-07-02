@@ -19,6 +19,8 @@ tags:
   - name: Admin Review
   - name: Audit
   - name: Transactions
+  - name: Loans
+  - name: Public
 
 paths:
   /auth/register:
@@ -161,6 +163,134 @@ paths:
                         type: integer
                       anchored_transactions:
                         type: integer
+
+  /saccos/{saccoId}/loan-products:
+    get:
+      tags: [Loans]
+      summary: List loan products for a SACCO
+      operationId: listLoanProducts
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: saccoId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Loan products
+    post:
+      tags: [Loans]
+      summary: Create a loan product (SACCO admin)
+      operationId: createLoanProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: saccoId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Product created
+
+  /saccos/{saccoId}/loans:
+    get:
+      tags: [Loans]
+      summary: List loans for a SACCO (staff)
+      operationId: listSaccoLoans
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: saccoId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Loans list
+    post:
+      tags: [Loans]
+      summary: Apply for a loan (member)
+      operationId: applyLoan
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: saccoId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Loan application created
+
+  /saccos/{saccoId}/loans/{loanId}/approve:
+    patch:
+      tags: [Loans]
+      summary: Approve and disburse a pending loan
+      operationId: approveLoan
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: saccoId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: loanId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Loan approved
+
+  /members/loans:
+    get:
+      tags: [Loans]
+      summary: List current member's loans
+      operationId: listMyLoans
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: sacco_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Member loans
+
+  /loans/{loanId}/repayments:
+    post:
+      tags: [Loans]
+      summary: Record a loan repayment
+      operationId: repayLoan
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: loanId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Repayment recorded
 
   /saccos:
     post:

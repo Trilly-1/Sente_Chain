@@ -1,7 +1,7 @@
 // src/pages/MemberDashboard.jsx
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
-import { apiGetTransactions, apiListSaccos } from "../services/api"
+import { apiGetTransactions, apiListSaccos, apiGetMyLoans, apiApplyLoan, apiListLoanProducts } from "../services/api"
 import { T, card, cardMd } from "../styles/theme"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
@@ -35,6 +35,12 @@ export default function MemberDashboard() {
   const [txs,     setTxs]     = useState([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState("")
+  const [loans, setLoans] = useState([])
+  const [products, setProducts] = useState([])
+  const [loanForm, setLoanForm] = useState({ principal: "", term_months: 6, purpose: "", collateral: "", guarantor: "" })
+  const [loanMsg, setLoanMsg] = useState("")
+  const [loanErr, setLoanErr] = useState("")
+  const [loanLoading, setLoanLoading] = useState(false)
 
   const [mySacco, setMySacco] = useState({ name: "SACCO" })
 
@@ -52,11 +58,42 @@ export default function MemberDashboard() {
       const found = list.find((s) => s.id === auth.sacco_id)
       if (found) setMySacco(found)
     }).catch(() => {})
+    apiGetMyLoans(auth.sacco_id).then(setLoans).catch(() => {})
+    apiListLoanProducts(auth.sacco_id).then(setProducts).catch(() => {})
   }, [auth?.sacco_id])
 
   const totalDeposited = txs.filter(t=>t.type==="Deposit").reduce((s,t)=>s+t.amount_kes,0)
   const totalLoans     = txs.filter(t=>t.type==="Loan").reduce((s,t)=>s+t.amount_kes,0)
   const totalRepaid    = txs.filter(t=>t.type==="Repayment").reduce((s,t)=>s+t.amount_kes,0)
+  const activeLoan = loans.find((l) => l.status === "active")
+  const pendingLoan = loans.find((l) => l.status === "pending")
+  const defaultProduct = products.find((p) => p.is_default) || products[0]
+
+  async function handleApplyLoan(e) {
+    e.preventDefault()
+    setLoanErr("")
+    setLoanMsg("")
+    setLoanLoading(true)
+    try {
+      const created = await apiApplyLoan(auth.sacco_id, {
+        principal: parseFloat(loanForm.principal),
+        term_months: parseInt(loanForm.term_months, 10),
+        purpose: loanForm.purpose,
+        collateral: loanForm.collateral,
+        guarantor: loanForm.guarantor,
+        loan_product_id: defaultProduct?.id,
+      })
+      setLoans((prev) => [created, ...prev])
+      setLoanMsg("Loan application submitted. A cashier will review it.")
+      setLoanForm({ principal: "", term_months: 6, purpose: "", collateral: "", guarantor: "" })
+    } catch (err) {
+      setLoanErr(err.message || "Failed to submit loan application")
+    } finally {
+      setLoanLoading(false)
+    }
+  }
+
+  const inp = { background: "#ffffff", border: `1.5px solid ${T.border}`, color: "#0a0a0a", borderRadius: "9px", padding: "11px 14px", width: "100%", outline: "none", fontSize: "14px", fontFamily: T.font }
 
   return (
     <div style={{ minHeight:"100vh", background:T.pageBg, fontFamily:T.font }}>
@@ -86,6 +123,64 @@ export default function MemberDashboard() {
               <p style={{ fontSize: isMobile ? "18px" : "22px", fontWeight:900, color:T.textHi, fontVariantNumeric:"tabular-nums" }}>{currency} {c.value.toLocaleString()}</p>
             </div>
           ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "20px", marginBottom: "24px" }}>
+          <div style={{ ...cardMd(), overflow: "hidden" }}>
+            <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
+              <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: 0 }}>My Loans</h2>
+            </div>
+            {loans.length === 0 ? (
+              <p style={{ padding: "32px", textAlign: "center", color: T.textDim, fontSize: "14px" }}>No loan applications yet</p>
+            ) : (
+              <div>
+                {loans.slice(0, 5).map((loan, i) => (
+                  <div key={loan.id} style={{ padding: "16px 24px", borderBottom: i < Math.min(loans.length, 5) - 1 ? `1px solid ${T.border2}` : "none" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "6px" }}>
+                      <p style={{ fontSize: "15px", fontWeight: 700, color: T.textHi, margin: 0 }}>{loan.purpose || "Loan"}</p>
+                      <StatusBadge status={loan.status} />
+                    </div>
+                    <p style={{ fontSize: "18px", fontWeight: 900, color: T.goldMid, margin: "0 0 4px", fontFamily: T.fontMono }}>{currency} {loan.amount_requested.toLocaleString()}</p>
+                    <p style={{ fontSize: "12px", color: T.textDim, margin: 0 }}>{loan.term_months} months @ {loan.interest_rate}% • Applied {loan.applied_on}</p>
+                    {loan.status === "active" && (
+                      <p style={{ fontSize: "12px", color: T.green, margin: "6px 0 0", fontWeight: 600 }}>Balance: {currency} {loan.balance_remaining.toLocaleString()}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ ...cardMd(), overflow: "hidden" }}>
+            <div style={{ height: "3px", background: `linear-gradient(90deg,${T.goldMid},${T.green})` }} />
+            <div style={{ padding: "20px 24px" }}>
+              <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Apply for a Loan</h2>
+              <p style={{ fontSize: "13px", color: T.textDim, margin: "0 0 16px" }}>
+                {defaultProduct
+                  ? `${defaultProduct.name}: ${defaultProduct.interest_rate_annual}% p.a. (${defaultProduct.interest_method === "flat" ? "flat" : "reducing balance"})`
+                  : "Ask your SACCO admin to configure a loan product first"}
+              </p>
+              {pendingLoan ? (
+                <p style={{ fontSize: "14px", color: T.goldMid, fontWeight: 600 }}>You already have a pending application.</p>
+              ) : (
+                <form onSubmit={handleApplyLoan} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <input type="number" min="1" placeholder="Amount (UGX)" value={loanForm.principal} onChange={(e) => setLoanForm((p) => ({ ...p, principal: e.target.value }))} required disabled={!defaultProduct || loanLoading} style={inp} />
+                  <input type="number" min={defaultProduct?.min_term_months || 1} max={defaultProduct?.max_term_months || 36} placeholder="Term (months)" value={loanForm.term_months} onChange={(e) => setLoanForm((p) => ({ ...p, term_months: e.target.value }))} required disabled={!defaultProduct || loanLoading} style={inp} />
+                  <input type="text" placeholder="Purpose" value={loanForm.purpose} onChange={(e) => setLoanForm((p) => ({ ...p, purpose: e.target.value }))} required disabled={!defaultProduct || loanLoading} style={inp} />
+                  <input type="text" placeholder="Collateral (optional)" value={loanForm.collateral} onChange={(e) => setLoanForm((p) => ({ ...p, collateral: e.target.value }))} disabled={!defaultProduct || loanLoading} style={inp} />
+                  <input type="text" placeholder="Guarantor (optional)" value={loanForm.guarantor} onChange={(e) => setLoanForm((p) => ({ ...p, guarantor: e.target.value }))} disabled={!defaultProduct || loanLoading} style={inp} />
+                  {loanErr && <p style={{ fontSize: "13px", color: T.red, margin: 0 }}>{loanErr}</p>}
+                  {loanMsg && <p style={{ fontSize: "13px", color: T.green, margin: 0, fontWeight: 600 }}>{loanMsg}</p>}
+                  <button type="submit" disabled={!defaultProduct || loanLoading} style={{ padding: "12px", borderRadius: "10px", border: "none", fontFamily: T.font, background: !defaultProduct || loanLoading ? T.border2 : T.goldMid, color: "#fff", fontSize: "14px", fontWeight: 800, cursor: !defaultProduct || loanLoading ? "not-allowed" : "pointer" }}>
+                    {loanLoading ? "Submitting..." : "Submit Application"}
+                  </button>
+                </form>
+              )}
+              {activeLoan && (
+                <p style={{ fontSize: "12px", color: T.textDim, marginTop: "12px" }}>Next payment: {activeLoan.next_payment_date || "—"} {activeLoan.next_payment_amount ? `• ${currency} ${activeLoan.next_payment_amount.toLocaleString()}` : ""}</p>
+              )}
+            </div>
+          </div>
         </div>
 
         <div style={{ ...card(), padding:"20px 24px", marginBottom:"16px", display:"flex", gap:"16px", alignItems:"flex-start", borderLeft:`4px solid ${T.green}` }}>

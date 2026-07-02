@@ -14,6 +14,7 @@ import (
 	"sentechain-backend/internal/config"
 	"sentechain-backend/internal/documents"
 	"sentechain-backend/internal/memberships"
+	"sentechain-backend/internal/loans"
 	"sentechain-backend/internal/middleware"
 	"sentechain-backend/internal/onboarding"
 	"sentechain-backend/internal/publicstats"
@@ -61,6 +62,7 @@ func (s *Server) registerRoutes() {
 	s.registerOnboardingRoutes()
 	s.registerTransactionRoutes()
 	s.registerSaccoOpsRoutes()
+	s.registerLoanRoutes()
 	s.registerAdminRoutes()
 }
 
@@ -177,6 +179,57 @@ func (s *Server) registerSaccoOpsRoutes() {
 		adminGroup.PATCH("/members/:membershipId/role", handler.HandleUpdateRole)
 		adminGroup.PATCH("/members/:membershipId/suspend", handler.HandleSuspend)
 		adminGroup.PATCH("/members/:membershipId/activate", handler.HandleActivate)
+	}
+}
+
+func (s *Server) registerLoanRoutes() {
+	jwtSecret := s.jwtSecret()
+
+	loanRepo := loans.NewRepository(s.pool)
+	membershipRepo := memberships.NewRepository(s.pool)
+	saccoRepo := sacco.NewRepository(s.pool)
+	txnRepo := transactions.NewRepository(s.pool)
+	auditRepo := audit.NewRepository(s.pool)
+
+	service := loans.NewService(loanRepo, membershipRepo, saccoRepo, txnRepo, auditRepo)
+	handler := loans.NewHandler(service)
+
+	memberGroup := s.engine.Group("/members/loans", middleware.AuthMiddleware(jwtSecret))
+	{
+		memberGroup.GET("", handler.HandleListMine)
+	}
+
+	loanDetailGroup := s.engine.Group("/loans", middleware.AuthMiddleware(jwtSecret))
+	{
+		loanDetailGroup.GET("/:loanId", handler.HandleGet)
+		loanDetailGroup.POST("/:loanId/repayments", handler.HandleRepay)
+	}
+
+	saccoLoanGroup := s.engine.Group("/saccos/:saccoId",
+		middleware.AuthMiddleware(jwtSecret),
+	)
+	{
+		saccoLoanGroup.POST("/loans", handler.HandleApply)
+		saccoLoanGroup.GET("/loan-products", handler.HandleListProducts)
+	}
+
+	staffLoanGroup := s.engine.Group("/saccos/:saccoId",
+		middleware.AuthMiddleware(jwtSecret),
+		middleware.SaccoStaffMiddleware(s.pool, saccoops.StaffRoles()...),
+	)
+	{
+		staffLoanGroup.GET("/loans", handler.HandleListBySacco)
+		staffLoanGroup.PATCH("/loans/:loanId/approve", handler.HandleApprove)
+		staffLoanGroup.PATCH("/loans/:loanId/reject", handler.HandleReject)
+	}
+
+	adminLoanGroup := s.engine.Group("/saccos/:saccoId",
+		middleware.AuthMiddleware(jwtSecret),
+		middleware.SaccoStaffMiddleware(s.pool, saccoops.AdminOnlyRoles()...),
+	)
+	{
+		adminLoanGroup.POST("/loan-products", handler.HandleCreateProduct)
+		adminLoanGroup.PATCH("/loan-products/:productId", handler.HandleUpdateProduct)
 	}
 }
 

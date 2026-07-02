@@ -471,6 +471,72 @@ Content-Type: application/json
 
 ---
 
+## 8. Loans
+
+Run migration `000006_loans` before testing.
+
+### Admin creates loan product
+
+```http
+POST /saccos/{saccoId}/loan-products
+Authorization: Bearer <sacco_admin_token>
+Content-Type: application/json
+
+{
+  "name": "Standard Loan",
+  "interest_rate_annual": 12,
+  "interest_method": "flat",
+  "min_term_months": 1,
+  "max_term_months": 24,
+  "is_default": true
+}
+```
+
+### Member applies for loan
+
+```http
+POST /saccos/{saccoId}/loans
+Authorization: Bearer <member_token>
+Content-Type: application/json
+
+{
+  "principal": 500000,
+  "term_months": 6,
+  "purpose": "School fees",
+  "collateral": "Land title",
+  "guarantor": "Jane Doe"
+}
+```
+
+### Cashier lists / approves loans
+
+```http
+GET /saccos/{saccoId}/loans
+Authorization: Bearer <cashier_token>
+```
+
+```http
+PATCH /saccos/{saccoId}/loans/{loanId}/approve
+Authorization: Bearer <cashier_token>
+Content-Type: application/json
+
+{}
+```
+
+### Record repayment
+
+```http
+POST /loans/{loanId}/repayments
+Authorization: Bearer <cashier_or_member_token>
+Content-Type: application/json
+
+{
+  "amount": 908300
+}
+```
+
+---
+
 ## Tools
 
 - **Swagger UI:** http://localhost:8080/docs (Authorize with Bearer token for protected routes)

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { apiGetMembers, apiListTransactions, apiRegister, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiCreateTransaction, apiAnchorTransaction, apiVerifyTransaction } from "../services/api"
+import { apiGetMembers, apiListTransactions, apiRegister, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiCreateTransaction, apiAnchorTransaction, apiVerifyTransaction, apiListLoanProducts, apiCreateLoanProduct } from "../services/api"
 import { UGANDA } from "../data/countries"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
@@ -20,7 +20,7 @@ function useWindowSize() {
 }
 
 const typeColor = { Deposit: T.green, Loan: T.goldMid, Repayment: "#059669" }
-const TABS = ["SACCO Summary", "Members and Roles", "Register Member", "All Transactions"]
+const TABS = ["SACCO Summary", "Loan Products", "Members and Roles", "Register Member", "All Transactions"]
 
 const TH = (h) => (
   <th key={h} style={{ padding: "12px 20px", textAlign: "left", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: T.textDim, borderBottom: `1.5px solid ${T.border}`, background: T.surface, whiteSpace: "nowrap", fontFamily: T.fontMono }}>{h}</th>
@@ -49,17 +49,24 @@ export default function AdminDashboard() {
   const [regLoading, setRegLoading] = useState(false)
   const [saccoInfo, setSaccoInfo] = useState({ name: "SACCO" })
   const [regErr, setRegErr] = useState("")
+  const [loanProducts, setLoanProducts] = useState([])
+  const [productForm, setProductForm] = useState({ name: "Standard Loan", interest_rate_annual: 12, interest_method: "flat", min_term_months: 1, max_term_months: 24, is_default: true })
+  const [productOk, setProductOk] = useState(false)
+  const [productErr, setProductErr] = useState("")
+  const [productLoading, setProductLoading] = useState(false)
 
 
   useEffect(() => {
     if (!auth?.sacco_id) return
     async function load() {
       try {
-        const [mems, summary] = await Promise.all([
+        const [mems, summary, products] = await Promise.all([
           apiGetMembers(auth.sacco_id),
           apiGetSaccoSummary(auth.sacco_id).catch(() => null),
+          apiListLoanProducts(auth.sacco_id).catch(() => []),
         ])
         setMembers(mems)
+        setLoanProducts(products)
         if (summary) setSaccoInfo({ name: summary.name })
         const txList = await apiListTransactions({ saccoId: auth.sacco_id, limit: 100 })
         setAllTxs(txList.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at)))
@@ -117,6 +124,22 @@ export default function AdminDashboard() {
       alert(result.verified ? "Stellar proof verified on-chain" : `Verify result: ${JSON.stringify(result)}`)
     } catch (err) { alert(err.message || "Verify failed") }
     finally { setTxActionId(null) }
+  }
+
+  async function handleCreateProduct(e) {
+    e.preventDefault()
+    setProductErr("")
+    setProductLoading(true)
+    try {
+      const created = await apiCreateLoanProduct(auth.sacco_id, productForm)
+      setLoanProducts((prev) => [...prev, created])
+      setProductOk(true)
+      setTimeout(() => setProductOk(false), 3000)
+    } catch (err) {
+      setProductErr(err.message || "Failed to create loan product")
+    } finally {
+      setProductLoading(false)
+    }
   }
 
   async function handleRecordDeposit(membershipId, amount) {
@@ -307,6 +330,78 @@ export default function AdminDashboard() {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* LOAN PRODUCTS */}
+        {!loading && tab === "Loan Products" && (
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "24px" }}>
+            <div style={{ ...cardMd(), overflow: "hidden" }}>
+              <div style={{ height: "3px", background: `linear-gradient(90deg,${T.goldMid},${T.green})` }} />
+              <div style={{ padding: "24px 28px" }}>
+                <h2 style={{ fontSize: "18px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Create Loan Product</h2>
+                <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 20px" }}>Set interest rate and repayment method for your SACCO</p>
+                <form onSubmit={handleCreateProduct} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  <div>
+                    <Lbl text="Product Name" />
+                    <input value={productForm.name} onChange={(e) => setProductForm((p) => ({ ...p, name: e.target.value }))} required style={inp()} onFocus={onF} onBlur={onB} />
+                  </div>
+                  <div>
+                    <Lbl text="Annual Interest Rate (%)" />
+                    <input type="number" min="0" step="0.1" value={productForm.interest_rate_annual} onChange={(e) => setProductForm((p) => ({ ...p, interest_rate_annual: parseFloat(e.target.value) || 0 }))} required style={inp()} onFocus={onF} onBlur={onB} />
+                  </div>
+                  <div>
+                    <Lbl text="Interest Method" />
+                    <select value={productForm.interest_method} onChange={(e) => setProductForm((p) => ({ ...p, interest_method: e.target.value }))} style={{ ...inp(), cursor: "pointer" }}>
+                      <option value="flat">Flat rate</option>
+                      <option value="reducing_balance">Reducing balance</option>
+                    </select>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <Lbl text="Min Term (months)" />
+                      <input type="number" min="1" value={productForm.min_term_months} onChange={(e) => setProductForm((p) => ({ ...p, min_term_months: parseInt(e.target.value, 10) || 1 }))} style={inp()} onFocus={onF} onBlur={onB} />
+                    </div>
+                    <div>
+                      <Lbl text="Max Term (months)" />
+                      <input type="number" min="1" value={productForm.max_term_months} onChange={(e) => setProductForm((p) => ({ ...p, max_term_months: parseInt(e.target.value, 10) || 1 }))} style={inp()} onFocus={onF} onBlur={onB} />
+                    </div>
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: T.textMid }}>
+                    <input type="checkbox" checked={productForm.is_default} onChange={(e) => setProductForm((p) => ({ ...p, is_default: e.target.checked }))} />
+                    Set as default product
+                  </label>
+                  {productErr && <div style={{ padding: "12px", borderRadius: "10px", background: T.redBg, color: T.red, fontSize: "14px" }}>{productErr}</div>}
+                  {productOk && <div style={{ padding: "12px", borderRadius: "10px", background: T.greenLite, color: T.green, fontSize: "14px", fontWeight: 700 }}>Loan product created</div>}
+                  <button type="submit" disabled={productLoading} style={{ padding: "13px", borderRadius: "10px", border: "none", fontFamily: T.font, background: productLoading ? T.border2 : T.goldMid, color: "#fff", fontSize: "15px", fontWeight: 800, cursor: productLoading ? "not-allowed" : "pointer" }}>
+                    {productLoading ? "Saving..." : "Create Product"}
+                  </button>
+                </form>
+              </div>
+            </div>
+            <div style={{ ...cardMd(), overflow: "hidden" }}>
+              <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
+                <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: 0 }}>Active Products</h2>
+              </div>
+              {loanProducts.length === 0 ? (
+                <p style={{ padding: "40px", textAlign: "center", color: T.textDim, fontSize: "14px" }}>No loan products yet. Create one to let members apply.</p>
+              ) : (
+                <div>
+                  {loanProducts.map((p, i) => (
+                    <div key={p.id} style={{ padding: "18px 24px", borderBottom: i < loanProducts.length - 1 ? `1px solid ${T.border2}` : "none" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                        <div>
+                          <p style={{ fontSize: "16px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>{p.name}</p>
+                          <p style={{ fontSize: "13px", color: T.textDim, margin: 0 }}>{p.interest_rate_annual}% p.a. • {p.interest_method === "flat" ? "Flat" : "Reducing balance"}</p>
+                          <p style={{ fontSize: "12px", color: T.textDim, margin: "4px 0 0", fontFamily: T.fontMono }}>Term: {p.min_term_months}–{p.max_term_months} months</p>
+                        </div>
+                        {p.is_default && <span style={{ fontSize: "10px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: T.greenLite, color: T.green, border: `1px solid ${T.greenBdr}` }}>DEFAULT</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

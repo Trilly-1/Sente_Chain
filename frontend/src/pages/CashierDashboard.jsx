@@ -63,7 +63,7 @@ export default function CashierDashboard() {
 
   useEffect(() => {
     if (!auth?.sacco_id) { setLoading(false); return }
-    Promise.all([apiGetLoans(), apiGetMembers(auth.sacco_id), apiListTransactions({ saccoId: auth.sacco_id, limit: 100 })])
+    Promise.all([apiGetLoans(auth.sacco_id), apiGetMembers(auth.sacco_id), apiListTransactions({ saccoId: auth.sacco_id, limit: 100 })])
       .then(([l, m, txs]) => { setLoans(l); setMembers(m); setAllTxs(txs) })
       .finally(() => setLoading(false))
   }, [auth?.sacco_id])
@@ -75,12 +75,12 @@ export default function CashierDashboard() {
   }, [selected, auth?.sacco_id])
 
   async function approveLoan(id) {
-    await apiApproveLoan(id)
-    setLoans(prev => prev.map(l => l.id===id ? { ...l, status:"active", disbursed_on:"2026-04-01", first_payment_due:"2026-05-01", next_payment_date:"2026-05-01", next_payment_amount:l.monthly_installment, balance_remaining:l.amount_requested+l.total_interest } : l))
+    const updated = await apiApproveLoan(auth.sacco_id, id)
+    setLoans(prev => prev.map(l => l.id === id ? updated : l))
   }
   async function rejectLoan(id) {
-    await apiRejectLoan(id)
-    setLoans(prev => prev.map(l => l.id===id ? { ...l, status:"rejected" } : l))
+    const updated = await apiRejectLoan(auth.sacco_id, id)
+    setLoans(prev => prev.map(l => l.id === id ? updated : l))
   }
 
   async function recordDeposit(e) {

@@ -498,31 +498,128 @@ export async function apiGetAuditLog(limit = 50, offset = 0) {
   return (data.logs || []).map(mapAuditLog)
 }
 
-// ─── Stubs (no backend yet) ───────────────────────────────────────────────────
+// ─── Loans ────────────────────────────────────────────────────────────────────
 
-export async function apiGetLoans() {
+function mapLoan(l) {
+  return {
+    id: l.id,
+    reference_number: l.reference_number,
+    member_id: l.member_id,
+    member_name: l.member_name,
+    phone: l.phone,
+    amount_requested: l.amount_requested ?? (parseFloat(l.principal) || 0),
+    purpose: l.purpose || "",
+    status: l.status,
+    applied_on: l.applied_on,
+    interest_rate: l.interest_rate ?? (parseFloat(l.interest_rate_annual) || 0),
+    term_months: l.term_months,
+    interest_method: l.interest_method,
+    monthly_installment: l.monthly_installment ?? 0,
+    total_repayable: l.total_repayable ?? 0,
+    total_interest: l.total_interest ?? 0,
+    disbursed_on: l.disbursed_on,
+    collateral: l.collateral || "",
+    guarantor: l.guarantor || "",
+    savings_balance: l.savings_balance ?? 0,
+    repaid_so_far: l.repaid_so_far ?? 0,
+    balance_remaining: l.balance_remaining ?? 0,
+    payments_made: l.payments_made ?? 0,
+    payments_total: l.payments_total ?? l.term_months ?? 0,
+    next_payment_date: l.next_payment_date,
+    next_payment_amount: l.next_payment_amount,
+    payments_schedule: l.payments_schedule || [],
+  }
+}
+
+function mapLoanProduct(p) {
+  return {
+    id: p.id,
+    name: p.name,
+    interest_rate_annual: parseFloat(p.interest_rate_annual) || 0,
+    interest_method: p.interest_method,
+    min_term_months: p.min_term_months,
+    max_term_months: p.max_term_months,
+    is_default: p.is_default,
+    is_active: p.is_active,
+  }
+}
+
+export async function apiListLoanProducts(saccoId) {
+  if (USE_DEMO) return [{ id: "demo", name: "Standard Loan", interest_rate_annual: 12, interest_method: "flat", min_term_months: 1, max_term_months: 24, is_default: true, is_active: true }]
+  const data = await apiFetch(`/saccos/${saccoId}/loan-products`)
+  return (data.products || []).map(mapLoanProduct)
+}
+
+export async function apiCreateLoanProduct(saccoId, body) {
+  const data = await apiFetch(`/saccos/${saccoId}/loan-products`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+  return mapLoanProduct(data)
+}
+
+export async function apiUpdateLoanProduct(saccoId, productId, body) {
+  const data = await apiFetch(`/saccos/${saccoId}/loan-products/${productId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
+  return mapLoanProduct(data)
+}
+
+export async function apiGetLoans(saccoId, status) {
   if (USE_DEMO) {
     const { LOAN_APPLICATIONS } = await import("../data/demo")
     return LOAN_APPLICATIONS
   }
-  return []
+  const q = status ? `?status=${encodeURIComponent(status)}` : ""
+  const data = await apiFetch(`/saccos/${saccoId}/loans${q}`)
+  return (data.loans || []).map(mapLoan)
 }
 
-export async function apiApproveLoan() {
+export async function apiGetMyLoans(saccoId) {
+  if (USE_DEMO) {
+    const { LOAN_APPLICATIONS } = await import("../data/demo")
+    return LOAN_APPLICATIONS.filter((l) => l.member_id === "MBR001")
+  }
+  const data = await apiFetch(`/members/loans?sacco_id=${encodeURIComponent(saccoId)}`)
+  return (data.loans || []).map(mapLoan)
+}
+
+export async function apiApplyLoan(saccoId, body) {
+  const data = await apiFetch(`/saccos/${saccoId}/loans`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+  return mapLoan(data)
+}
+
+export async function apiApproveLoan(saccoId, loanId) {
   if (USE_DEMO) {
     await new Promise((r) => setTimeout(r, 600))
     return { success: true }
   }
-  throw new Error("Loans API is not available yet")
+  const data = await apiFetch(`/saccos/${saccoId}/loans/${loanId}/approve`, { method: "PATCH", body: JSON.stringify({}) })
+  return mapLoan(data)
 }
 
-export async function apiRejectLoan() {
+export async function apiRejectLoan(saccoId, loanId) {
   if (USE_DEMO) {
     await new Promise((r) => setTimeout(r, 400))
     return { success: true }
   }
-  throw new Error("Loans API is not available yet")
+  const data = await apiFetch(`/saccos/${saccoId}/loans/${loanId}/reject`, { method: "PATCH", body: JSON.stringify({}) })
+  return mapLoan(data)
 }
+
+export async function apiRepayLoan(loanId, amount) {
+  const data = await apiFetch(`/loans/${loanId}/repayments`, {
+    method: "POST",
+    body: JSON.stringify({ amount }),
+  })
+  return mapLoan(data)
+}
+
+// ─── Stubs (no backend yet) ───────────────────────────────────────────────────
 
 export async function apiContact() {
   if (USE_DEMO) {
