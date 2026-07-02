@@ -29,6 +29,23 @@ func (h *Handler) HandleListMembers(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(gin.H{"members": members}))
 }
 
+func (h *Handler) HandleGetMemberBalance(c *gin.Context) {
+	userID := c.GetString("user_id")
+	saccoID := c.Query("sacco_id")
+	if saccoID == "" {
+		c.JSON(http.StatusBadRequest, response.Error("sacco_id is required"))
+		return
+	}
+
+	balance, err := h.service.GetMemberBalance(c.Request.Context(), userID, saccoID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(balance))
+}
+
 func (h *Handler) HandleUpdateRole(c *gin.Context) {
 	actorUserID := c.GetString("user_id")
 	saccoID := c.Param("saccoId")

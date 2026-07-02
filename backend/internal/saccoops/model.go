@@ -4,13 +4,14 @@ import "time"
 
 // MemberListItem is a SACCO member visible to staff (no PIN or sensitive data).
 type MemberListItem struct {
-	MembershipID string  `json:"membership_id"`
-	UserID       string  `json:"user_id"`
-	FullName     string  `json:"full_name"`
-	Phone        string  `json:"phone"`
-	Role         string  `json:"role"`
-	Status       string  `json:"status"`
-	JoinedAt     *string `json:"joined_at,omitempty"`
+	MembershipID   string  `json:"membership_id"`
+	UserID         string  `json:"user_id"`
+	FullName       string  `json:"full_name"`
+	Phone          string  `json:"phone"`
+	Role           string  `json:"role"`
+	Status         string  `json:"status"`
+	JoinedAt       *string `json:"joined_at,omitempty"`
+	SavingsBalance float64 `json:"savings_balance"`
 }
 
 // UpdateRoleRequest changes a member's SACCO role (admin only).

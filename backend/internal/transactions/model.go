@@ -74,6 +74,18 @@ type ListFilter struct {
 	Offset       int
 }
 
+// MemberBalanceSummary is computed from the transaction ledger.
+type MemberBalanceSummary struct {
+	MembershipID       string  `json:"membership_id"`
+	Currency           string  `json:"currency"`
+	TotalDeposits      float64 `json:"total_deposits"`
+	TotalWithdrawals   float64 `json:"total_withdrawals"`
+	TotalLoansReceived float64 `json:"total_loans_received"`
+	TotalRepaid        float64 `json:"total_repaid"`
+	SavingsBalance     float64 `json:"savings_balance"`
+	LoanOutstanding    float64 `json:"loan_outstanding"`
+}
+
 // VerifyResult is returned from the verification endpoint.
 type VerifyResult struct {
 	TransactionID   string `json:"transaction_id"`

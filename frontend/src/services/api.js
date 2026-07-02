@@ -126,6 +126,7 @@ function mapMember(m) {
     role: m.role,
     status: m.status,
     joined: m.joined_at,
+    balance_kes: m.savings_balance ?? 0,
   }
 }
 
@@ -347,6 +348,25 @@ export async function apiGetOnboardingStatus() {
 }
 
 // ─── SACCO staff ops ──────────────────────────────────────────────────────────
+
+export async function apiGetMemberBalance(saccoId) {
+  if (USE_DEMO) {
+    const auth = loadPersistedAuth()
+    const { DEMO_MEMBERS } = await import("../data/demo")
+    const m = DEMO_MEMBERS.find((x) => x.member_id === auth?.member_id)
+    const savings = m?.balance_kes ?? 0
+    return {
+      savings_balance: savings,
+      total_deposits: savings,
+      total_withdrawals: 0,
+      total_loans_received: 0,
+      total_repaid: 0,
+      loan_outstanding: 0,
+      currency: "UGX",
+    }
+  }
+  return apiFetch(`/members/balance?sacco_id=${encodeURIComponent(saccoId)}`)
+}
 
 export async function apiGetMembers(saccoId, status) {
   if (USE_DEMO) {

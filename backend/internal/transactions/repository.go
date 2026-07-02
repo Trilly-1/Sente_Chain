@@ -230,3 +230,79 @@ func (r *Repository) SetStatus(ctx context.Context, id, status string) (*Transac
 	}
 	return t, nil
 }
+
+func parseAmountStr(s string) float64 {
+	var v float64
+	_, _ = fmt.Sscanf(s, "%f", &v)
+	return v
+}
+
+func (r *Repository) GetMemberBalance(ctx context.Context, membershipID string) (*MemberBalanceSummary, error) {
+	query := `
+		SELECT
+			COALESCE(SUM(amount) FILTER (WHERE transaction_type = 'deposit' AND status != 'cancelled'), 0)::text,
+			COALESCE(SUM(amount) FILTER (WHERE transaction_type = 'withdrawal' AND status != 'cancelled'), 0)::text,
+			COALESCE(SUM(amount) FILTER (WHERE transaction_type = 'loan_disbursement' AND status != 'cancelled'), 0)::text,
+			COALESCE(SUM(amount) FILTER (WHERE transaction_type = 'loan_repayment' AND status != 'cancelled'), 0)::text,
+			COALESCE(MAX(currency) FILTER (WHERE currency IS NOT NULL AND currency != ''), 'UGX')
+		FROM transactions WHERE membership_id = $1`
+
+	var dep, wit, loan, rep, cur string
+	err := r.db.QueryRow(ctx, query, membershipID).Scan(&dep, &wit, &loan, &rep, &cur)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get member balance: %w", err)
+	}
+
+	deposits := parseAmountStr(dep)
+	withdrawals := parseAmountStr(wit)
+	return &MemberBalanceSummary{
+		MembershipID:       membershipID,
+		Currency:           cur,
+		TotalDeposits:      deposits,
+		TotalWithdrawals:   withdrawals,
+		TotalLoansReceived: parseAmountStr(loan),
+		TotalRepaid:        parseAmountStr(rep),
+		SavingsBalance:     deposits - withdrawals,
+	}, nil
+}
+
+func (r *Repository) SavingsBalancesBySacco(ctx context.Context, saccoID string) (map[string]float64, error) {
+	query := `
+		SELECT membership_id::text,
+			COALESCE(SUM(amount) FILTER (WHERE transaction_type = 'deposit' AND status != 'cancelled'), 0)
+			- COALESCE(SUM(amount) FILTER (WHERE transaction_type = 'withdrawal' AND status != 'cancelled'), 0)
+		FROM transactions WHERE sacco_id = $1
+		GROUP BY membership_id`
+
+	rows, err := r.db.Query(ctx, query, saccoID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make(map[string]float64)
+	for rows.Next() {
+		var id string
+		var bal float64
+		if err := rows.Scan(&id, &bal); err != nil {
+			return nil, err
+		}
+		out[id] = bal
+	}
+	return out, rows.Err()
+}
+
+func (r *Repository) LoanOutstanding(ctx context.Context, membershipID string) (float64, error) {
+	var sum *string
+	err := r.db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(balance_remaining), 0)::text FROM loans
+		WHERE membership_id = $1 AND status = 'active'`, membershipID,
+	).Scan(&sum)
+	if err != nil {
+		return 0, err
+	}
+	if sum == nil {
+		return 0, nil
+	}
+	return parseAmountStr(*sum), nil
+}

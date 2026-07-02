@@ -1,7 +1,7 @@
 // src/pages/MemberDashboard.jsx
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
-import { apiGetTransactions, apiListSaccos, apiGetMyLoans, apiApplyLoan, apiListLoanProducts, apiGetPaymentInstructions, apiRequestToPay } from "../services/api"
+import { apiGetTransactions, apiListSaccos, apiGetMyLoans, apiApplyLoan, apiListLoanProducts, apiGetPaymentInstructions, apiRequestToPay, apiGetMemberBalance, apiRepayLoan } from "../services/api"
 import { T, card, cardMd } from "../styles/theme"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
@@ -47,8 +47,29 @@ export default function MemberDashboard() {
   const [payMsg, setPayMsg] = useState("")
   const [payErr, setPayErr] = useState("")
   const [payLoading, setPayLoading] = useState(false)
+  const [balance, setBalance] = useState(null)
+  const [repayAmounts, setRepayAmounts] = useState({})
+  const [repayMsg, setRepayMsg] = useState("")
+  const [repayErr, setRepayErr] = useState("")
+  const [repayLoading, setRepayLoading] = useState(null)
 
   const [mySacco, setMySacco] = useState({ name: "SACCO" })
+
+  async function refreshBalance() {
+    if (!auth?.sacco_id) return
+    try {
+      const b = await apiGetMemberBalance(auth.sacco_id)
+      setBalance(b)
+    } catch { /* keep previous */ }
+  }
+
+  async function refreshLoans() {
+    if (!auth?.sacco_id) return
+    try {
+      const list = await apiGetMyLoans(auth.sacco_id)
+      setLoans(list)
+    } catch { /* keep previous */ }
+  }
 
   useEffect(() => {
     if (!auth?.member_id) return
@@ -67,11 +88,13 @@ export default function MemberDashboard() {
     apiGetMyLoans(auth.sacco_id).then(setLoans).catch(() => {})
     apiListLoanProducts(auth.sacco_id).then(setProducts).catch(() => {})
     apiGetPaymentInstructions(auth.sacco_id).then(setPayInfo).catch(() => setPayInfo(null))
+    refreshBalance()
   }, [auth?.sacco_id])
 
-  const totalDeposited = txs.filter(t=>t.type==="Deposit").reduce((s,t)=>s+t.amount_kes,0)
-  const totalLoans     = txs.filter(t=>t.type==="Loan").reduce((s,t)=>s+t.amount_kes,0)
-  const totalRepaid    = txs.filter(t=>t.type==="Repayment").reduce((s,t)=>s+t.amount_kes,0)
+  const totalDeposited = balance?.total_deposits ?? txs.filter(t=>t.type==="Deposit").reduce((s,t)=>s+t.amount_kes,0)
+  const totalLoans     = balance?.total_loans_received ?? txs.filter(t=>t.type==="Loan").reduce((s,t)=>s+t.amount_kes,0)
+  const totalRepaid    = balance?.total_repaid ?? txs.filter(t=>t.type==="Repayment").reduce((s,t)=>s+t.amount_kes,0)
+  const savingsBalance = balance?.savings_balance ?? auth?.balance_kes ?? 0
   const activeLoan = loans.find((l) => l.status === "active")
   const pendingLoan = loans.find((l) => l.status === "pending")
   const defaultProduct = products.find((p) => p.is_default) || products[0]
@@ -97,6 +120,31 @@ export default function MemberDashboard() {
       setLoanErr(err.message || "Failed to submit loan application")
     } finally {
       setLoanLoading(false)
+    }
+  }
+
+  async function handleRepay(loanId, e) {
+    e.preventDefault()
+    setRepayErr("")
+    setRepayMsg("")
+    const amount = parseFloat(repayAmounts[loanId])
+    if (!amount || amount <= 0) {
+      setRepayErr("Enter a valid repayment amount")
+      return
+    }
+    setRepayLoading(loanId)
+    try {
+      const updated = await apiRepayLoan(loanId, amount)
+      setLoans((prev) => prev.map((l) => (l.id === loanId ? updated : l)))
+      setRepayAmounts((p) => ({ ...p, [loanId]: "" }))
+      setRepayMsg(`Repayment of ${currency} ${amount.toLocaleString()} recorded.`)
+      const txs = await apiGetTransactions(auth.member_id)
+      setTxs(txs)
+      await refreshBalance()
+    } catch (err) {
+      setRepayErr(err.message || "Repayment failed")
+    } finally {
+      setRepayLoading(null)
     }
   }
 
@@ -140,7 +188,7 @@ export default function MemberDashboard() {
 
         <div style={{ display:"grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap:"16px", marginBottom:"24px" }}>
           {[
-            { label:"My Balance",      value:auth?.balance_kes||0, accent:T.green   },
+            { label:"My Balance",      value:savingsBalance, accent:T.green   },
             { label:"Total Deposited", value:totalDeposited,        accent:T.green   },
             { label:"Loans Received",  value:totalLoans,            accent:T.goldMid },
             { label:"Total Repaid",    value:totalRepaid,           accent:"#059669" },
@@ -171,11 +219,35 @@ export default function MemberDashboard() {
                     <p style={{ fontSize: "18px", fontWeight: 900, color: T.goldMid, margin: "0 0 4px", fontFamily: T.fontMono }}>{currency} {loan.amount_requested.toLocaleString()}</p>
                     <p style={{ fontSize: "12px", color: T.textDim, margin: 0 }}>{loan.term_months} months @ {loan.interest_rate}% • Applied {loan.applied_on}</p>
                     {loan.status === "active" && (
-                      <p style={{ fontSize: "12px", color: T.green, margin: "6px 0 0", fontWeight: 600 }}>Balance: {currency} {loan.balance_remaining.toLocaleString()}</p>
+                      <>
+                        <p style={{ fontSize: "12px", color: T.green, margin: "6px 0 0", fontWeight: 600 }}>Balance: {currency} {loan.balance_remaining.toLocaleString()}</p>
+                        <form onSubmit={(e) => handleRepay(loan.id, e)} style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max={loan.balance_remaining}
+                            placeholder={`Repay (max ${loan.balance_remaining.toLocaleString()})`}
+                            value={repayAmounts[loan.id] || ""}
+                            onChange={(e) => setRepayAmounts((p) => ({ ...p, [loan.id]: e.target.value }))}
+                            disabled={repayLoading === loan.id}
+                            style={{ ...inp, flex: "1 1 140px", padding: "9px 12px", fontSize: "13px" }}
+                          />
+                          <button
+                            type="submit"
+                            disabled={repayLoading === loan.id}
+                            style={{ padding: "9px 16px", borderRadius: "9px", border: "none", fontFamily: T.font, background: repayLoading === loan.id ? T.border2 : T.green, color: "#fff", fontSize: "13px", fontWeight: 800, cursor: repayLoading === loan.id ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
+                          >
+                            {repayLoading === loan.id ? "..." : "Repay"}
+                          </button>
+                        </form>
+                      </>
                     )}
                   </div>
                 ))}
               </div>
+            )}
+            {(repayErr || repayMsg) && (
+              <p style={{ padding: "12px 24px", fontSize: "13px", color: repayErr ? T.red : T.green, margin: 0, fontWeight: repayErr ? 400 : 600 }}>{repayErr || repayMsg}</p>
             )}
           </div>
 

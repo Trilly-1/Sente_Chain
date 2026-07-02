@@ -165,6 +165,11 @@ func (s *Server) registerSaccoOpsRoutes() {
 	service := saccoops.NewService(userRepo, membershipRepo, saccoRepo, txnRepo, auditRepo)
 	handler := saccoops.NewHandler(service)
 
+	memberGroup := s.engine.Group("/members", middleware.AuthMiddleware(jwtSecret))
+	{
+		memberGroup.GET("/balance", handler.HandleGetMemberBalance)
+	}
+
 	staffGroup := s.engine.Group("/saccos/:saccoId",
 		middleware.AuthMiddleware(jwtSecret),
 		middleware.SaccoStaffMiddleware(s.pool, saccoops.StaffRoles()...),

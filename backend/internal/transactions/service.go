@@ -83,6 +83,10 @@ func (s *Service) Create(ctx context.Context, actorUserID string, req *CreateReq
 		return nil, errors.New("membership does not belong to the specified SACCO")
 	}
 
+	if err := authorizeTransactionCreate(actorMembership, req.TransactionType, actor.IsProjectAdmin); err != nil {
+		return nil, err
+	}
+
 	metadata := json.RawMessage(`{}`)
 	if req.Metadata != nil {
 		metadata, err = json.Marshal(req.Metadata)
@@ -441,6 +445,37 @@ func (s *Service) resolveTargetMembership(ctx context.Context, req *CreateReques
 		return nil, errors.New("membership_id is required")
 	}
 	return actorMembership, nil
+}
+
+// authorizeTransactionCreate enforces who may post which ledger entry types via the API.
+// Loan and webhook flows write directly to the repository and bypass this check.
+func authorizeTransactionCreate(actorMembership *memberships.Membership, txnType string, isProjectAdmin bool) error {
+	if isProjectAdmin {
+		return nil
+	}
+	if actorMembership == nil {
+		return errors.New("not authorized")
+	}
+
+	switch txnType {
+	case TypeLoanDisbursement, TypeLoanRepayment:
+		return errors.New("loan transactions must be created through the loans API")
+	}
+
+	if actorMembership.Role == memberships.RoleMember {
+		return errors.New("members cannot post ledger transactions directly; use Pay Now or ask your cashier")
+	}
+
+	if actorMembership.Role == memberships.RoleAdmin || actorMembership.Role == memberships.RoleCashier {
+		switch txnType {
+		case TypeDeposit, TypeWithdrawal, TypeTransfer, TypeFee, TypeOther:
+			return nil
+		default:
+			return errors.New("invalid transaction type for staff")
+		}
+	}
+
+	return errors.New("not authorized")
 }
 
 func validateCreateRequest(req *CreateRequest) error {

@@ -49,6 +49,11 @@ func (s *Service) ListMembers(ctx context.Context, saccoID, statusFilter string)
 		return nil, fmt.Errorf("failed to list members: %w", err)
 	}
 
+	balances, err := s.txnRepo.SavingsBalancesBySacco(ctx, saccoID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load member balances: %w", err)
+	}
+
 	result := make([]MemberListItem, 0, len(list))
 	for _, m := range list {
 		if statusFilter != "" && m.Status != statusFilter {
@@ -61,12 +66,13 @@ func (s *Service) ListMembers(ctx context.Context, saccoID, statusFilter string)
 		}
 
 		item := MemberListItem{
-			MembershipID: m.ID.String(),
-			UserID:       user.ID.String(),
-			FullName:     user.FullName,
-			Phone:        user.Phone,
-			Role:         m.Role,
-			Status:       m.Status,
+			MembershipID:   m.ID.String(),
+			UserID:         user.ID.String(),
+			FullName:       user.FullName,
+			Phone:          user.Phone,
+			Role:           m.Role,
+			Status:         m.Status,
+			SavingsBalance: balances[m.ID.String()],
 		}
 		if m.JoinedAt != nil {
 			joined := m.JoinedAt.UTC().Format(time.RFC3339)
@@ -75,6 +81,32 @@ func (s *Service) ListMembers(ctx context.Context, saccoID, statusFilter string)
 		result = append(result, item)
 	}
 	return result, nil
+}
+
+func (s *Service) GetMemberBalance(ctx context.Context, userID, saccoID string) (*transactions.MemberBalanceSummary, error) {
+	if err := s.requireApprovedSacco(ctx, saccoID); err != nil {
+		return nil, err
+	}
+
+	m, err := s.membershipRepo.GetByUserAndSacco(ctx, userID, saccoID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("membership not found for this SACCO")
+		}
+		return nil, err
+	}
+
+	bal, err := s.txnRepo.GetMemberBalance(ctx, m.ID.String())
+	if err != nil {
+		return nil, err
+	}
+
+	outstanding, err := s.txnRepo.LoanOutstanding(ctx, m.ID.String())
+	if err != nil {
+		return nil, err
+	}
+	bal.LoanOutstanding = outstanding
+	return bal, nil
 }
 
 func (s *Service) UpdateRole(ctx context.Context, actorUserID, saccoID, membershipID string, req *UpdateRoleRequest) (*MemberActionResponse, error) {
