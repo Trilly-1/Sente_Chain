@@ -175,16 +175,16 @@ export async function apiLogin({ phone, pin, countryPrefix = "+254" }) {
 }
 
 export async function apiRegister({ name, phone, role = "member", saccoId, pin, country = "KE" }) {
-  if (USE_DEMO) {
+  if (USE_DEMO) { 
     await new Promise((r) => setTimeout(r, 900))
-    return {
-      token: "demo-token",
-      member_id: "MBR_NEW",
-      name,
-      phone,
-      role,
-      sacco_id: saccoId,
-      status: "pending_kyc",
+    return { 
+      token: "demo-token", 
+      member_id: "MBR_NEW", 
+      name, 
+      phone, 
+      role, 
+      sacco_id: saccoId, 
+      status: "pending_kyc", 
       balance_kes: 0,
     }
   }

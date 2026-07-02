@@ -168,17 +168,17 @@ export default function ProjectAdminDashboard() {
             {pendingSaccos.length === 0 ? (
               <p style={{ padding: "24px", color: T.textDim }}>No pending SACCO applications.</p>
             ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead><tr>{["Submitted", "SACCO Name", "Admin", "Country", "Status", "Actions"].map(TH)}</tr></thead>
-                  <tbody>
+                <tbody>
                     {pendingSaccos.map((s, i) => (
                       <tr key={s.sacco_id} style={{ borderBottom: i < pendingSaccos.length - 1 ? `1px solid ${T.border2}` : "none", background: "#fff" }}>
                         <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>
                           {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}
                         </td>
-                        <td style={{ padding: "15px 20px" }}>
-                          <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: 0 }}>{s.name}</p>
+                      <td style={{ padding: "15px 20px" }}>
+                        <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: 0 }}>{s.name}</p>
                           <p style={{ fontSize: "11px", color: T.textDim, fontFamily: T.fontMono }}>{s.sacco_id}</p>
                         </td>
                         <td style={{ padding: "15px 20px", fontSize: "13px", color: T.textMid }}>
@@ -190,7 +190,7 @@ export default function ProjectAdminDashboard() {
                         <td style={{ padding: "15px 20px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
                           <button onClick={() => handleApproveSacco(s.sacco_id)} style={{ padding: "6px 12px", borderRadius: "6px", border: "none", background: T.green, color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Approve</button>
                           <button onClick={() => handleRejectSacco(s.sacco_id)} style={{ padding: "6px 12px", borderRadius: "6px", border: `1px solid ${T.redBdr}`, background: T.redBg, color: T.red, fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Reject</button>
-                        </td>
+                      </td>
                       </tr>
                     ))}
                   </tbody>
@@ -217,20 +217,20 @@ export default function ProjectAdminDashboard() {
                         <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>
                           {m.submitted_at ? new Date(m.submitted_at).toLocaleDateString() : "—"}
                         </td>
-                        <td style={{ padding: "15px 20px" }}>
+                      <td style={{ padding: "15px 20px" }}>
                           <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: 0 }}>{m.full_name}</p>
                           <p style={{ fontSize: "11px", color: T.textDim }}>{m.phone}</p>
-                        </td>
+                      </td>
                         <td style={{ padding: "15px 20px", fontSize: "13px", color: T.textMid }}>{m.sacco_name}</td>
                         <td style={{ padding: "15px 20px", fontSize: "12px", color: T.textDim }}>{(m.documents || []).length} uploaded</td>
-                        <td style={{ padding: "15px 20px", display: "flex", gap: "8px" }}>
+                      <td style={{ padding: "15px 20px", display: "flex", gap: "8px" }}>
                           <button onClick={() => handleApproveMember(m.membership_id)} style={{ padding: "6px 12px", borderRadius: "6px", border: "none", background: T.green, color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Approve</button>
                           <button onClick={() => handleRejectMember(m.membership_id)} style={{ padding: "6px 12px", borderRadius: "6px", border: `1px solid ${T.redBdr}`, background: T.redBg, color: T.red, fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Reject</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
               </div>
             )}
           </div>
@@ -254,25 +254,25 @@ export default function ProjectAdminDashboard() {
         )}
 
         {!loading && tab === "Audit Log" && (
-          <div style={{ ...cardMd(), overflow: "hidden" }}>
-            <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
-              <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: "0 0 3px" }}>Global Project Audit Log</h2>
-            </div>
+           <div style={{ ...cardMd(), overflow: "hidden" }}>
+             <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
+               <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: "0 0 3px" }}>Global Project Audit Log</h2>
+             </div>
             {auditLogs.length === 0 ? (
               <p style={{ padding: "24px", color: T.textDim }}>No audit events yet.</p>
             ) : auditLogs.map((log, i) => (
               <div key={log.id} style={{ padding: "18px 24px", borderBottom: i < auditLogs.length - 1 ? `1px solid ${T.border2}` : "none", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", background: "#fff" }}>
-                <div>
-                  <p style={{ fontSize: "15px", fontWeight: 700, color: T.textHi, margin: "0 0 3px" }}>{log.action}</p>
-                  <p style={{ fontSize: "13px", color: T.textMid, margin: "0 0 3px" }}>{log.target}</p>
+                   <div>
+                     <p style={{ fontSize: "15px", fontWeight: 700, color: T.textHi, margin: "0 0 3px" }}>{log.action}</p>
+                     <p style={{ fontSize: "13px", color: T.textMid, margin: "0 0 3px" }}>{log.target}</p>
                   <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>actor: {log.actor}</p>
-                </div>
+                   </div>
                 <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim }}>
                   {log.timestamp ? new Date(log.timestamp).toLocaleString() : "—"}
                 </p>
-              </div>
-            ))}
-          </div>
+               </div>
+             ))}
+           </div>
         )}
 
       </div>
