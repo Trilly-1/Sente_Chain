@@ -4,6 +4,14 @@
 
 PostgreSQL is the operational database. The blockchain layer stores proof hashes—not full financial ledgers—keeping costs low while preserving auditability.
 
+**Live deployment**
+
+| Service | URL |
+|---------|-----|
+| **Web app** (Vercel) | https://sentechain.vercel.app |
+| **API** (Render) | https://sente-chain.onrender.com |
+| **API health** | https://sente-chain.onrender.com/health |
+
 ---
 
 ## Repository layout
@@ -211,27 +219,38 @@ The repo includes `render.yaml` for a Go web service:
 
 Set these in the Render dashboard (not in git):
 
-- `DATABASE_URL`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS`
+- `DATABASE_URL`, `JWT_SECRET`
+- `CORS_ALLOWED_ORIGINS` — must include `https://sentechain.vercel.app` (and `http://localhost:5173` for local dev)
 - Stellar variables if anchoring is enabled
 - `APP_ENV=production`, `EXPOSE_OTP_IN_RESPONSE=false`
 
-Production API example: `https://sente-chain.onrender.com`
+Production API: `https://sente-chain.onrender.com`
 
-### Frontend (Vercel / Render static)
-
-```bash
-cd frontend
-npm ci && npm run build
-```
-
-Publish the `dist/` folder. Required build-time env:
+Example CORS value:
 
 ```
-VITE_API_URL=<your-api-url>
-VITE_USE_DEMO=false
+CORS_ALLOWED_ORIGINS=https://sentechain.vercel.app,http://localhost:5173
 ```
 
-Add the deployed frontend URL to backend `CORS_ALLOWED_ORIGINS`.
+### Frontend (Vercel)
+
+Production URL: **https://sentechain.vercel.app**
+
+Vercel project settings:
+
+- **Root directory:** `frontend`
+- **Build command:** `npm run build` (default)
+- **Output directory:** `dist`
+
+Build-time env is committed in `frontend/.env.production` (`VITE_API_URL` → Render API). You can override in the Vercel dashboard if needed.
+
+`frontend/vercel.json` rewrites all routes to `index.html` for React Router.
+
+After deploy, add `https://sentechain.vercel.app` to backend `CORS_ALLOWED_ORIGINS` on Render (see below).
+
+### Frontend (Render static)
+
+Same as Vercel — `npm ci && npm run build`, publish `dist/`. Set `VITE_API_URL` in Render env vars if not using `.env.production`.
 
 ### CI
 
