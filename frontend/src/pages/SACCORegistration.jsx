@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { apiRegister, apiCreateSacco, apiUpdateSacco, apiUploadSaccoDocuments, apiSubmitSacco } from "../services/api"
-import { EAC_COUNTRIES } from "../data/countries"
+import { UGANDA } from "../data/countries"
 
 // Mobile detection hook
 function useWindowSize() {
@@ -42,7 +42,7 @@ export default function SACCORegistration() {
   const isMobile = width < 768
   const [step, setStep] = useState(1)
   const [agreed, setAgreed] = useState(false)
-  const [country, setCountry] = useState(EAC_COUNTRIES[0])
+  const [country] = useState(UGANDA)
   const [formData, setFormData] = useState({
     name: "", type: "Deposit-taking",
     address: "", phone: "", email: "",
@@ -294,15 +294,15 @@ export default function SACCORegistration() {
               <div style={{ display: "grid", gap: "20px" }}>
                 <div>
                   <Label>Full Name</Label>
-                  <input style={{ ...inpStyle, borderColor: errors.adminName ? "#dc2626" : C.border }} placeholder="e.g. Sarah Wanjiku" value={adminData.name} onChange={e => { setAdminData({ ...adminData, name: e.target.value }); setErrors({...errors, adminName: null}) }} />
+                  <input style={{ ...inpStyle, borderColor: errors.adminName ? "#dc2626" : C.border }} placeholder="e.g. Sarah Nambi" value={adminData.name} onChange={e => { setAdminData({ ...adminData, name: e.target.value }); setErrors({...errors, adminName: null}) }} />
                   {errors.adminName && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.adminName}</span>}
                 </div>
                 <div>
-                  <Label>Country & Phone</Label>
+                  <Label>Phone (Uganda)</Label>
                   <div style={{ display: "flex", gap: "8px" }}>
-                    <select value={country.code} onChange={(e) => setCountry(EAC_COUNTRIES.find(c => c.code === e.target.value))} style={{ ...inpStyle, width: "100px", padding: "14px 8px", cursor: "pointer" }}>
-                      {EAC_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.prefix}</option>)}
-                    </select>
+                    <div style={{ ...inpStyle, width: "100px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, background: C.surface }}>
+                      {UGANDA.flag} {UGANDA.prefix}
+                    </div>
                     <div style={{ flex: 1 }}>
                       <input style={{ ...inpStyle, borderColor: errors.adminPhone ? "#dc2626" : C.border }} type="tel" placeholder="700 000 000" value={adminData.phoneNo} onChange={e => { setAdminData({ ...adminData, phoneNo: e.target.value.replace(/[^0-9]/g, "") }); setErrors({...errors, adminPhone: null}) }} />
                       {errors.adminPhone && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.adminPhone}</span>}
@@ -358,15 +358,9 @@ export default function SACCORegistration() {
                   <div>
                     <Label>Official Phone</Label>
                     <div style={{ display: "flex", gap: "8px" }}>
-                      <select
-                        value={country.code}
-                        onChange={(e) => setCountry(EAC_COUNTRIES.find(c => c.code === e.target.value))}
-                        style={{ ...inpStyle, width: "100px", padding: "14px 8px" }}
-                      >
-                        {EAC_COUNTRIES.map(c => (
-                          <option key={c.code} value={c.code}>{c.flag} {c.prefix}</option>
-                        ))}
-                      </select>
+                      <div style={{ ...inpStyle, width: "100px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, background: C.surface }}>
+                        {UGANDA.prefix}
+                      </div>
                       <div style={{ flex: 1 }}>
                         <input style={{ ...inpStyle, borderColor: errors.phone ? "#dc2626" : C.border }} placeholder="700 000 000" value={formData.phone} onChange={e => { setFormData({ ...formData, phone: e.target.value }); setErrors({...errors, phone: null}) }} />
                         {errors.phone && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.phone}</span>}

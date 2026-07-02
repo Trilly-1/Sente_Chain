@@ -1,14 +1,14 @@
 // src/context/AuthContext.jsx
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
 import { setToken, clearToken, persistAuth, loadPersistedAuth, clearPersistedAuth, setSaccoContext, apiGetMe, USE_DEMO } from "../services/api"
-import { EAC_COUNTRIES } from "../data/countries"
+import { UGANDA } from "../data/countries"
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(() => loadPersistedAuth())
   const [currency, setCurrency] = useState(() => {
-    return localStorage.getItem("sente_currency") || "KES"
+    return localStorage.getItem("sente_currency") || "UGX"
   })
 
   useEffect(() => {
@@ -40,11 +40,7 @@ export function AuthProvider({ children }) {
     if (data.sacco_id) setSaccoContext(data.sacco_id)
     setAuth(data)
     persistAuth(data)
-
-    if (data.phone) {
-      const country = EAC_COUNTRIES.find((c) => data.phone.startsWith(c.prefix))
-      if (country) setCurrency(country.currency)
-    }
+    setCurrency(UGANDA.currency)
   }, [])
 
   const logout = useCallback(() => {

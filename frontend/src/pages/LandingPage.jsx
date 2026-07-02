@@ -36,7 +36,7 @@ const SLIDES = [
   },
   {
     heading: (<>Pay via <span style={{ color: C.green }}>Mobile Money</span></>),
-    body: "SenteChain integrates directly with regional mobile money providers, allowing members to deposit or repay loans using familiar USSD codes. Once a payment is made, the system automatically detects the transaction, matches it to the correct member account, and updates the SACCO ledger instantly without manual intervention.",
+    body: "SenteChain is built for Uganda and East Africa — members contribute via MTN MoMo and Airtel Money using familiar USSD codes. When payments are integrated, the system will match each transaction to the correct member account and update the SACCO ledger automatically.",
     accent: C.green, accentLite: C.greenLite, accentBdr: C.greenBdr, image: "/image7.jpg",
   },
   {

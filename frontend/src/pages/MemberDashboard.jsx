@@ -18,7 +18,8 @@ function useWindowSize() {
 }
 
 const methodBadge = {
-  MPESA:{ bg:T.greenLite, color:T.green,   bdr:T.greenBdr, label:"Mobile Money" },
+  MOMO:{ bg:T.greenLite, color:T.green,   bdr:T.greenBdr, label:"MTN MoMo" },
+  MPESA:{ bg:T.greenLite, color:T.green, bdr:T.greenBdr, label:"MTN MoMo" },
   ADMIN:{ bg:T.goldLite,  color:T.goldMid, bdr:T.goldBdr,  label:"Admin"  },
 }
 const typeColor = { Deposit:T.green, Loan:T.goldMid, Repayment:"#059669" }
@@ -96,7 +97,7 @@ export default function MemberDashboard() {
           </div>
           <div>
             <p style={{ fontSize:"15px", fontWeight:700, color:T.textHi, marginBottom:"4px" }}>Blockchain verified transactions</p>
-            <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.6 }}>Every deposit is automatically sealed on Stellar the moment your mobile money payment is received. Click any hash below to verify independently, no trust required.</p>
+            <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.6 }}>Every deposit can be sealed on Stellar once recorded. Contributions via MTN MoMo or Airtel Money are matched to your account. Click any hash below to verify independently.</p>
           </div>
         </div>
 
@@ -152,7 +153,7 @@ export default function MemberDashboard() {
                           <tr key={tx.id} style={{ borderBottom: i < txs.length - 1 ? `1px solid ${T.border2}` : "none", background: "#fff", transition: "background 0.15s" }}
                             onMouseEnter={e => e.currentTarget.style.background = T.surface}
                             onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
-                            <td style={{ padding: "15px 20px", fontSize: "13px", fontFamily: T.fontMono, color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</td>
+                            <td style={{ padding: "15px 20px", fontSize: "13px", fontFamily: T.fontMono, color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-UG", { day: "2-digit", month: "short", year: "numeric" })}</td>
                             <td style={{ padding: "15px 20px", fontSize: "15px", fontWeight: 700, color: typeColor[tx.type] || T.textHi }}>{tx.type}</td>
                             <td style={{ padding: "15px 20px", fontSize: "15px", fontWeight: 800, color: T.textHi, fontFamily: T.fontMono }}>{currency} {tx.amount_kes.toLocaleString()}</td>
                             <td style={{ padding: "15px 20px" }}><span style={{ padding: "3px 10px", borderRadius: "8px", fontSize: "12px", fontFamily: T.fontMono, fontWeight: 600, background: m.bg, color: m.color, border: `1px solid ${m.bdr}` }}>{m.label}</span></td>

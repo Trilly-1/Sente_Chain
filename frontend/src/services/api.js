@@ -58,7 +58,7 @@ async function apiFetch(path, options = {}) {
   return unwrap(json)
 }
 
-export function normalizePhone(phone, defaultPrefix = "+254") {
+export function normalizePhone(phone, defaultPrefix = "+256") {
   let p = (phone || "").replace(/\s/g, "")
   if (p.startsWith("+")) return p
   if (p.startsWith("0")) return defaultPrefix + p.slice(1)
@@ -158,7 +158,7 @@ export async function apiReady() {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-export async function apiLogin({ phone, pin, countryPrefix = "+254" }) {
+export async function apiLogin({ phone, pin, countryPrefix = "+256" }) {
   if (USE_DEMO) {
     const { DEMO_USERS } = await import("../data/demo")
     await new Promise((r) => setTimeout(r, 700))
@@ -174,7 +174,7 @@ export async function apiLogin({ phone, pin, countryPrefix = "+254" }) {
   return mapAuthUser(data)
 }
 
-export async function apiRegister({ name, phone, role = "member", saccoId, pin, country = "KE" }) {
+export async function apiRegister({ name, phone, role = "member", saccoId, pin, country = "UG" }) {
   if (USE_DEMO) { 
     await new Promise((r) => setTimeout(r, 900))
     return { 
@@ -225,10 +225,10 @@ export async function apiVerifyOTP({ phone, code, fullName }) {
 
 // ─── SACCOs (public + onboarding) ─────────────────────────────────────────────
 
-export async function apiListSaccos(country, name) {
+export async function apiListSaccos(country = "UG", name) {
   if (USE_DEMO) {
     const { ALL_SACCOS } = await import("../data/demo")
-    let list = ALL_SACCOS
+    let list = ALL_SACCOS.filter((s) => s.country === "UG")
     if (country) list = list.filter((s) => s.country === country)
     if (name) list = list.filter((s) => s.name.toLowerCase().includes(name.toLowerCase()))
     return list
@@ -242,7 +242,7 @@ export async function apiListSaccos(country, name) {
     id: s.id,
     name: s.name,
     code: s.code,
-    country: s.country || "KE",
+    country: s.country || "UG",
   }))
 }
 
@@ -411,7 +411,7 @@ export async function apiCreateTransaction(payload) {
       membership_id: payload.membershipId,
       transaction_type: payload.transactionType || "deposit",
       amount: payload.amount,
-      currency: payload.currency || "KES",
+      currency: payload.currency || "UGX",
       description: payload.description,
     }),
   })

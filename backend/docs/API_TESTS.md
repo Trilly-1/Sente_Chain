@@ -27,7 +27,7 @@ migrate -path ./migrations -database "<MIGRATIONS_DATABASE_URL as postgres://...
 
 | Role | Phone | PIN | Notes |
 |------|-------|-----|-------|
-| Project admin | `+254700000001` | `1234` | `is_project_admin = true` |
+| Project admin | `+256700000001` | `1234` | `is_project_admin = true` |
 | Approved SACCO | — | — | **Demo SACCO** / code `DEMO01` |
 
 Get SACCO id for member registration:
@@ -58,7 +58,7 @@ POST /auth/login
 Content-Type: application/json
 
 {
-  "phone": "+254700000001",
+  "phone": "+256700000001",
   "pin": "1234"
 }
 ```
@@ -77,9 +77,9 @@ Content-Type: application/json
 
 {
   "full_name": "Sarah Chairman",
-  "phone": "+254711111111",
+  "phone": "+256711111111",
   "pin": "1234",
-  "country": "KE",
+  "country": "UG",
   "role": "admin"
 }
 ```
@@ -94,9 +94,9 @@ Content-Type: application/json
 
 {
   "full_name": "John Member",
-  "phone": "+254722222222",
+  "phone": "+256722222222",
   "pin": "1234",
-  "country": "KE",
+  "country": "UG",
   "sacco_id": "<DEMO_SACCO_UUID>",
   "role": "member"
 }
@@ -124,11 +124,11 @@ Content-Type: application/json
 
 {
   "name": "Starlight SACCO",
-  "country": "KE",
+  "country": "UG",
   "profile": {
     "type": "Deposit-taking",
-    "address": "Nairobi CBD",
-    "chairman_name": "Sarah Wanjiku",
+    "address": "Kampala CBD",
+    "chairman_name": "Sarah Nambi",
     "secretary_name": "Peter Ochieng"
   }
 }
@@ -145,7 +145,7 @@ Content-Type: application/json
 
 {
   "profile": {
-    "phone": "+254700123456",
+    "phone": "+256700123456",
     "registration_number": "CS/12345"
   }
 }
@@ -230,7 +230,7 @@ Authorization: Bearer <member_token>
 
 ## 5. Admin review
 
-Login as **project admin** (`+254700000001` / `1234`).
+Login as **project admin** (`+256700000001` / `1234`).
 
 ### Pending members
 
@@ -297,7 +297,7 @@ Authorization: Bearer <admin_token>
 
 ```http
 GET /saccos
-GET /saccos?country=KE
+GET /saccos?country=UG
 GET /saccos?name=Demo
 ```
 
@@ -347,7 +347,7 @@ Content-Type: application/json
   "sacco_id": "<approved_sacco_uuid>",
   "transaction_type": "deposit",
   "amount": "1500.00",
-  "currency": "KES",
+  "currency": "UGX",
   "description": "Monthly savings"
 }
 ```
@@ -462,7 +462,7 @@ Content-Type: application/json
   "membership_id": "<target_member_membership_uuid>",
   "transaction_type": "deposit",
   "amount": "500.00",
-  "currency": "KES",
+  "currency": "UGX",
   "description": "Counter deposit"
 }
 ```

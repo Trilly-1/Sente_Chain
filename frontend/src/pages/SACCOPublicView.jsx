@@ -4,7 +4,7 @@ import StellarHashLink from "../components/StellarHashLink"
 import { apiGetSaccoSummary } from "../services/api"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { EAC_COUNTRIES } from "../data/countries"
+import { UGANDA } from "../data/countries"
 
 function useWindowSize() {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -57,23 +57,13 @@ export default function SACCOPublicView() {
         
         <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
           {!isMobile && (
-            <select 
-              value={EAC_COUNTRIES.find(c => c.currency === currency)?.code || "KE"} 
-              onChange={(e) => {
-                const c = EAC_COUNTRIES.find(x => x.code === e.target.value)
-                setCurrency(c.currency)
-              }}
-              style={{ 
-                fontSize:"13px", fontWeight:700, padding:"7px 10px", 
-                borderRadius:"9px", border:`1.5px solid ${T.border}`, 
-                background:T.surface, color:T.textMid, cursor:"pointer", 
-                outline:"none", fontFamily:T.font
-              }}
-            >
-              {EAC_COUNTRIES.map(c => (
-                <option key={c.code} value={c.code}>{c.flag} {c.currency}</option>
-              ))}
-            </select>
+            <span style={{
+              fontSize:"13px", fontWeight:700, padding:"7px 12px",
+              borderRadius:"9px", border:`1.5px solid ${T.border}`,
+              background:T.surface, color:T.textMid, fontFamily:T.font,
+            }}>
+              {UGANDA.flag} {UGANDA.currency}
+            </span>
           )}
           
           {auth ? (
@@ -169,7 +159,7 @@ export default function SACCOPublicView() {
                         onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
                         <div>
                           <p style={{ fontSize:"14px", fontWeight:700, color:T.textHi, margin:"0 0 2px" }}>{tx.type}</p>
-                          <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, margin:0 }}>{tx.entry_type==="MPESA"?"Mobile Money":"Admin"}</p>
+                          <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, margin:0 }}>{tx.entry_type==="MOMO"||tx.entry_type==="MPESA"?"MTN MoMo":"Admin"}</p>
                         </div>
                         <span style={{ fontFamily:T.fontMono, fontSize:"14px", fontWeight:800, color:typeColor[tx.type]||T.textHi }}>{currency} {tx.amount_kes.toLocaleString()}</span>
                       </div>

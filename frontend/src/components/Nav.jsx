@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { T } from "../styles/theme"
 import { apiGetDefaultSaccoId } from "../services/api"
-import { EAC_COUNTRIES } from "../data/countries"
+import { UGANDA } from "../data/countries"
 
 // Mobile detection hook
 function useWindowSize() {
@@ -24,7 +24,7 @@ const roleTag = {
 }
 
 export default function Nav({ hidePublicView }) {
-  const { auth, logout, currency, setCurrency } = useAuth()
+  const { auth, logout } = useAuth()
   const navigate = useNavigate()
   const { width } = useWindowSize()
   const isMobile = width < 900
@@ -81,23 +81,13 @@ export default function Nav({ hidePublicView }) {
         )}
 
         {!isMobile && (
-          <select 
-            value={EAC_COUNTRIES.find(c => c.currency === currency)?.code || "KE"} 
-            onChange={(e) => {
-              const c = EAC_COUNTRIES.find(x => x.code === e.target.value)
-              setCurrency(c.currency)
-            }}
-            style={{ 
-              fontSize:"13px", fontWeight:700, padding:"7px 10px", 
-              borderRadius:"9px", border:`1.5px solid ${T.border}`, 
-              background:T.surface, color:T.textMid, cursor:"pointer", 
-              outline:"none", fontFamily:T.font
-            }}
-          >
-            {EAC_COUNTRIES.map(c => (
-              <option key={c.code} value={c.code}>{c.flag} {c.currency}</option>
-            ))}
-          </select>
+          <span style={{
+            fontSize:"13px", fontWeight:700, padding:"7px 12px",
+            borderRadius:"9px", border:`1.5px solid ${T.border}`,
+            background:T.surface, color:T.textMid, fontFamily:T.font,
+          }}>
+            {UGANDA.flag} {UGANDA.currency}
+          </span>
         )}
 
         {auth && (

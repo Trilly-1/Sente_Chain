@@ -1,6 +1,6 @@
 # SenteChain
 
-**SenteChain** is a SACCO (Savings and Credit Cooperative) management platform for East Africa. It digitizes member onboarding, SACCO operations, and financial records, with optional **Stellar** proof anchoring so transaction integrity can be verified on-chain.
+**SenteChain** is a SACCO management platform built for **Uganda**. It digitizes member onboarding, SACCO operations, and financial records in **UGX**, with optional **Stellar** proof anchoring so transaction integrity can be verified on-chain.
 
 PostgreSQL is the operational database. The blockchain layer stores proof hashes—not full financial ledgers—keeping costs low while preserving auditability.
 
@@ -153,8 +153,8 @@ After running dev migrations (`000003`), you can use:
 
 | Role | Phone | PIN | Notes |
 |------|-------|-----|--------|
-| Project admin | `+254700000001` | `1234` | Full platform review (SACCO + member KYC) |
-| Demo SACCO | — | — | Code `DEMO01`, country `KE` — join as a member via signup |
+| Project admin | `+256700000001` | `1234` | Full platform review (SACCO + member KYC) |
+| Demo SACCO | — | — | Code `DEMO01`, country `UG` — join as a member via signup |
 
 Change these credentials in production. Do not rely on seed data outside local/dev environments.
 

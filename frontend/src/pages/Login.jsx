@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { apiLogin, apiGetDefaultSaccoId } from "../services/api"
+import { UGANDA } from "../data/countries"
 import { T } from "../styles/theme"
 
 // Mobile detection hook
@@ -39,8 +40,9 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault(); setError(""); setLoading(true)
     const cleaned = phone.replace(/\s/g, "")
+    const fullPhone = cleaned.startsWith("+") ? cleaned : UGANDA.prefix + cleaned.replace(/^0+/, "")
     try {
-      const user = await apiLogin({ phone: cleaned, pin })
+      const user = await apiLogin({ phone: fullPhone, pin })
       if (isStaff && user.role === "member") {
         setError("Invalid credentials or access code. Contact your SACCO administrator.")
         return
@@ -216,9 +218,12 @@ export default function Login() {
 
             <div>
               {lbl("Phone Number")}
-              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="0700 000 001" required style={inp()}
-                onFocus={onFocus} onBlur={onBlur} />
+              <div style={{ display: "flex", gap: "8px" }}>
+                <span style={{ ...inp(), width: "auto", minWidth: "72px", textAlign: "center", fontWeight: 700 }}>{UGANDA.prefix}</span>
+                <input type="tel" value={phone} onChange={e => setPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="700 000 001" required style={{ ...inp(), flex: 1 }}
+                  onFocus={onFocus} onBlur={onBlur} />
+              </div>
             </div>
 
             <div>

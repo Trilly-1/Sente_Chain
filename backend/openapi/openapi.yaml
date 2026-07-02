@@ -893,7 +893,7 @@ components:
           type: string
           minLength: 3
           maxLength: 3
-          example: KES
+          example: UGX
         description:
           type: string
         metadata:

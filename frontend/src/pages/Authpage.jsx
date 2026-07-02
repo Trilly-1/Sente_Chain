@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { apiLogin, apiRegister, apiContact, apiListSaccos, apiGetDefaultSaccoId } from "../services/api"
-import { EAC_COUNTRIES } from "../data/countries"
+import { UGANDA } from "../data/countries"
 
 function useWindowSize() {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -118,19 +118,18 @@ function AuthNav() {
 }
 
 function SignUpPanel({ onSwitch }) {
-  const { setCurrency, login } = useAuth()
+  const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  
+
   const preselectedSaccoId = location.state?.from?.split("/").pop()
   const [name, setName] = useState("")
-  const [country, setCountry] = useState(EAC_COUNTRIES[0])
   const [phoneNo, setPhoneNo] = useState("")
   const [saccos, setSaccos] = useState([])
   const [saccoId, setSaccoId] = useState(preselectedSaccoId || "")
 
   useEffect(() => {
-    apiListSaccos(country.code)
+    apiListSaccos(UGANDA.code)
       .then((list) => {
         setSaccos(list)
         if (preselectedSaccoId && list.some((s) => s.id === preselectedSaccoId)) {
@@ -140,7 +139,7 @@ function SignUpPanel({ onSwitch }) {
         }
       })
       .catch(() => setSaccos([]))
-  }, [country.code, preselectedSaccoId])
+  }, [preselectedSaccoId])
 
   const [pin, setPin] = useState("")
   const [showPin, setShowPin] = useState(false)
@@ -148,23 +147,11 @@ function SignUpPanel({ onSwitch }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const filteredSaccos = saccos.filter((s) => s.country === country.code)
-
-  const handleCountryChange = (e) => {
-    const c = EAC_COUNTRIES.find(x => x.code === e.target.value)
-    setCountry(c)
-    setCurrency(c.currency)
-    setPhoneNo("")
-    
-    const firstInCountry = saccos.find(s => s.country === c.code)
-    if (firstInCountry) setSaccoId(firstInCountry.id)
-  }
-
   async function handleSubmit(e) {
     e.preventDefault(); setError(""); setLoading(true)
-    const fullPhone = country.prefix + phoneNo.replace(/^0+/, "") // Ensure prefix + number (stripping leading zero)
+    const fullPhone = UGANDA.prefix + phoneNo.replace(/^0+/, "")
     try {
-      const user = await apiRegister({ name, phone: fullPhone, role: "member", saccoId, pin, country: country.code })
+      const user = await apiRegister({ name, phone: fullPhone, role: "member", saccoId, pin, country: UGANDA.code })
       login(user)
       if (user.status === "pending_kyc") {
         navigate("/member-onboarding")
@@ -183,39 +170,26 @@ function SignUpPanel({ onSwitch }) {
         <p style={{ fontSize: "14px", color: C.textDim, margin: "0 0 28px", fontFamily: C.font }}>Register to access your SACCO financial records on the blockchain</p>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div>
-            <Lbl text="Country of Residence" />
-            <select 
-              value={country.code} 
-              onChange={handleCountryChange} 
+            <Lbl text="SACCO to Join" />
+            <select
+              value={saccoId}
+              onChange={e => setSaccoId(e.target.value)}
               style={inp({ cursor: "pointer" })}
               onFocus={onFG} onBlur={onBG}
             >
-              {EAC_COUNTRIES.map(c => (
-                <option key={c.code} value={c.code}>{c.flag} {c.name} ({c.prefix})</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Lbl text="Target SACCO to Join" />
-            <select 
-              value={saccoId} 
-              onChange={e => setSaccoId(e.target.value)} 
-              style={inp({ cursor: "pointer" })}
-              onFocus={onFG} onBlur={onBG}
-            >
-              {filteredSaccos.length > 0 ? (
-                filteredSaccos.map(s => (
+              {saccos.length > 0 ? (
+                saccos.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))
               ) : (
-                <option disabled>No SACCOs found in {country.name}</option>
+                <option disabled>No SACCOs available in Uganda yet</option>
               )}
             </select>
             <p style={{ fontSize: "12px", color: C.green, marginTop: "6px", fontWeight: 600 }}>
-              {location.state?.from?.includes("/sacco/") ? "✓ Joining from public ledger" : `Showing SACCOs in ${country.name}`}
+              {location.state?.from?.includes("/sacco/") ? "✓ Joining from public ledger" : "🇺🇬 Uganda SACCOs only"}
             </p>
           </div>
-          <div><Lbl text="Full Name" /><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sarah Wanjiku" required style={inp()} onFocus={onFG} onBlur={onBG} /></div>
+          <div><Lbl text="Full Name" /><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sarah Nambi" required style={inp()} onFocus={onFG} onBlur={onBG} /></div>
           <div>
             <Lbl text="Phone Number" />
             <div style={{ display: "flex", gap: "8px" }}>
@@ -224,7 +198,7 @@ function SignUpPanel({ onSwitch }) {
                 borderRadius: "10px", padding: "13px 16px", fontWeight: 700, fontSize: "15px",
                 display: "flex", alignItems: "center", justifyContent: "center", minWidth: "75px"
               }}>
-                {country.prefix}
+                {UGANDA.prefix}
               </div>
               <input 
                 type="tel" 
@@ -263,7 +237,7 @@ function SignUpPanel({ onSwitch }) {
 }
 
 function LoginPanel({ onSwitch }) {
-  const [phone, setPhone] = useState("")
+  const [phoneNo, setPhoneNo] = useState("")
   const [pin, setPin] = useState("")
   const [code, setCode] = useState("")
   const [showPin, setShowPin] = useState(false)
@@ -278,7 +252,7 @@ function LoginPanel({ onSwitch }) {
   async function handleSubmit(e) {
     e.preventDefault(); setError(""); setLoading(true)
     try {
-      const user = await apiLogin({ phone, pin })
+      const user = await apiLogin({ phone: UGANDA.prefix + phoneNo.replace(/^0+/, ""), pin })
       if (isStaff && user.role === "member") {
         throw new Error("Staff access required. Use a cashier or admin account.")
       }
@@ -307,7 +281,19 @@ function LoginPanel({ onSwitch }) {
           ))}
         </div>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-          <div><Lbl text="Phone Number" /><input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="0700 000 001" required style={inp()} onFocus={onFG} onBlur={onBG} /></div>
+          <div>
+            <Lbl text="Phone Number" />
+            <div style={{ display: "flex", gap: "8px" }}>
+              <div style={{
+                background: C.surface, border: `1.5px solid ${C.border}`, color: C.textDim,
+                borderRadius: "10px", padding: "13px 16px", fontWeight: 700, fontSize: "15px",
+                display: "flex", alignItems: "center", justifyContent: "center", minWidth: "75px"
+              }}>
+                {UGANDA.prefix}
+              </div>
+              <input type="tel" value={phoneNo} onChange={e => setPhoneNo(e.target.value.replace(/[^0-9]/g, ""))} placeholder="700 000 001" required style={{ ...inp(), flex: 1 }} onFocus={onFG} onBlur={onBG} />
+            </div>
+          </div>
           <div>
             <Lbl text="PIN" />
             <div style={{ position: "relative" }}>
@@ -368,7 +354,7 @@ function ContactPanel({ contactRef }) {
         <p style={{ fontSize: "14px", color: C.textDim, margin: "0 0 28px", fontFamily: C.font }}>Got questions about SenteChain? Want to onboard your SACCO? We would love to hear from you.</p>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {[
-            { lbl: "Your Name", type: "text", val: name, set: setName, ph: "e.g. John Kamau" },
+            { lbl: "Your Name", type: "text", val: name, set: setName, ph: "e.g. John Okello" },
             { lbl: "Email", type: "email", val: email, set: setEmail, ph: "you@example.com" },
           ].map(f => (
             <div key={f.lbl}><Lbl text={f.lbl} /><input type={f.type} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph} required style={inp()} onFocus={onFG} onBlur={onBG} /></div>

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
 import { apiGetMembers, apiListTransactions, apiRegister, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiCreateTransaction, apiAnchorTransaction, apiVerifyTransaction } from "../services/api"
-import { EAC_COUNTRIES } from "../data/countries"
+import { UGANDA } from "../data/countries"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
@@ -44,7 +44,6 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [regForm, setRegForm] = useState({ name: "", phone: "", role: "member", pin: "1234" })
-  const [regCountry, setRegCountry] = useState(EAC_COUNTRIES[0])
   const [txActionId, setTxActionId] = useState(null)
   const [regOk, setRegOk] = useState(false)
   const [regLoading, setRegLoading] = useState(false)
@@ -85,13 +84,13 @@ export default function AdminDashboard() {
   async function handleRegister(e) {
     e.preventDefault(); setRegErr(""); setRegLoading(true)
     try {
-      const phone = regCountry.prefix + regForm.phone.replace(/^0+/, "")
+      const phone = UGANDA.prefix + regForm.phone.replace(/^0+/, "")
       await apiRegister({
         name: regForm.name,
         phone,
         role: regForm.role,
         pin: regForm.pin,
-        country: regCountry.code,
+        country: UGANDA.code,
         saccoId: auth.sacco_id,
       })
       const mems = await apiGetMembers(auth.sacco_id)
@@ -210,14 +209,14 @@ export default function AdminDashboard() {
                           <tr key={tx.id} style={{ borderBottom: i < 11 ? `1px solid ${T.border2}` : "none", background: "#fff" }}
                             onMouseEnter={e => e.currentTarget.style.background = T.surface}
                             onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
-                            <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</td>
+                            <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-UG", { day: "2-digit", month: "short", year: "numeric" })}</td>
                             <td style={{ padding: "15px 20px" }}>
                               <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: "0 0 2px" }}>{mem?.name}</p>
                               <p style={{ fontSize: "11px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>{tx.member_id}</p>
                             </td>
                             <td style={{ padding: "15px 20px", fontSize: "15px", fontWeight: 700, color: typeColor[tx.type] || T.textHi }}>{tx.type}</td>
                             <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "15px", fontWeight: 800, color: T.textHi }}>{currency} {tx.amount_kes.toLocaleString()}</td>
-                            <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "12px", color: T.textDim }}>{tx.entry_type === "MPESA" ? "Mobile Money" : "Admin"}</td>
+                            <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "12px", color: T.textDim }}>{tx.entry_type === "MOMO" || tx.entry_type === "MPESA" ? "MTN MoMo" : "Admin"}</td>
                             <td style={{ padding: "15px 20px" }}><StellarHashLink hash={tx.stellar_tx_hash} /></td>
                           </tr>
                         )
@@ -321,8 +320,7 @@ export default function AdminDashboard() {
                 <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 24px" }}>Add a new member to the SACCO system</p>
                 <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   {[
-                    { label: "Full Name", key: "name", type: "text", placeholder: "e.g. Sarah Wanjiku" },
-                    { label: "Phone Number", key: "phone", type: "tel", placeholder: "e.g. 700 123 456" },
+                    { label: "Full Name", key: "name", type: "text", placeholder: "e.g. Sarah Nambi" },
                     { label: "PIN (4 digits)", key: "pin", type: "password", placeholder: "1234" },
                   ].map(f => (
                     <div key={f.key}>
@@ -331,10 +329,11 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                   <div>
-                    <Lbl text="Country" />
-                    <select value={regCountry.code} onChange={e => setRegCountry(EAC_COUNTRIES.find(c => c.code === e.target.value))} style={{ ...inp(), cursor: "pointer" }}>
-                      {EAC_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
-                    </select>
+                    <Lbl text="Phone (Uganda)" />
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <span style={{ ...inp(), width: "auto", minWidth: "72px", textAlign: "center", fontWeight: 700, background: T.surface }}>{UGANDA.prefix}</span>
+                      <input type="tel" value={regForm.phone} onChange={e => setRegForm(p => ({ ...p, phone: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="700 123 456" required style={{ ...inp(), flex: 1 }} onFocus={onF} onBlur={onB} />
+                    </div>
                   </div>
                   <div>
                     <Lbl text="Role" />
@@ -397,7 +396,7 @@ export default function AdminDashboard() {
                         <tr key={tx.id} style={{ borderBottom: i < allTxs.length - 1 ? `1px solid ${T.border2}` : "none", background: "#fff" }}
                           onMouseEnter={e => e.currentTarget.style.background = T.surface}
                           onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
-                          <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}</td>
+                          <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-UG", { day: "2-digit", month: "short", year: "numeric" })}</td>
                           <td style={{ padding: "15px 20px" }}>
                             <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: "0 0 2px" }}>{mem?.name || "—"}</p>
                             <p style={{ fontSize: "11px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>{tx.member_id?.slice(0, 8)}</p>
