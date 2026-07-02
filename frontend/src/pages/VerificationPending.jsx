@@ -39,9 +39,14 @@ const StatusBadge = ({ status }) => {
 
 export default function VerificationPending() {
   const navigate = useNavigate()
-  const { auth } = useAuth()
+  const { auth, logout } = useAuth()
   const { width } = useWindowSize()
   const isMobile = width < 768
+
+  const handleSignOut = () => {
+    logout()
+    navigate("/login")
+  }
 
   const [saccoName, setSaccoName] = useState("")
   const [status, setStatus] = useState("under_review")
@@ -91,23 +96,48 @@ export default function VerificationPending() {
             </span>
           )}
         </div>
-        <button onClick={() => navigate("/")} style={{
-          padding: isMobile ? "7px 12px" : "10px 18px",
-          fontSize: isMobile ? "12px" : "15px",
-          borderRadius: "10px",
-          border: "none",
-          background: T.green,
-          color: "#fff",
-          fontWeight: 800,
-          fontFamily: T.font,
-          cursor: "pointer",
-          transition: "all 0.2s",
-          whiteSpace: "nowrap"
-        }}
-          onMouseEnter={e => e.currentTarget.style.background = T.greenDark}
-          onMouseLeave={e => e.currentTarget.style.background = T.green}>
-          Home
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button onClick={() => navigate("/")} style={{
+            padding: isMobile ? "7px 12px" : "10px 18px",
+            fontSize: isMobile ? "12px" : "15px",
+            borderRadius: "10px",
+            border: "none",
+            background: T.green,
+            color: "#fff",
+            fontWeight: 800,
+            fontFamily: T.font,
+            cursor: "pointer",
+            transition: "all 0.2s",
+            whiteSpace: "nowrap"
+          }}
+            onMouseEnter={e => e.currentTarget.style.background = T.greenDark}
+            onMouseLeave={e => e.currentTarget.style.background = T.green}>
+            Home
+          </button>
+          <button onClick={handleSignOut} style={{
+            padding: isMobile ? "7px 12px" : "10px 18px",
+            fontSize: isMobile ? "12px" : "15px",
+            borderRadius: "10px",
+            border: `2px solid ${T.red || "#ef4444"}`,
+            background: "transparent",
+            color: T.red || "#ef4444",
+            fontWeight: 800,
+            fontFamily: T.font,
+            cursor: "pointer",
+            transition: "all 0.2s",
+            whiteSpace: "nowrap"
+          }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = T.red || "#ef4444"
+              e.currentTarget.style.color = "#fff"
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = "transparent"
+              e.currentTarget.style.color = T.red || "#ef4444"
+            }}>
+            Sign Out
+          </button>
+        </div>
       </nav>
 
       <div style={{ maxWidth: "1000px", margin: "0 auto", padding: isMobile ? "24px 20px" : "40px 20px" }}>
