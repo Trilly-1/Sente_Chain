@@ -40,17 +40,7 @@ func (c *MTNClient) Configured() bool {
 	return c.cfg.Enabled
 }
 
-// RequestToPay will call MTN Collections API once credentials are live.
-func (c *MTNClient) RequestToPay(ctx context.Context, in *RequestToPayInput) (*RequestToPayResult, error) {
-	if !c.cfg.Enabled {
-		return nil, ErrProviderNotConfigured
-	}
-	if in == nil || in.Amount <= 0 {
-		return nil, errors.New("invalid request to pay")
-	}
-	// TODO: POST {baseURL}/collection/v1_0/requesttopay when merchant API is active.
-	return nil, fmt.Errorf("MTN MoMo request-to-pay not wired yet — add live API credentials to env")
-}
+// RequestToPay in providers.go delegates to mtn_client when configured — see mtn_client.go
 
 // AirtelClient wraps Airtel Money collections API.
 type AirtelClient struct {

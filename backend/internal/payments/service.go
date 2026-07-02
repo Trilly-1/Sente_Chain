@@ -19,10 +19,11 @@ type Service struct {
 	saccoRepo      *sacco.Repository
 	membershipRepo *memberships.Repository
 	txnRepo        *transactions.Repository
+	gateway        *ProviderGateway
 }
 
-func NewService(repo *Repository, saccoRepo *sacco.Repository, membershipRepo *memberships.Repository, txnRepo *transactions.Repository) *Service {
-	return &Service{repo: repo, saccoRepo: saccoRepo, membershipRepo: membershipRepo, txnRepo: txnRepo}
+func NewService(repo *Repository, saccoRepo *sacco.Repository, membershipRepo *memberships.Repository, txnRepo *transactions.Repository, gateway *ProviderGateway) *Service {
+	return &Service{repo: repo, saccoRepo: saccoRepo, membershipRepo: membershipRepo, txnRepo: txnRepo, gateway: gateway}
 }
 
 func (s *Service) ListAccounts(ctx context.Context, saccoID string) ([]*PaymentAccount, error) {
@@ -130,9 +131,116 @@ func (s *Service) GetInstructions(ctx context.Context, saccoID, membershipID str
 		Instructions: []string{
 			"Money goes directly to your SACCO wallet — SenteChain never holds your funds.",
 			fmt.Sprintf("Include reference %s in the payment reason/message.", shortRef),
-			"Deposits are matched automatically once MTN/Airtel integration is live; until then your cashier will confirm.",
+			"Use Pay Now for STK prompt when API is connected, or pay manually to the numbers below.",
 		},
+		MTNApiReady:    s.gateway != nil && s.gateway.MTN.Configured(),
+		AirtelApiReady: s.gateway != nil && s.gateway.Airtel.Configured(),
 	}, nil
+}
+
+func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestToPayBody) (*RequestToPayResponse, error) {
+	if req == nil || req.Amount <= 0 {
+		return nil, errors.New("amount must be positive")
+	}
+	if req.SaccoID == "" {
+		return nil, errors.New("sacco_id is required")
+	}
+	provider := req.Provider
+	if provider == "" {
+		provider = ProviderMTNMoMo
+	}
+	if provider != ProviderMTNMoMo && provider != ProviderAirtelMoney {
+		return nil, errors.New("provider must be mtn_momo or airtel_money")
+	}
+
+	membership, err := s.membershipRepo.GetByUserAndSacco(ctx, userID, req.SaccoID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("you are not a member of this SACCO")
+		}
+		return nil, err
+	}
+	if membership.Status != memberships.StatusActive {
+		return nil, errors.New("your membership must be active")
+	}
+
+	shortRef := strings.ToUpper(strings.ReplaceAll(membership.ID.String(), "-", ""))
+	if len(shortRef) > 8 {
+		shortRef = shortRef[:8]
+	}
+
+	payee, err := s.repo.FindAccountByProvider(ctx, req.SaccoID, provider)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("this SACCO has not configured a payment number for that provider")
+		}
+		return nil, err
+	}
+
+	payerPhone, err := s.repo.MemberPhone(ctx, membership.ID.String())
+	if err != nil {
+		return nil, errors.New("could not resolve your phone number")
+	}
+
+	in := &RequestToPayInput{
+		SaccoID:      req.SaccoID,
+		MembershipID: membership.ID.String(),
+		Amount:       req.Amount,
+		Currency:     "UGX",
+		PayerPhone:   payerPhone,
+		PayeePhone:   payee.PhoneNumber,
+		Reference:    shortRef,
+		Provider:     provider,
+	}
+
+	if s.gateway == nil {
+		return manualPayResponse(provider, req.Amount, shortRef, payee.PhoneNumber), nil
+	}
+
+	var result *RequestToPayResult
+	switch provider {
+	case ProviderMTNMoMo:
+		if !s.gateway.MTN.Configured() {
+			return manualPayResponse(provider, req.Amount, shortRef, payee.PhoneNumber), nil
+		}
+		result, err = s.gateway.MTN.RequestToPay(ctx, in)
+	case ProviderAirtelMoney:
+		if !s.gateway.Airtel.Configured() {
+			return manualPayResponse(provider, req.Amount, shortRef, payee.PhoneNumber), nil
+		}
+		result, err = s.gateway.Airtel.RequestToPay(ctx, in)
+	}
+	if err != nil {
+		if errors.Is(err, ErrProviderNotConfigured) {
+			return manualPayResponse(provider, req.Amount, shortRef, payee.PhoneNumber), nil
+		}
+		return nil, err
+	}
+
+	return &RequestToPayResponse{
+		Status:     result.Status,
+		Message:    result.Message,
+		ExternalID: result.ExternalID,
+		Provider:   provider,
+		Amount:     req.Amount,
+		Currency:   "UGX",
+		Mode:       "stk",
+	}, nil
+}
+
+func manualPayResponse(provider string, amount float64, ref, payeePhone string) *RequestToPayResponse {
+	label := "MTN MoMo"
+	if provider == ProviderAirtelMoney {
+		label = "Airtel Money"
+	}
+	return &RequestToPayResponse{
+		Status:  "manual",
+		Mode:    "manual",
+		Provider: provider,
+		Amount:  amount,
+		Currency: "UGX",
+		Message: fmt.Sprintf("Pay %s to %s on %s and include reference %s in the reason. Your cashier will confirm once API keys are added.", FormatAmount(amount), payeePhone, label, ref),
+	}
 }
 
 func (s *Service) ProcessInbound(ctx context.Context, payload *WebhookPayload, raw json.RawMessage) (*InboundEvent, error) {

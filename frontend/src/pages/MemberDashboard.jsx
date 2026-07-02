@@ -1,7 +1,7 @@
 // src/pages/MemberDashboard.jsx
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
-import { apiGetTransactions, apiListSaccos, apiGetMyLoans, apiApplyLoan, apiListLoanProducts, apiGetPaymentInstructions } from "../services/api"
+import { apiGetTransactions, apiListSaccos, apiGetMyLoans, apiApplyLoan, apiListLoanProducts, apiGetPaymentInstructions, apiRequestToPay } from "../services/api"
 import { T, card, cardMd } from "../styles/theme"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
@@ -42,6 +42,11 @@ export default function MemberDashboard() {
   const [loanErr, setLoanErr] = useState("")
   const [loanLoading, setLoanLoading] = useState(false)
   const [payInfo, setPayInfo] = useState(null)
+  const [payAmount, setPayAmount] = useState("")
+  const [payProvider, setPayProvider] = useState("mtn_momo")
+  const [payMsg, setPayMsg] = useState("")
+  const [payErr, setPayErr] = useState("")
+  const [payLoading, setPayLoading] = useState(false)
 
   const [mySacco, setMySacco] = useState({ name: "SACCO" })
 
@@ -96,6 +101,27 @@ export default function MemberDashboard() {
   }
 
   const inp = { background: "#ffffff", border: `1.5px solid ${T.border}`, color: "#0a0a0a", borderRadius: "9px", padding: "11px 14px", width: "100%", outline: "none", fontSize: "14px", fontFamily: T.font }
+
+  async function handlePayNow(e) {
+    e.preventDefault()
+    setPayErr("")
+    setPayMsg("")
+    const amount = parseFloat(payAmount)
+    if (!amount || amount <= 0) {
+      setPayErr("Enter a valid amount")
+      return
+    }
+    setPayLoading(true)
+    try {
+      const result = await apiRequestToPay(auth.sacco_id, amount, payProvider)
+      setPayMsg(result.message || (result.mode === "stk" ? "Check your phone for the MoMo prompt." : "Payment initiated."))
+      if (result.mode === "stk") setPayAmount("")
+    } catch (err) {
+      setPayErr(err.message || "Payment request failed")
+    } finally {
+      setPayLoading(false)
+    }
+  }
 
   return (
     <div style={{ minHeight:"100vh", background:T.pageBg, fontFamily:T.font }}>
@@ -186,16 +212,37 @@ export default function MemberDashboard() {
         </div>
 
         <div style={{ ...card(), padding:"20px 24px", marginBottom:"16px", borderLeft:`4px solid ${T.green}` }}>
-          <p style={{ fontSize:"15px", fontWeight:700, color:T.textHi, margin:"0 0 12px" }}>How to deposit (pay your SACCO directly)</p>
+          <p style={{ fontSize:"15px", fontWeight:700, color:T.textHi, margin:"0 0 12px" }}>Deposit to your SACCO</p>
           {payInfo ? (
-            <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+            <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+              <form onSubmit={handlePayNow} style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 160px auto", gap:"10px", alignItems:"end" }}>
+                <div>
+                  <p style={{ fontSize:"11px", fontWeight:700, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", fontFamily:T.fontMono }}>Amount (UGX)</p>
+                  <input type="number" min="1" placeholder="e.g. 50000" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required disabled={payLoading} style={inp} />
+                </div>
+                <div>
+                  <p style={{ fontSize:"11px", fontWeight:700, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", fontFamily:T.fontMono }}>Via</p>
+                  <select value={payProvider} onChange={(e) => setPayProvider(e.target.value)} disabled={payLoading} style={{ ...inp, cursor:"pointer" }}>
+                    <option value="mtn_momo">MTN MoMo</option>
+                    <option value="airtel_money">Airtel Money</option>
+                  </select>
+                </div>
+                <button type="submit" disabled={payLoading || !payAmount} style={{ padding:"12px 20px", borderRadius:"10px", border:"none", fontFamily:T.font, background: payLoading ? T.border2 : T.green, color:"#fff", fontSize:"14px", fontWeight:800, cursor: payLoading ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>
+                  {payLoading ? "Sending..." : "Pay Now"}
+                </button>
+              </form>
+              {(payInfo.mtn_api_ready || payInfo.airtel_api_ready) && (
+                <p style={{ fontSize:"12px", color:T.green, margin:0, fontWeight:600 }}>Mobile money API connected — Pay Now sends an STK prompt to your phone.</p>
+              )}
+              {payErr && <p style={{ fontSize:"13px", color:T.red, margin:0 }}>{payErr}</p>}
+              {payMsg && <p style={{ fontSize:"13px", color:T.green, margin:0, fontWeight:600 }}>{payMsg}</p>}
               <p style={{ fontSize:"13px", color:T.textMid, margin:0 }}>
-                Your reference: <span style={{ fontFamily:T.fontMono, fontWeight:800, color:T.goldMid }}>{payInfo.member_reference}</span> — put this in the payment reason.
+                Reference: <span style={{ fontFamily:T.fontMono, fontWeight:800, color:T.goldMid }}>{payInfo.member_reference}</span>
               </p>
               {payInfo.accounts.map((a) => (
                 <div key={a.provider} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:"8px", padding:"12px 14px", background:T.surface, borderRadius:"10px", border:`1px solid ${T.border}` }}>
                   <div>
-                    <p style={{ fontSize:"12px", color:T.textDim, margin:"0 0 2px", fontFamily:T.fontMono }}>{a.label}</p>
+                    <p style={{ fontSize:"12px", color:T.textDim, margin:"0 0 2px", fontFamily:T.fontMono }}>{a.label} {payInfo.mtn_api_ready && a.provider === "mtn_momo" ? "• API live" : ""}</p>
                     <p style={{ fontSize:"18px", fontWeight:900, color:T.green, margin:0, fontFamily:T.fontMono }}>{a.phone_number}</p>
                   </div>
                   {a.is_primary && <span style={{ fontSize:"10px", fontWeight:700, padding:"3px 8px", borderRadius:"6px", background:T.greenLite, color:T.green }}>PRIMARY</span>}

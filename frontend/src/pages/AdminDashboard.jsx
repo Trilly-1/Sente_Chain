@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { apiGetMembers, apiListTransactions, apiRegister, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiCreateTransaction, apiAnchorTransaction, apiVerifyTransaction, apiListLoanProducts, apiCreateLoanProduct, apiGetPaymentAccounts, apiSavePaymentAccounts } from "../services/api"
+import { apiGetMembers, apiListTransactions, apiRegister, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiCreateTransaction, apiAnchorTransaction, apiVerifyTransaction, apiListLoanProducts, apiCreateLoanProduct, apiGetPaymentAccounts, apiSavePaymentAccounts, apiGetPaymentIntegrationStatus } from "../services/api"
 import { UGANDA } from "../data/countries"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
@@ -58,6 +58,7 @@ export default function AdminDashboard() {
   const [payOk, setPayOk] = useState(false)
   const [payErr, setPayErr] = useState("")
   const [payLoading, setPayLoading] = useState(false)
+  const [payIntegration, setPayIntegration] = useState(null)
 
 
   useEffect(() => {
@@ -82,6 +83,7 @@ export default function AdminDashboard() {
         if (summary) setSaccoInfo({ name: summary.name })
         const txList = await apiListTransactions({ saccoId: auth.sacco_id, limit: 100 })
         setAllTxs(txList.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at)))
+        apiGetPaymentIntegrationStatus().then(setPayIntegration).catch(() => {})
       } catch (err) { console.error(err) }
       finally { setLoading(false) }
     }
@@ -390,6 +392,12 @@ export default function AdminDashboard() {
                 <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 20px" }}>
                   Member deposits go directly to these wallets. SenteChain never holds money.
                 </p>
+                {payIntegration && (
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "6px", background: payIntegration.mtn_configured ? T.greenLite : T.surface, color: payIntegration.mtn_configured ? T.green : T.textDim, border: `1px solid ${T.border}` }}>MTN API {payIntegration.mtn_configured ? "connected" : "pending"}</span>
+                    <span style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "6px", background: payIntegration.airtel_configured ? T.greenLite : T.surface, color: payIntegration.airtel_configured ? T.green : T.textDim, border: `1px solid ${T.border}` }}>Airtel API {payIntegration.airtel_configured ? "connected" : "pending"}</span>
+                  </div>
+                )}
                 <form onSubmit={handleSavePaymentAccounts} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                   <div>
                     <Lbl text="Account / SACCO Name" />

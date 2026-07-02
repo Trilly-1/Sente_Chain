@@ -243,9 +243,9 @@ func (s *Server) registerPaymentRoutes() {
 	membershipRepo := memberships.NewRepository(s.pool)
 	txnRepo := transactions.NewRepository(s.pool)
 
-	service := payments.NewService(payRepo, saccoRepo, membershipRepo, txnRepo)
 	providerCfg := payments.LoadProvidersConfigFromEnv()
 	providers := payments.NewProviderGateway(providerCfg)
+	service := payments.NewService(payRepo, saccoRepo, membershipRepo, txnRepo, providers)
 	handler := payments.NewHandler(service, providers)
 
 	s.engine.GET("/payments/integration-status", handler.HandleIntegrationStatus)
@@ -255,9 +255,10 @@ func (s *Server) registerPaymentRoutes() {
 		s.engine.POST("/webhooks/test/inbound-payment", handler.HandleTestWebhook)
 	}
 
-	memberPayGroup := s.engine.Group("/members/payment-instructions", middleware.AuthMiddleware(jwtSecret))
+	memberPayGroup := s.engine.Group("/members", middleware.AuthMiddleware(jwtSecret))
 	{
-		memberPayGroup.GET("", handler.HandleMemberPaymentInstructions)
+		memberPayGroup.GET("/payment-instructions", handler.HandleMemberPaymentInstructions)
+		memberPayGroup.POST("/payments/request-to-pay", handler.HandleRequestToPay)
 	}
 
 	adminPayGroup := s.engine.Group("/saccos/:saccoId",

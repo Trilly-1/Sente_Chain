@@ -639,6 +639,8 @@ export async function apiGetPaymentInstructions(saccoId) {
     return {
       sacco_name: "Demo SACCO",
       member_reference: "DEMO0001",
+      mtn_api_ready: false,
+      airtel_api_ready: false,
       accounts: [
         { provider: "mtn_momo", label: "MTN MoMo", phone_number: "+256700000099", is_primary: true },
         { provider: "airtel_money", label: "Airtel Money", phone_number: "+256750000099", is_primary: false },
@@ -650,6 +652,29 @@ export async function apiGetPaymentInstructions(saccoId) {
     }
   }
   return apiFetch(`/members/payment-instructions?sacco_id=${encodeURIComponent(saccoId)}`)
+}
+
+export async function apiGetPaymentIntegrationStatus() {
+  if (USE_DEMO) return { mtn_configured: false, airtel_configured: false, webhooks_ready: true }
+  return apiFetch("/payments/integration-status")
+}
+
+export async function apiRequestToPay(saccoId, amount, provider = "mtn_momo") {
+  if (USE_DEMO) {
+    await new Promise((r) => setTimeout(r, 800))
+    return {
+      status: "manual",
+      mode: "manual",
+      message: `Pay UGX ${amount.toLocaleString()} to Demo SACCO MoMo +256700000099 with your reference.`,
+      provider,
+      amount,
+      currency: "UGX",
+    }
+  }
+  return apiFetch("/members/payments/request-to-pay", {
+    method: "POST",
+    body: JSON.stringify({ sacco_id: saccoId, amount, provider }),
+  })
 }
 
 // ─── Stubs (no backend yet) ───────────────────────────────────────────────────

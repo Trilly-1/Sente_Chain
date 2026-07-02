@@ -42,12 +42,30 @@ type UpsertAccountsRequest struct {
 }
 
 type PaymentInstructions struct {
-	SaccoID           string           `json:"sacco_id"`
-	SaccoName         string           `json:"sacco_name"`
-	PaymentReference  string           `json:"payment_reference"`
-	MemberReference   string           `json:"member_reference"`
-	Accounts          []AccountDisplay `json:"accounts"`
-	Instructions      []string         `json:"instructions"`
+	SaccoID            string           `json:"sacco_id"`
+	SaccoName          string           `json:"sacco_name"`
+	PaymentReference   string           `json:"payment_reference"`
+	MemberReference    string           `json:"member_reference"`
+	Accounts           []AccountDisplay `json:"accounts"`
+	Instructions       []string         `json:"instructions"`
+	MTNApiReady        bool             `json:"mtn_api_ready"`
+	AirtelApiReady     bool             `json:"airtel_api_ready"`
+}
+
+type RequestToPayBody struct {
+	SaccoID  string  `json:"sacco_id"`
+	Amount   float64 `json:"amount"`
+	Provider string  `json:"provider"`
+}
+
+type RequestToPayResponse struct {
+	Status    string `json:"status"`
+	Message   string `json:"message"`
+	ExternalID string `json:"external_id,omitempty"`
+	Provider  string `json:"provider"`
+	Amount    float64 `json:"amount"`
+	Currency  string `json:"currency"`
+	Mode      string `json:"mode"`
 }
 
 type AccountDisplay struct {

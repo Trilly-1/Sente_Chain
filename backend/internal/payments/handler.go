@@ -58,6 +58,21 @@ func (h *Handler) HandleMemberPaymentInstructions(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(instructions))
 }
 
+func (h *Handler) HandleRequestToPay(c *gin.Context) {
+	userID := c.GetString("user_id")
+	var req RequestToPayBody
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("invalid request body"))
+		return
+	}
+	result, err := h.service.RequestToPay(c.Request.Context(), userID, &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(result))
+}
+
 func (h *Handler) HandleIntegrationStatus(c *gin.Context) {
 	if h.providers == nil {
 		c.JSON(http.StatusOK, response.Success(IntegrationStatus{WebhooksReady: true}))

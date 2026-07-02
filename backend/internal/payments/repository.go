@@ -129,6 +129,24 @@ func (r *Repository) FindMembershipByPhone(ctx context.Context, saccoID, phone s
 	return id, err
 }
 
+func (r *Repository) MemberPhone(ctx context.Context, membershipID string) (string, error) {
+	var phone string
+	err := r.db.QueryRow(ctx, `
+		SELECT u.phone FROM sacco_memberships m
+		JOIN users u ON u.id = m.user_id WHERE m.id = $1`, membershipID,
+	).Scan(&phone)
+	return phone, err
+}
+
+func (r *Repository) FindAccountByProvider(ctx context.Context, saccoID, provider string) (*PaymentAccount, error) {
+	q := `SELECT ` + accountColumns + ` FROM sacco_payment_accounts WHERE sacco_id = $1 AND provider = $2 AND is_active = true LIMIT 1`
+	a, err := scanAccount(r.db.QueryRow(ctx, q, saccoID, provider))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, pgx.ErrNoRows
+	}
+	return a, err
+}
+
 func (r *Repository) InsertInboundEvent(ctx context.Context, event *InboundEvent) (*InboundEvent, error) {
 	q := `
 		INSERT INTO inbound_payment_events (
