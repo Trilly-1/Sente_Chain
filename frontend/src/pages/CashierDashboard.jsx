@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { apiGetSacco, apiGetLoans, apiApproveLoan, apiRejectLoan, apiGetMembers, apiListTransactions, apiCreateTransaction, apiAnchorTransaction } from "../services/api"
+import { apiGetSacco, apiGetLoans, apiApproveLoan, apiRejectLoan, apiGetMembers, apiListTransactions, apiCreateTransaction, apiAnchorTransaction, apiRepayLoan } from "../services/api"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
@@ -53,6 +53,9 @@ export default function CashierDashboard() {
   const [search,   setSearch]   = useState("")
   const [loading,  setLoading]  = useState(true)
   const [saccoName, setSaccoName] = useState("")
+  const [repayAmounts, setRepayAmounts] = useState({})
+  const [repayLoading, setRepayLoading] = useState(null)
+  const [repayErr, setRepayErr] = useState("")
 
   useEffect(() => {
     if (!auth?.sacco_id) return
@@ -81,6 +84,30 @@ export default function CashierDashboard() {
   async function rejectLoan(id) {
     const updated = await apiRejectLoan(auth.sacco_id, id)
     setLoans(prev => prev.map(l => l.id === id ? updated : l))
+  }
+
+  async function recordRepayment(loanId, e) {
+    e.preventDefault()
+    setRepayErr("")
+    const amount = parseFloat(repayAmounts[loanId])
+    if (!amount || amount <= 0) {
+      setRepayErr("Enter a valid repayment amount")
+      return
+    }
+    setRepayLoading(loanId)
+    try {
+      const updated = await apiRepayLoan(loanId, amount)
+      setLoans((prev) => prev.map((l) => (l.id === loanId ? updated : l)))
+      setRepayAmounts((p) => ({ ...p, [loanId]: "" }))
+      const txs = await apiListTransactions({ saccoId: auth.sacco_id, limit: 100 })
+      setAllTxs(txs)
+      const members = await apiGetMembers(auth.sacco_id)
+      setMembers(members)
+    } catch (err) {
+      setRepayErr(err.message || "Repayment failed")
+    } finally {
+      setRepayLoading(null)
+    }
   }
 
   async function recordDeposit(e) {
@@ -242,6 +269,7 @@ export default function CashierDashboard() {
         {/* ACTIVE LOANS */}
         {!loading && tab==="Active Loans" && (
           <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
+            {repayErr && <p style={{ fontSize:"14px", color:T.red, margin:0 }}>{repayErr}</p>}
             {[...activeLoans, ...completedLoans].map(loan => (
               <div key={loan.id} style={{ ...cardMd(), overflow:"hidden" }}>
                 <div style={{ height:"3px", background:loan.status==="completed"?`linear-gradient(90deg,#7c3aed,#a78bfa)`:`linear-gradient(90deg,${T.green},${T.goldMid})` }} />
@@ -277,9 +305,28 @@ export default function CashierDashboard() {
                       <p style={{ fontSize:"12px", color:T.textDim, margin:0 }}>Repayment progress {loan.payments_made}/{loan.payments_total} payments</p>
                       <p style={{ fontSize:"12px", fontWeight:700, color:T.green, margin:0 }}>{Math.round((loan.repaid_so_far/loan.total_repayable)*100)}%</p>
                     </div>
-                    <div style={{ height:"8px", borderRadius:"99px", background:T.border2 }}>
+                    <div style={{ height:"8px", borderRadius:"99px", background:T.border2, marginBottom:"14px" }}>
                       <div style={{ height:"100%", borderRadius:"99px", background:`linear-gradient(90deg,${T.green},#34d399)`, width:`${Math.round((loan.repaid_so_far/loan.total_repayable)*100)}%` }} />
                     </div>
+                    <form onSubmit={(e) => recordRepayment(loan.id, e)} style={{ display:"flex", gap:"10px", flexWrap:"wrap", alignItems:"center" }}>
+                      <input
+                        type="number"
+                        min="1"
+                        max={loan.balance_remaining}
+                        placeholder={`Record repayment (max ${loan.balance_remaining.toLocaleString()})`}
+                        value={repayAmounts[loan.id] || ""}
+                        onChange={(e) => setRepayAmounts((p) => ({ ...p, [loan.id]: e.target.value }))}
+                        disabled={repayLoading === loan.id}
+                        style={{ flex:"1 1 200px", background:"#fff", border:`1.5px solid ${T.border}`, borderRadius:"9px", padding:"10px 14px", fontSize:"14px", fontFamily:T.font, outline:"none" }}
+                      />
+                      <button
+                        type="submit"
+                        disabled={repayLoading === loan.id}
+                        style={{ padding:"10px 18px", borderRadius:"9px", border:"none", fontFamily:T.font, background: repayLoading === loan.id ? T.border2 : T.green, color:"#fff", fontSize:"14px", fontWeight:800, cursor: repayLoading === loan.id ? "not-allowed" : "pointer" }}
+                      >
+                        {repayLoading === loan.id ? "Recording..." : "Record Repayment"}
+                      </button>
+                    </form>
                   </div>
                 )}
                 {loan.payments_schedule.length>0 && (
