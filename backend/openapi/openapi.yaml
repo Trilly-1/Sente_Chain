@@ -126,6 +126,42 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /public/stats:
+    get:
+      tags: [Public]
+      summary: Platform-wide public statistics
+      operationId: getPublicStats
+      parameters:
+        - in: query
+          name: country
+          schema:
+            type: string
+            example: UG
+          description: Optional ISO country filter (e.g. UG)
+      responses:
+        '200':
+          description: Platform stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      approved_saccos:
+                        type: integer
+                      total_members:
+                        type: integer
+                      active_members:
+                        type: integer
+                      total_transactions:
+                        type: integer
+                      anchored_transactions:
+                        type: integer
+
   /saccos:
     post:
       tags: [SACCO Onboarding]

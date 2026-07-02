@@ -2,8 +2,7 @@
 import { useState, useEffect } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { SACCO_INFO } from "../data/demo"
-import { apiGetLoans, apiApproveLoan, apiRejectLoan, apiGetMembers, apiListTransactions, apiCreateTransaction, apiAnchorTransaction } from "../services/api"
+import { apiGetSacco, apiGetLoans, apiApproveLoan, apiRejectLoan, apiGetMembers, apiListTransactions, apiCreateTransaction, apiAnchorTransaction } from "../services/api"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
@@ -53,6 +52,14 @@ export default function CashierDashboard() {
   const [depositForm, setDepositForm] = useState({ memberId: "", amount: "" })
   const [search,   setSearch]   = useState("")
   const [loading,  setLoading]  = useState(true)
+  const [saccoName, setSaccoName] = useState("")
+
+  useEffect(() => {
+    if (!auth?.sacco_id) return
+    apiGetSacco(auth.sacco_id)
+      .then((data) => setSaccoName(data.sacco?.name || data.name || ""))
+      .catch(() => setSaccoName(""))
+  }, [auth?.sacco_id])
 
   useEffect(() => {
     if (!auth?.sacco_id) { setLoading(false); return }
@@ -131,7 +138,7 @@ export default function CashierDashboard() {
       <div style={{ maxWidth:"1200px", margin:"0 auto", padding: isMobile ? "24px 16px 60px" : "48px 40px 80px" }}>
 
         <div style={{ marginBottom: isMobile ? "24px" : "32px" }}>
-          <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, marginBottom:"8px", letterSpacing:"1.5px", textTransform:"uppercase" }}>{SACCO_INFO.name} Cashier Portal</p>
+          <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, marginBottom:"8px", letterSpacing:"1.5px", textTransform:"uppercase" }}>{saccoName || "SACCO"} Cashier Portal</p>
           <h1 style={{ fontSize: isMobile ? "28px" : "36px", fontWeight:900, color:T.textHi, margin:"0 0 6px", letterSpacing:"-0.5px" }}>Cashier <span style={{color:T.green}}>Dashboard</span></h1>
           <p style={{ fontSize: isMobile ? "14px" : "15px", color:T.textMid }}>Manage loan requests, member records and transactions</p>
         </div>

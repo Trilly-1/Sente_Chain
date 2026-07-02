@@ -223,6 +223,23 @@ export async function apiVerifyOTP({ phone, code, fullName }) {
   return mapAuthUser({ token: data.token, user: data.user })
 }
 
+// ─── Public platform stats ────────────────────────────────────────────────────
+
+export async function apiGetPublicStats(country = "UG") {
+  if (USE_DEMO) {
+    const { ALL_SACCOS } = await import("../data/demo")
+    return {
+      approved_saccos: ALL_SACCOS.length,
+      total_members: 6,
+      active_members: 5,
+      total_transactions: 24,
+      anchored_transactions: 18,
+    }
+  }
+  const q = country ? `?country=${encodeURIComponent(country)}` : ""
+  return apiFetch(`/public/stats${q}`)
+}
+
 // ─── SACCOs (public + onboarding) ─────────────────────────────────────────────
 
 export async function apiListSaccos(country = "UG", name) {

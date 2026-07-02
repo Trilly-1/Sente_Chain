@@ -43,6 +43,8 @@ GET http://localhost:8080/saccos
 | Method | URL | Auth |
 |--------|-----|------|
 | GET | `/health` | No |
+| GET | `/public/stats` | No |
+| GET | `/public/stats?country=UG` | No |
 | GET | `/ready` | No |
 
 Browser: open URLs directly.

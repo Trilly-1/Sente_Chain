@@ -16,6 +16,7 @@ import (
 	"sentechain-backend/internal/memberships"
 	"sentechain-backend/internal/middleware"
 	"sentechain-backend/internal/onboarding"
+	"sentechain-backend/internal/publicstats"
 	"sentechain-backend/internal/sacco"
 	"sentechain-backend/internal/saccoops"
 	"sentechain-backend/internal/stellar"
@@ -56,6 +57,7 @@ func (s *Server) registerRoutes() {
 		s.registerDocsRoutes()
 	}
 	s.registerSaccoRoutes()
+	s.registerPublicRoutes()
 	s.registerOnboardingRoutes()
 	s.registerTransactionRoutes()
 	s.registerSaccoOpsRoutes()
@@ -176,6 +178,12 @@ func (s *Server) registerSaccoOpsRoutes() {
 		adminGroup.PATCH("/members/:membershipId/suspend", handler.HandleSuspend)
 		adminGroup.PATCH("/members/:membershipId/activate", handler.HandleActivate)
 	}
+}
+
+func (s *Server) registerPublicRoutes() {
+	service := publicstats.NewService(s.pool)
+	handler := publicstats.NewHandler(service)
+	s.engine.GET("/public/stats", middleware.CacheControl(60), handler.HandleGetStats)
 }
 
 func (s *Server) registerOnboardingRoutes() {

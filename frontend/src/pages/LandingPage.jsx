@@ -1,6 +1,8 @@
 // src/pages/LandingPage.jsx
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
+import { apiGetPublicStats, apiListSaccos } from "../services/api"
+import { UGANDA } from "../data/countries"
 
 const C = {
   pageBg: "#ffffff", surfaceBg: "#f8faf8", cardBg: "#ffffff",
@@ -23,6 +25,14 @@ function useWindowSize() {
   return size;
 }
 
+function formatStat(n) {
+  const v = Number(n) || 0
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(/\.0$/, "")}M+`
+  if (v >= 10_000) return `${Math.floor(v / 1_000)}K+`
+  if (v >= 1_000) return `${(v / 1_000).toFixed(1).replace(/\.0$/, "")}K+`
+  return String(v)
+}
+
 const SLIDES = [
   {
     heading: (<>Fully <span style={{ color: C.green }}>Transparent</span> Financial Records</>),
@@ -36,7 +46,7 @@ const SLIDES = [
   },
   {
     heading: (<>Pay via <span style={{ color: C.green }}>Mobile Money</span></>),
-    body: "SenteChain is built for Uganda and East Africa — members contribute via MTN MoMo and Airtel Money using familiar USSD codes. When payments are integrated, the system will match each transaction to the correct member account and update the SACCO ledger automatically.",
+    body: "SenteChain is built for Uganda — members contribute via MTN MoMo and Airtel Money using familiar USSD codes. When payments are integrated, the system will match each transaction to the correct member account and update the SACCO ledger automatically.",
     accent: C.green, accentLite: C.greenLite, accentBdr: C.greenBdr, image: "/image7.jpg",
   },
   {
@@ -195,7 +205,7 @@ function Navbar({ onHome, onFeatures, onAbout, onGetStarted }) {
             <button onClick={() => { setMenuOpen(false); navigate("/register-sacco") }} style={{
               width: "100%", padding: "16px", borderRadius: "12px", background: C.green, color: "#fff", border: "none", fontSize: "16px", fontWeight: 800, marginBottom: "12px"
             }}>Register Your SACCO</button>
-            <p style={{ textAlign: "center", fontSize: "14px", color: C.textDim }}>East Africa's Blockchain Ledger</p>
+            <p style={{ textAlign: "center", fontSize: "14px", color: C.textDim }}>Uganda's Blockchain Ledger</p>
           </div>
         </div>
       )}
@@ -204,10 +214,17 @@ function Navbar({ onHome, onFeatures, onAbout, onGetStarted }) {
 }
 
 // ── HERO ────────────────────────────────────────────────────────────────────
-function Hero({ heroRef }) {
+function Hero({ heroRef, stats, statsLoading }) {
   const navigate = useNavigate()
   const { width } = useWindowSize()
   const isMobile = width < 900
+
+  const heroStats = [
+    { val: statsLoading ? "—" : formatStat(stats?.approved_saccos ?? 0), label: "SACCOS ON SENTECHAIN", color: C.green },
+    { val: statsLoading ? "—" : formatStat(stats?.active_members ?? 0), label: "ACTIVE MEMBERS", color: C.goldMid },
+    { val: statsLoading ? "—" : formatStat(stats?.anchored_transactions ?? 0), label: "BLOCKCHAIN PROOFS", color: C.green },
+    { val: "100%", label: "VERIFIABLE", color: C.goldMid },
+  ]
 
   return (
     <section ref={heroRef} style={{
@@ -253,12 +270,7 @@ function Hero({ heroRef }) {
         </div>
 
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: isMobile ? "24px" : "0", flexWrap: "wrap", borderTop: `1px solid ${C.border}`, paddingTop: "24px", paddingBottom: "20px", maxWidth: "1100px", margin: "0 auto" }}>
-          {[
-            { val: "41,000+", label: "SACCOS IN EAST AFRICA", color: C.green },
-            { val: "4M+", label: "MEMBERS", color: C.goldMid },
-            { val: "10s", label: "BLOCKCHAIN SEAL", color: C.green },
-            { val: "100%", label: "VERIFIABLE", color: C.goldMid },
-          ].map((s, i) => (
+          {heroStats.map((s, i) => (
             <div key={s.label} style={{ 
               flex: 1, minWidth: isMobile ? "140px" : "0", textAlign: "center",
               borderRight: !isMobile && i < 3 ? `1px solid ${C.border}` : "none",
@@ -374,10 +386,10 @@ function About({ aboutRef }) {
       <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: "60px" }}>
           <h2 style={{ fontSize: isMobile ? "32px" : "42px", fontWeight: 900, color: C.textHi, margin: "0 0 16px", fontFamily: C.font, letterSpacing: "-0.5px" }}>
-            Built for East Africa's <span style={{ color: C.green }}>Cooperative Sector</span>
+            Built for Uganda's <span style={{ color: C.green }}>SACCO Sector</span>
           </h2>
           <p style={{ fontSize: "17px", color: C.textMid, maxWidth: "560px", margin: "0 auto", lineHeight: 1.65, fontFamily: C.font }}>
-            Over 41,000 SACCOs manage trillions in savings across the region serving millions who depend on them everyday. SenteChain makes every penny permanently verifiable for members who have no other way to check.
+            SenteChain helps Ugandan SACCOs replace paper ledgers with transparent, blockchain-backed records that every member can verify from their phone.
           </p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4,1fr)", gap: "20px" }}>
@@ -391,6 +403,60 @@ function About({ aboutRef }) {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+  )
+}
+
+// ── SACCO DIRECTORY ───────────────────────────────────────────────────────────
+function SaccoDirectory({ directoryRef, saccos, loading }) {
+  const navigate = useNavigate()
+  const { width } = useWindowSize()
+  const isMobile = width < 900
+
+  return (
+    <section ref={directoryRef} style={{ background: "#ffffff", padding: isMobile ? "80px 24px" : "100px 64px", borderTop: `1px solid ${C.border}` }}>
+      <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: "48px" }}>
+          <h2 style={{ fontSize: isMobile ? "32px" : "42px", fontWeight: 900, color: C.textHi, margin: "0 0 16px", fontFamily: C.font, letterSpacing: "-0.5px" }}>
+            SACCOs on <span style={{ color: C.green }}>SenteChain</span>
+          </h2>
+          <p style={{ fontSize: "17px", color: C.textMid, maxWidth: "560px", margin: "0 auto", lineHeight: 1.65, fontFamily: C.font }}>
+            Approved SACCOs onboarded on the platform. View public ledgers or join as a member.
+          </p>
+        </div>
+
+        {loading ? (
+          <p style={{ textAlign: "center", color: C.textDim, fontFamily: C.font }}>Loading SACCOs...</p>
+        ) : saccos.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "48px 24px", background: C.surfaceBg, borderRadius: "20px", border: `1px solid ${C.border}` }}>
+            <p style={{ fontSize: "18px", fontWeight: 700, color: C.textHi, margin: "0 0 10px", fontFamily: C.font }}>No SACCOs live yet</p>
+            <p style={{ fontSize: "15px", color: C.textMid, margin: "0 0 24px", fontFamily: C.font }}>Be the first SACCO in Uganda to go live on SenteChain.</p>
+            <button onClick={() => navigate("/register-sacco")} style={{ padding: "14px 28px", borderRadius: "11px", fontFamily: C.font, fontSize: "15px", fontWeight: 800, cursor: "pointer", background: C.green, color: "#fff", border: "none" }}>
+              Register Your SACCO
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
+            {saccos.map((s) => (
+              <div key={s.id} style={{ background: C.surfaceBg, border: `1px solid ${C.border}`, borderRadius: "20px", padding: "28px 24px", transition: "all 0.22s ease" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.green; e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.06)" }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none" }}>
+                <p style={{ fontSize: "11px", fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "1.2px", margin: "0 0 10px", fontFamily: C.fontMono }}>{s.code}</p>
+                <p style={{ fontSize: "20px", fontWeight: 900, color: C.textHi, margin: "0 0 8px", fontFamily: C.font }}>{s.name}</p>
+                <p style={{ fontSize: "13px", color: C.textDim, margin: "0 0 20px", fontFamily: C.font }}>{UGANDA.flag} Uganda</p>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  <button onClick={() => navigate(`/sacco/${s.id}`)} style={{ padding: "10px 16px", borderRadius: "9px", border: "none", background: C.green, color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: C.font }}>
+                    View Ledger
+                  </button>
+                  <button onClick={() => navigate("/auth", { state: { from: `/sacco/${s.id}` } })} style={{ padding: "10px 16px", borderRadius: "9px", border: `1.5px solid ${C.border}`, background: "#fff", color: C.textHi, fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: C.font }}>
+                    Join SACCO
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )
@@ -509,7 +575,7 @@ function Footer() {
               </span>
             </div>
             <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.65)", lineHeight: 1.65, maxWidth: "260px", margin: "0 0 20px", fontFamily: C.font }}>
-              Blockchain-powered financial transparency for East Africa's 41,000 SACCOs. Every penny, permanently verifiable.
+              Blockchain-powered financial transparency for Uganda's SACCOs. Every record, permanently verifiable.
             </p>
           </div>
           {[
@@ -551,7 +617,23 @@ export default function LandingPage() {
   const heroRef = useRef(null)
   const sliderRef = useRef(null)
   const aboutRef = useRef(null)
+  const directoryRef = useRef(null)
   const ctaRef = useRef(null)
+  const [stats, setStats] = useState(null)
+  const [saccos, setSaccos] = useState([])
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [saccosLoading, setSaccosLoading] = useState(true)
+
+  useEffect(() => {
+    apiGetPublicStats(UGANDA.code)
+      .then(setStats)
+      .catch(() => setStats(null))
+      .finally(() => setStatsLoading(false))
+    apiListSaccos(UGANDA.code)
+      .then(setSaccos)
+      .catch(() => setSaccos([]))
+      .finally(() => setSaccosLoading(false))
+  }, [])
 
   const scrollTo = (ref) => ref?.current?.scrollIntoView({ behavior: "smooth", block: "start" })
 
@@ -597,9 +679,10 @@ export default function LandingPage() {
         onAbout={() => scrollTo(aboutRef)}
         onGetStarted={() => scrollTo(ctaRef)}
       />
-      <Hero heroRef={heroRef} />
+      <Hero heroRef={heroRef} stats={stats} statsLoading={statsLoading} />
       <Slider sliderRef={sliderRef} />
       <About aboutRef={aboutRef} />
+      <SaccoDirectory directoryRef={directoryRef} saccos={saccos} loading={saccosLoading} />
       <CTA ctaRef={ctaRef} />
       <Footer />
     </div>
