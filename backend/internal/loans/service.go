@@ -297,6 +297,10 @@ func (s *Service) Repay(ctx context.Context, actorUserID, loanID string, req *Re
 		return nil, errors.New("repayments are only allowed on active loans")
 	}
 
+	if err := s.authorizeRepay(ctx, actorUserID, loan); err != nil {
+		return nil, err
+	}
+
 	balance, _ := ParseAmount(loan.BalanceRemaining)
 	if req.Amount > balance+0.01 {
 		return nil, fmt.Errorf("amount exceeds balance remaining (%.2f)", balance)
@@ -438,6 +442,27 @@ func (s *Service) resolveProduct(ctx context.Context, saccoID string, productID 
 		return nil, errors.New("no loan product configured for this SACCO")
 	}
 	return list[0], nil
+}
+
+// authorizeRepay allows the loan owner or SACCO staff (cashier/admin) to record repayments.
+func (s *Service) authorizeRepay(ctx context.Context, actorUserID string, loan *Loan) error {
+	m, err := s.membershipRepo.GetByUserAndSacco(ctx, actorUserID, loan.SaccoID.String())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errors.New("not authorized to record repayments for this loan")
+		}
+		return err
+	}
+	if m.Status != memberships.StatusActive {
+		return errors.New("your membership must be active")
+	}
+	if m.ID == loan.MembershipID {
+		return nil
+	}
+	if m.Role == memberships.RoleAdmin || m.Role == memberships.RoleCashier {
+		return nil
+	}
+	return errors.New("not authorized to record repayments for this loan")
 }
 
 func (s *Service) requireApprovedSacco(ctx context.Context, saccoID string) error {

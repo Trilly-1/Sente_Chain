@@ -2,6 +2,7 @@ package loans
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"sentechain-backend/pkg/response"
@@ -143,7 +144,11 @@ func (h *Handler) HandleRepay(c *gin.Context) {
 	}
 	loan, err := h.service.Repay(c.Request.Context(), actorUserID, loanID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
+		status := http.StatusBadRequest
+		if strings.Contains(err.Error(), "not authorized") {
+			status = http.StatusForbidden
+		}
+		c.JSON(status, response.Error(err.Error()))
 		return
 	}
 	c.JSON(http.StatusOK, response.Success(loan))

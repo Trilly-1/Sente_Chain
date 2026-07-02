@@ -163,6 +163,9 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 	if membership.Status != memberships.StatusActive {
 		return nil, errors.New("your membership must be active")
 	}
+	if membership.Role != memberships.RoleMember {
+		return nil, errors.New("only members can use Pay Now; cashiers should record payments manually")
+	}
 
 	shortRef := strings.ToUpper(strings.ReplaceAll(membership.ID.String(), "-", ""))
 	if len(shortRef) > 8 {

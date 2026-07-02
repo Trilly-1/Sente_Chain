@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"sentechain-backend/internal/stellar"
@@ -30,7 +31,7 @@ func (h *Handler) HandleCreate(c *gin.Context) {
 	txn, err := h.service.Create(c.Request.Context(), actorUserID.(string), &req)
 	if err != nil {
 		status := http.StatusBadRequest
-		if err.Error() == "not authorized" || err.Error() == "you are not a member of this SACCO" {
+		if isForbiddenError(err.Error()) {
 			status = http.StatusForbidden
 		}
 		c.JSON(status, response.Error(err.Error()))
@@ -124,4 +125,13 @@ func (h *Handler) HandleVerify(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response.Success(result))
+}
+
+func isForbiddenError(msg string) bool {
+	if msg == "not authorized" || msg == "you are not a member of this SACCO" {
+		return true
+	}
+	return strings.Contains(msg, "not authorized") ||
+		strings.Contains(msg, "cannot post ledger") ||
+		strings.Contains(msg, "must be created through")
 }
