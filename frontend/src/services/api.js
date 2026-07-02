@@ -619,6 +619,39 @@ export async function apiRepayLoan(loanId, amount) {
   return mapLoan(data)
 }
 
+// ─── Payments (SACCO-owned wallets) ───────────────────────────────────────────
+
+export async function apiGetPaymentAccounts(saccoId) {
+  const data = await apiFetch(`/saccos/${saccoId}/payment-accounts`)
+  return data.accounts || []
+}
+
+export async function apiSavePaymentAccounts(saccoId, accounts) {
+  const data = await apiFetch(`/saccos/${saccoId}/payment-accounts`, {
+    method: "PUT",
+    body: JSON.stringify({ accounts }),
+  })
+  return data.accounts || []
+}
+
+export async function apiGetPaymentInstructions(saccoId) {
+  if (USE_DEMO) {
+    return {
+      sacco_name: "Demo SACCO",
+      member_reference: "DEMO0001",
+      accounts: [
+        { provider: "mtn_momo", label: "MTN MoMo", phone_number: "+256700000099", is_primary: true },
+        { provider: "airtel_money", label: "Airtel Money", phone_number: "+256750000099", is_primary: false },
+      ],
+      instructions: [
+        "Money goes directly to your SACCO wallet — SenteChain never holds your funds.",
+        "Include your member reference in the payment reason.",
+      ],
+    }
+  }
+  return apiFetch(`/members/payment-instructions?sacco_id=${encodeURIComponent(saccoId)}`)
+}
+
 // ─── Stubs (no backend yet) ───────────────────────────────────────────────────
 
 export async function apiContact() {

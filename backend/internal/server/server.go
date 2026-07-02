@@ -17,6 +17,7 @@ import (
 	"sentechain-backend/internal/loans"
 	"sentechain-backend/internal/middleware"
 	"sentechain-backend/internal/onboarding"
+	"sentechain-backend/internal/payments"
 	"sentechain-backend/internal/publicstats"
 	"sentechain-backend/internal/sacco"
 	"sentechain-backend/internal/saccoops"
@@ -63,6 +64,7 @@ func (s *Server) registerRoutes() {
 	s.registerTransactionRoutes()
 	s.registerSaccoOpsRoutes()
 	s.registerLoanRoutes()
+	s.registerPaymentRoutes()
 	s.registerAdminRoutes()
 }
 
@@ -230,6 +232,41 @@ func (s *Server) registerLoanRoutes() {
 	{
 		adminLoanGroup.POST("/loan-products", handler.HandleCreateProduct)
 		adminLoanGroup.PATCH("/loan-products/:productId", handler.HandleUpdateProduct)
+	}
+}
+
+func (s *Server) registerPaymentRoutes() {
+	jwtSecret := s.jwtSecret()
+
+	payRepo := payments.NewRepository(s.pool)
+	saccoRepo := sacco.NewRepository(s.pool)
+	membershipRepo := memberships.NewRepository(s.pool)
+	txnRepo := transactions.NewRepository(s.pool)
+
+	service := payments.NewService(payRepo, saccoRepo, membershipRepo, txnRepo)
+	providerCfg := payments.LoadProvidersConfigFromEnv()
+	providers := payments.NewProviderGateway(providerCfg)
+	handler := payments.NewHandler(service, providers)
+
+	s.engine.GET("/payments/integration-status", handler.HandleIntegrationStatus)
+	s.engine.POST("/webhooks/mtn/momo", handler.HandleMTNWebhook)
+	s.engine.POST("/webhooks/airtel/money", handler.HandleAirtelWebhook)
+	if !s.cfg.IsProduction() {
+		s.engine.POST("/webhooks/test/inbound-payment", handler.HandleTestWebhook)
+	}
+
+	memberPayGroup := s.engine.Group("/members/payment-instructions", middleware.AuthMiddleware(jwtSecret))
+	{
+		memberPayGroup.GET("", handler.HandleMemberPaymentInstructions)
+	}
+
+	adminPayGroup := s.engine.Group("/saccos/:saccoId",
+		middleware.AuthMiddleware(jwtSecret),
+		middleware.SaccoStaffMiddleware(s.pool, saccoops.AdminOnlyRoles()...),
+	)
+	{
+		adminPayGroup.GET("/payment-accounts", handler.HandleListAccounts)
+		adminPayGroup.PUT("/payment-accounts", handler.HandleUpsertAccounts)
 	}
 }
 

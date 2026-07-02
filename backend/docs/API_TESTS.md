@@ -537,6 +537,91 @@ Content-Type: application/json
 
 ---
 
+## 9. Payments (SACCO-owned wallets)
+
+Run migration `000007_sacco_payments` before testing.
+
+SACCO **phone numbers** are registered in the app (Admin → Payment Settings).  
+MTN/Airtel **API keys** go in backend env — they do not create phone numbers.
+
+### Check integration readiness
+
+```http
+GET /payments/integration-status
+```
+
+Returns `mtn_configured` / `airtel_configured` (true when env credentials are set).
+
+### Admin saves SACCO payout numbers
+
+```http
+PUT /saccos/{saccoId}/payment-accounts
+Authorization: Bearer <sacco_admin_token>
+Content-Type: application/json
+
+{
+  "accounts": [
+    {
+      "provider": "mtn_momo",
+      "phone_number": "+256700123456",
+      "account_name": "Demo SACCO",
+      "is_primary": true
+    },
+    {
+      "provider": "airtel_money",
+      "phone_number": "+256750123456",
+      "account_name": "Demo SACCO",
+      "is_primary": false
+    }
+  ]
+}
+```
+
+### Member payment instructions
+
+```http
+GET /members/payment-instructions?sacco_id={saccoId}
+Authorization: Bearer <member_token>
+```
+
+### Webhooks (configure in MTN/Airtel merchant portal)
+
+| Provider | URL |
+|----------|-----|
+| MTN MoMo | `POST /webhooks/mtn/momo` |
+| Airtel | `POST /webhooks/airtel/money` |
+
+Dev test (normalized payload):
+
+```http
+POST /webhooks/test/inbound-payment
+Content-Type: application/json
+
+{
+  "external_id": "TEST-001",
+  "amount": 50000,
+  "currency": "UGX",
+  "payer_phone": "+256701234567",
+  "payee_phone": "+256700123456",
+  "reference": "A1B2C3D4",
+  "provider": "mtn_momo"
+}
+```
+
+### Env vars (add to Render when APIs are paid for)
+
+| Variable | Purpose |
+|----------|---------|
+| `MTN_MOMO_API_USER` | MTN API user |
+| `MTN_MOMO_API_KEY` | MTN API key |
+| `MTN_MOMO_SUBSCRIPTION_KEY` | MTN Ocp-Apim subscription key |
+| `MTN_MOMO_CALLBACK_URL` | Webhook URL registered with MTN |
+| `AIRTEL_CLIENT_ID` | Airtel OAuth client ID |
+| `AIRTEL_CLIENT_SECRET` | Airtel client secret |
+| `AIRTEL_CALLBACK_URL` | Webhook URL registered with Airtel |
+
+---
+
 ## Tools
 
 - **Swagger UI:** http://localhost:8080/docs (Authorize with Bearer token for protected routes)

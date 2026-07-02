@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { apiGetMembers, apiListTransactions, apiRegister, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiCreateTransaction, apiAnchorTransaction, apiVerifyTransaction, apiListLoanProducts, apiCreateLoanProduct } from "../services/api"
+import { apiGetMembers, apiListTransactions, apiRegister, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiCreateTransaction, apiAnchorTransaction, apiVerifyTransaction, apiListLoanProducts, apiCreateLoanProduct, apiGetPaymentAccounts, apiSavePaymentAccounts } from "../services/api"
 import { UGANDA } from "../data/countries"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
@@ -20,7 +20,7 @@ function useWindowSize() {
 }
 
 const typeColor = { Deposit: T.green, Loan: T.goldMid, Repayment: "#059669" }
-const TABS = ["SACCO Summary", "Loan Products", "Members and Roles", "Register Member", "All Transactions"]
+const TABS = ["SACCO Summary", "Payment Settings", "Loan Products", "Members and Roles", "Register Member", "All Transactions"]
 
 const TH = (h) => (
   <th key={h} style={{ padding: "12px 20px", textAlign: "left", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: T.textDim, borderBottom: `1.5px solid ${T.border}`, background: T.surface, whiteSpace: "nowrap", fontFamily: T.fontMono }}>{h}</th>
@@ -54,19 +54,31 @@ export default function AdminDashboard() {
   const [productOk, setProductOk] = useState(false)
   const [productErr, setProductErr] = useState("")
   const [productLoading, setProductLoading] = useState(false)
+  const [payForm, setPayForm] = useState({ mtn_phone: "", airtel_phone: "", account_name: "" })
+  const [payOk, setPayOk] = useState(false)
+  const [payErr, setPayErr] = useState("")
+  const [payLoading, setPayLoading] = useState(false)
 
 
   useEffect(() => {
     if (!auth?.sacco_id) return
     async function load() {
       try {
-        const [mems, summary, products] = await Promise.all([
+        const [mems, summary, products, payAccounts] = await Promise.all([
           apiGetMembers(auth.sacco_id),
           apiGetSaccoSummary(auth.sacco_id).catch(() => null),
           apiListLoanProducts(auth.sacco_id).catch(() => []),
+          apiGetPaymentAccounts(auth.sacco_id).catch(() => []),
         ])
         setMembers(mems)
         setLoanProducts(products)
+        const mtn = payAccounts.find((a) => a.provider === "mtn_momo")
+        const airtel = payAccounts.find((a) => a.provider === "airtel_money")
+        setPayForm({
+          mtn_phone: mtn?.phone_number?.replace("+256", "0") || "",
+          airtel_phone: airtel?.phone_number?.replace("+256", "0") || "",
+          account_name: mtn?.account_name || airtel?.account_name || summary?.name || "",
+        })
         if (summary) setSaccoInfo({ name: summary.name })
         const txList = await apiListTransactions({ saccoId: auth.sacco_id, limit: 100 })
         setAllTxs(txList.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at)))
@@ -124,6 +136,41 @@ export default function AdminDashboard() {
       alert(result.verified ? "Stellar proof verified on-chain" : `Verify result: ${JSON.stringify(result)}`)
     } catch (err) { alert(err.message || "Verify failed") }
     finally { setTxActionId(null) }
+  }
+
+  async function handleSavePaymentAccounts(e) {
+    e.preventDefault()
+    setPayErr("")
+    setPayLoading(true)
+    try {
+      const accounts = []
+      if (payForm.mtn_phone.trim()) {
+        accounts.push({
+          provider: "mtn_momo",
+          phone_number: UGANDA.prefix + payForm.mtn_phone.replace(/^0+/, ""),
+          account_name: payForm.account_name || saccoInfo.name,
+          is_primary: true,
+        })
+      }
+      if (payForm.airtel_phone.trim()) {
+        accounts.push({
+          provider: "airtel_money",
+          phone_number: UGANDA.prefix + payForm.airtel_phone.replace(/^0+/, ""),
+          account_name: payForm.account_name || saccoInfo.name,
+          is_primary: !payForm.mtn_phone.trim(),
+        })
+      }
+      if (accounts.length === 0) {
+        throw new Error("Enter at least one MTN or Airtel number")
+      }
+      await apiSavePaymentAccounts(auth.sacco_id, accounts)
+      setPayOk(true)
+      setTimeout(() => setPayOk(false), 3000)
+    } catch (err) {
+      setPayErr(err.message || "Failed to save payment accounts")
+    } finally {
+      setPayLoading(false)
+    }
   }
 
   async function handleCreateProduct(e) {
@@ -330,6 +377,49 @@ export default function AdminDashboard() {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* PAYMENT SETTINGS */}
+        {!loading && tab === "Payment Settings" && (
+          <div style={{ maxWidth: "560px" }}>
+            <div style={{ ...cardMd(), overflow: "hidden" }}>
+              <div style={{ height: "3px", background: `linear-gradient(90deg,${T.green},#059669)` }} />
+              <div style={{ padding: "24px 28px" }}>
+                <h2 style={{ fontSize: "18px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>SACCO Payment Numbers</h2>
+                <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 20px" }}>
+                  Member deposits go directly to these wallets. SenteChain never holds money.
+                </p>
+                <form onSubmit={handleSavePaymentAccounts} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  <div>
+                    <Lbl text="Account / SACCO Name" />
+                    <input value={payForm.account_name} onChange={(e) => setPayForm((p) => ({ ...p, account_name: e.target.value }))} placeholder="e.g. Demo SACCO Ltd" style={inp()} onFocus={onF} onBlur={onB} />
+                  </div>
+                  <div>
+                    <Lbl text="MTN MoMo Number (official)" />
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <span style={{ ...inp(), width: "auto", minWidth: "72px", textAlign: "center", fontWeight: 700, background: T.surface }}>{UGANDA.prefix}</span>
+                      <input type="tel" value={payForm.mtn_phone} onChange={(e) => setPayForm((p) => ({ ...p, mtn_phone: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="700 123 456" style={{ ...inp(), flex: 1 }} onFocus={onF} onBlur={onB} />
+                    </div>
+                  </div>
+                  <div>
+                    <Lbl text="Airtel Money Number (optional)" />
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <span style={{ ...inp(), width: "auto", minWidth: "72px", textAlign: "center", fontWeight: 700, background: T.surface }}>{UGANDA.prefix}</span>
+                      <input type="tel" value={payForm.airtel_phone} onChange={(e) => setPayForm((p) => ({ ...p, airtel_phone: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="750 123 456" style={{ ...inp(), flex: 1 }} onFocus={onF} onBlur={onB} />
+                    </div>
+                  </div>
+                  <p style={{ fontSize: "12px", color: T.textDim, margin: 0, lineHeight: 1.5 }}>
+                    After MTN/Airtel merchant API is connected, payments to these numbers will auto-credit members who include their reference.
+                  </p>
+                  {payErr && <div style={{ padding: "12px", borderRadius: "10px", background: T.redBg, color: T.red, fontSize: "14px" }}>{payErr}</div>}
+                  {payOk && <div style={{ padding: "12px", borderRadius: "10px", background: T.greenLite, color: T.green, fontSize: "14px", fontWeight: 700 }}>Payment numbers saved</div>}
+                  <button type="submit" disabled={payLoading} style={{ padding: "13px", borderRadius: "10px", border: "none", fontFamily: T.font, background: payLoading ? T.border2 : T.green, color: "#fff", fontSize: "15px", fontWeight: 800, cursor: payLoading ? "not-allowed" : "pointer" }}>
+                    {payLoading ? "Saving..." : "Save Payment Numbers"}
+                  </button>
+                </form>
+              </div>
+            </div>
           </div>
         )}
 

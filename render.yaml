@@ -42,6 +42,34 @@ services:
         sync: false
       - key: STELLAR_ANCHOR_AMOUNT
         value: "0.0000001"
+      - key: MTN_MOMO_API_USER
+        sync: false
+      - key: MTN_MOMO_API_KEY
+        sync: false
+      - key: MTN_MOMO_SUBSCRIPTION_KEY
+        sync: false
+      - key: MTN_MOMO_BASE_URL
+        sync: false
+      - key: MTN_MOMO_TARGET_ENVIRONMENT
+        value: sandbox
+      - key: MTN_MOMO_CURRENCY
+        value: UGX
+      - key: MTN_MOMO_CALLBACK_URL
+        value: https://sente-chain.onrender.com/webhooks/mtn/momo
+      - key: MTN_MOMO_WEBHOOK_SECRET
+        sync: false
+      - key: AIRTEL_CLIENT_ID
+        sync: false
+      - key: AIRTEL_CLIENT_SECRET
+        sync: false
+      - key: AIRTEL_BASE_URL
+        sync: false
+      - key: AIRTEL_ENVIRONMENT
+        value: sandbox
+      - key: AIRTEL_CALLBACK_URL
+        value: https://sente-chain.onrender.com/webhooks/airtel/money
+      - key: AIRTEL_WEBHOOK_SECRET
+        sync: false
 
   - type: web
     name: sentechain-web

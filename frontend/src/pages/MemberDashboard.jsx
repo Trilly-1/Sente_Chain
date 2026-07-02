@@ -1,7 +1,7 @@
 // src/pages/MemberDashboard.jsx
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
-import { apiGetTransactions, apiListSaccos, apiGetMyLoans, apiApplyLoan, apiListLoanProducts } from "../services/api"
+import { apiGetTransactions, apiListSaccos, apiGetMyLoans, apiApplyLoan, apiListLoanProducts, apiGetPaymentInstructions } from "../services/api"
 import { T, card, cardMd } from "../styles/theme"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
@@ -41,6 +41,7 @@ export default function MemberDashboard() {
   const [loanMsg, setLoanMsg] = useState("")
   const [loanErr, setLoanErr] = useState("")
   const [loanLoading, setLoanLoading] = useState(false)
+  const [payInfo, setPayInfo] = useState(null)
 
   const [mySacco, setMySacco] = useState({ name: "SACCO" })
 
@@ -60,6 +61,7 @@ export default function MemberDashboard() {
     }).catch(() => {})
     apiGetMyLoans(auth.sacco_id).then(setLoans).catch(() => {})
     apiListLoanProducts(auth.sacco_id).then(setProducts).catch(() => {})
+    apiGetPaymentInstructions(auth.sacco_id).then(setPayInfo).catch(() => setPayInfo(null))
   }, [auth?.sacco_id])
 
   const totalDeposited = txs.filter(t=>t.type==="Deposit").reduce((s,t)=>s+t.amount_kes,0)
@@ -183,17 +185,29 @@ export default function MemberDashboard() {
           </div>
         </div>
 
-        <div style={{ ...card(), padding:"20px 24px", marginBottom:"16px", display:"flex", gap:"16px", alignItems:"flex-start", borderLeft:`4px solid ${T.green}` }}>
-          <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:T.greenLite, border:`1px solid ${T.greenBdr}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" stroke={T.green} strokeWidth="2"/>
-              <path d="M5 8l2 2 4-4" stroke={T.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <div>
-            <p style={{ fontSize:"15px", fontWeight:700, color:T.textHi, marginBottom:"4px" }}>Blockchain verified transactions</p>
-            <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.6 }}>Every deposit can be sealed on Stellar once recorded. Contributions via MTN MoMo or Airtel Money are matched to your account. Click any hash below to verify independently.</p>
-          </div>
+        <div style={{ ...card(), padding:"20px 24px", marginBottom:"16px", borderLeft:`4px solid ${T.green}` }}>
+          <p style={{ fontSize:"15px", fontWeight:700, color:T.textHi, margin:"0 0 12px" }}>How to deposit (pay your SACCO directly)</p>
+          {payInfo ? (
+            <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+              <p style={{ fontSize:"13px", color:T.textMid, margin:0 }}>
+                Your reference: <span style={{ fontFamily:T.fontMono, fontWeight:800, color:T.goldMid }}>{payInfo.member_reference}</span> — put this in the payment reason.
+              </p>
+              {payInfo.accounts.map((a) => (
+                <div key={a.provider} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:"8px", padding:"12px 14px", background:T.surface, borderRadius:"10px", border:`1px solid ${T.border}` }}>
+                  <div>
+                    <p style={{ fontSize:"12px", color:T.textDim, margin:"0 0 2px", fontFamily:T.fontMono }}>{a.label}</p>
+                    <p style={{ fontSize:"18px", fontWeight:900, color:T.green, margin:0, fontFamily:T.fontMono }}>{a.phone_number}</p>
+                  </div>
+                  {a.is_primary && <span style={{ fontSize:"10px", fontWeight:700, padding:"3px 8px", borderRadius:"6px", background:T.greenLite, color:T.green }}>PRIMARY</span>}
+                </div>
+              ))}
+              {payInfo.instructions?.map((line, i) => (
+                <p key={i} style={{ fontSize:"12px", color:T.textDim, margin:0 }}>• {line}</p>
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontSize:"14px", color:T.textMid, margin:0 }}>Your SACCO admin has not configured payment numbers yet. Ask them to add MTN/Airtel numbers in Payment Settings.</p>
+          )}
         </div>
 
         <div style={{ ...card(), padding:"18px 24px", marginBottom:"24px", display:"flex", gap:"32px", alignItems:"center", flexWrap:"wrap" }}>
