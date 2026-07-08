@@ -568,20 +568,20 @@ export async function apiVerifyTransaction(transactionId) {
 
 // ─── Project admin ────────────────────────────────────────────────────────────
 
-export async function apiGetPendingMembers() {
+export async function apiGetAdminPendingMembers() {
   if (USE_DEMO) return []
   const data = await apiFetch("/admin/members/pending")
   return data.members || []
 }
 
-export async function apiApproveMember(membershipId) {
+export async function apiAdminApproveMember(membershipId) {
   return apiFetch(`/admin/members/${membershipId}/approve`, {
     method: "PATCH",
     body: JSON.stringify({}),
   })
 }
 
-export async function apiRejectMember(membershipId, reason) {
+export async function apiAdminRejectMember(membershipId, reason) {
   return apiFetch(`/admin/members/${membershipId}/reject`, {
     method: "PATCH",
     body: JSON.stringify({ reason }),

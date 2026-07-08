@@ -4,11 +4,11 @@ import Nav from "../components/Nav"
 import StatusBadge from "../components/StatusBadge"
 import {
   apiGetPendingSaccos,
-  apiGetPendingMembers,
+  apiGetAdminPendingMembers,
   apiApproveSacco,
   apiRejectSacco,
-  apiApproveMember,
-  apiRejectMember,
+  apiAdminApproveMember,
+  apiAdminRejectMember,
   apiGetAuditLog,
   apiListSaccos,
   apiHealth,
@@ -58,7 +58,7 @@ export default function ProjectAdminDashboard() {
     try {
       const [saccos, members, logs, approved] = await Promise.all([
         apiGetPendingSaccos(),
-        apiGetPendingMembers(),
+        apiGetAdminPendingMembers(),
         apiGetAuditLog(50, 0),
         apiListSaccos(),
       ])
@@ -107,7 +107,7 @@ export default function ProjectAdminDashboard() {
 
   async function handleApproveMember(membershipId) {
     try {
-      await apiApproveMember(membershipId)
+      await apiAdminApproveMember(membershipId)
       await loadData()
     } catch (err) {
       alert(err.message || "Approval failed")
@@ -117,7 +117,7 @@ export default function ProjectAdminDashboard() {
   async function handleRejectMember(membershipId) {
     const reason = window.prompt("Rejection reason (optional):") || ""
     try {
-      await apiRejectMember(membershipId, reason)
+      await apiAdminRejectMember(membershipId, reason)
       await loadData()
     } catch (err) {
       alert(err.message || "Rejection failed")
