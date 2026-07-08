@@ -86,7 +86,6 @@ export default function MemberVerificationPending() {
 
   return (
     <div style={{ minHeight: "100vh", background: T.pageBg, fontFamily: T.font }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&display=swap');`}</style>
       
       <nav style={{
         position: "sticky", top: 0, zIndex: 100,

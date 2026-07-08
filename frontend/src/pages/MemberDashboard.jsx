@@ -1,7 +1,7 @@
 // src/pages/MemberDashboard.jsx
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
-import { apiGetTransactions, apiListSaccos, apiGetMyLoans, apiApplyLoan, apiListLoanProducts, apiGetPaymentInstructions, apiRequestToPay, apiGetMemberBalance, apiRepayLoan, apiGetPlatformConfig, calcPlatformFee, IS_LIVE, BASE_URL } from "../services/api"
+import { apiGetTransactions, apiListSaccos, apiGetMyLoans, apiApplyLoan, apiListLoanProducts, apiGetPaymentInstructions, apiRequestToPay, apiGetMemberBalance, apiRepayLoan, apiGetPlatformConfig, calcPlatformFee } from "../services/api"
 import { T, card, cardMd } from "../styles/theme"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
@@ -195,7 +195,7 @@ export default function MemberDashboard() {
           <h1 style={{ fontSize: isMobile ? "28px" : "36px", fontWeight:900, color:T.textHi, margin:"0 0 8px", letterSpacing:"-0.5px" }}>
             Welcome back, <span style={{color:T.green}}>{auth?.name?.split(" ")[0]}</span>
           </h1>
-          <p style={{ fontSize: isMobile ? "14px" : "16px", color:T.textMid }}>Your personal financial record, blockchain verified on Stellar</p>
+        <p style={{ fontSize:"14px", color:T.textMid, margin:0 }}>Your savings, loans, and payments</p>
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap:"16px", marginBottom:"24px" }}>
@@ -205,10 +205,10 @@ export default function MemberDashboard() {
             { label:"Loans Received",  value:totalLoans,            accent:T.goldMid },
             { label:"Total Repaid",    value:totalRepaid,           accent:"#059669" },
           ].map(c => (
-            <div key={c.label} style={{ ...card(), padding: isMobile ? "16px" : "24px", position:"relative", overflow:"hidden" }}>
-              <div style={{ position:"absolute", top:0, left:0, right:0, height:"3px", background:c.accent, borderRadius:"18px 18px 0 0" }} />
-              <p style={{ fontSize:"10px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"1px", marginBottom:"10px", fontFamily:T.fontMono }}>{c.label}</p>
-              <p style={{ fontSize: isMobile ? "18px" : "22px", fontWeight:900, color:T.textHi, fontVariantNumeric:"tabular-nums" }}>{currency} {c.value.toLocaleString()}</p>
+            <div key={c.label} style={{ ...card(), padding: isMobile ? "18px 16px" : "22px 20px", position:"relative", overflow:"hidden" }}>
+              <div style={{ position:"absolute", top:0, left:0, right:0, height:"2px", background:c.accent }} />
+              <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"8px" }}>{c.label}</p>
+              <p style={{ fontSize: isMobile ? "20px" : "24px", fontWeight:700, color:T.textHi, fontVariantNumeric:"tabular-nums", letterSpacing:"-0.02em" }}>{currency} {c.value.toLocaleString()}</p>
             </div>
           ))}
         </div>
@@ -264,9 +264,8 @@ export default function MemberDashboard() {
           </div>
 
           <div style={{ ...cardMd(), overflow: "hidden" }}>
-            <div style={{ height: "3px", background: `linear-gradient(90deg,${T.goldMid},${T.green})` }} />
-            <div style={{ padding: "20px 24px" }}>
-              <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Apply for a Loan</h2>
+              <div style={{ padding: "18px 22px" }}>
+              <h2 style={{ fontSize: "15px", fontWeight: 600, color: T.textHi, margin: "0 0 4px" }}>Apply for a Loan</h2>
               <p style={{ fontSize: "13px", color: T.textDim, margin: "0 0 16px" }}>
                 {defaultProduct
                   ? `${defaultProduct.name}: ${defaultProduct.interest_rate_annual}% p.a. (${defaultProduct.interest_method === "flat" ? "flat" : "reducing balance"})`
@@ -295,19 +294,16 @@ export default function MemberDashboard() {
           </div>
         </div>
 
-        <div style={{ ...card(), padding:"20px 24px", marginBottom:"16px", borderLeft:`4px solid ${T.green}` }}>
-          <p style={{ fontSize:"15px", fontWeight:700, color:T.textHi, margin:"0 0 6px" }}>Pay on web or mobile money</p>
-          <p style={{ fontSize:"13px", color:T.textDim, margin:"0 0 8px" }}>Same steps either way — pick purpose, amount, and provider. Pay Now sends a prompt to your phone, or use the reference below with USSD (*334# / *185#).</p>
-          {IS_LIVE && (
-            <p style={{ fontSize:"11px", fontFamily:T.fontMono, color:T.green, margin:"0 0 12px", fontWeight:600 }}>
-              Live API: {BASE_URL.replace(/^https?:\/\//, "")}
-            </p>
-          )}
+        <div style={{ ...cardMd(), marginBottom:"24px", overflow:"hidden" }}>
+          <div style={{ padding:"18px 22px", borderBottom:`1px solid ${T.border}` }}>
+            <h2 style={{ fontSize:"15px", fontWeight:600, color:T.textHi, margin:0 }}>Make a Payment</h2>
+          </div>
+          <div style={{ padding:"20px 22px" }}>
           {payInfo ? (
             <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
               <form onSubmit={handlePayNow} style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 160px auto", gap:"10px", alignItems:"end" }}>
                 <div>
-                  <p style={{ fontSize:"11px", fontWeight:700, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", fontFamily:T.fontMono }}>Purpose</p>
+                  <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Purpose</p>
                   <select value={payPurpose} onChange={(e) => setPayPurpose(e.target.value)} disabled={payLoading} style={{ ...inp, cursor:"pointer" }}>
                     <option value="savings">Savings deposit</option>
                     <option value="loan_repayment">Loan repayment</option>
@@ -315,73 +311,43 @@ export default function MemberDashboard() {
                   </select>
                 </div>
                 <div>
-                  <p style={{ fontSize:"11px", fontWeight:700, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", fontFamily:T.fontMono }}>Amount (UGX)</p>
+                  <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Amount (UGX)</p>
                   <input type="number" min="1" placeholder="e.g. 50000" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required disabled={payLoading} style={inp} />
                 </div>
                 <div>
-                  <p style={{ fontSize:"11px", fontWeight:700, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", fontFamily:T.fontMono }}>Via</p>
+                  <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Provider</p>
                   <select value={payProvider} onChange={(e) => setPayProvider(e.target.value)} disabled={payLoading} style={{ ...inp, cursor:"pointer" }}>
                     <option value="mtn_momo">MTN MoMo</option>
                     <option value="airtel_money">Airtel Money</option>
                   </select>
                 </div>
-                <button type="submit" disabled={payLoading || !payAmount} style={{ padding:"12px 20px", borderRadius:"10px", border:"none", fontFamily:T.font, background: payLoading ? T.border2 : T.green, color:"#fff", fontSize:"14px", fontWeight:800, cursor: payLoading ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>
+                <button type="submit" disabled={payLoading || !payAmount} style={{ padding:"11px 20px", borderRadius:"8px", border:"none", fontFamily:T.font, background: payLoading ? T.border2 : T.green, color:"#fff", fontSize:"14px", fontWeight:600, cursor: payLoading ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>
                   {payLoading ? "Sending..." : "Pay Now"}
                 </button>
               </form>
               {payAmount && payBreakdown.fee > 0 && payPurpose === "savings" && (
-                <div style={{ padding:"10px 14px", background:T.goldLite, borderRadius:"8px", border:`1px solid ${T.goldBdr}`, fontSize:"12px", color:T.textMid }}>
-                  <strong>Payment breakdown:</strong> You send {currency} {payBreakdown.gross.toLocaleString()} →
-                  SenteChain fee ({payBreakdown.percent}%): {currency} {payBreakdown.fee.toLocaleString()} →
-                  <strong> Net to your savings: {currency} {payBreakdown.net.toLocaleString()}</strong>
+                <div style={{ padding:"12px 14px", background:T.surface, borderRadius:"8px", border:`1px solid ${T.border}`, fontSize:"13px", color:T.textMid }}>
+                  You pay <strong>{currency} {payBreakdown.gross.toLocaleString()}</strong> · Fee {payBreakdown.percent}%: {currency} {payBreakdown.fee.toLocaleString()} · <strong>Net savings: {currency} {payBreakdown.net.toLocaleString()}</strong>
                 </div>
-              )}
-              {payInfo.payment_purposes?.length > 0 && (
-                <div style={{ padding:"12px 14px", background:T.surface, borderRadius:"10px", border:`1px solid ${T.border}` }}>
-                  <p style={{ fontSize:"11px", fontWeight:700, color:T.textDim, margin:"0 0 8px", textTransform:"uppercase" }}>USSD reference codes</p>
-                  {payInfo.payment_purposes.map((p) => (
-                    <p key={p.code} style={{ fontSize:"12px", color:T.textMid, margin:"4px 0" }}>
-                      <strong>{p.label}:</strong> <span style={{ fontFamily:T.fontMono, color:T.goldMid }}>{p.reference}</span>
-                    </p>
-                  ))}
-                </div>
-              )}
-              {payInfo.ussd_steps?.map((step, i) => (
-                <p key={i} style={{ fontSize:"12px", color:T.textDim, margin:0 }}>{i + 1}. {step}</p>
-              ))}
-              {(payInfo.mtn_api_ready || payInfo.airtel_api_ready) && (
-                <p style={{ fontSize:"12px", color:T.green, margin:0, fontWeight:600 }}>Mobile money API connected — Pay Now sends an STK prompt to your phone.</p>
               )}
               {payErr && <p style={{ fontSize:"13px", color:T.red, margin:0 }}>{payErr}</p>}
               {payMsg && <p style={{ fontSize:"13px", color:T.green, margin:0, fontWeight:600 }}>{payMsg}</p>}
-              <p style={{ fontSize:"13px", color:T.textMid, margin:0 }}>
-                Reference: <span style={{ fontFamily:T.fontMono, fontWeight:800, color:T.goldMid }}>{payInfo.member_reference}</span>
-              </p>
-              {payInfo.accounts.map((a) => (
-                <div key={a.provider} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:"8px", padding:"12px 14px", background:T.surface, borderRadius:"10px", border:`1px solid ${T.border}` }}>
-                  <div>
-                    <p style={{ fontSize:"12px", color:T.textDim, margin:"0 0 2px", fontFamily:T.fontMono }}>{a.label} {payInfo.mtn_api_ready && a.provider === "mtn_momo" ? "• API live" : ""}</p>
-                    <p style={{ fontSize:"18px", fontWeight:900, color:T.green, margin:0, fontFamily:T.fontMono }}>{a.phone_number}</p>
-                  </div>
-                  {a.is_primary && <span style={{ fontSize:"10px", fontWeight:700, padding:"3px 8px", borderRadius:"6px", background:T.greenLite, color:T.green }}>PRIMARY</span>}
+              <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap:"10px" }}>
+                <div style={{ padding:"12px 14px", background:T.surface, borderRadius:"8px", border:`1px solid ${T.border}` }}>
+                  <p style={{ fontSize:"11px", color:T.textDim, margin:"0 0 4px", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.05em" }}>Your reference</p>
+                  <p style={{ fontSize:"14px", fontWeight:600, color:T.textHi, margin:0, fontFamily:T.fontMono }}>{payInfo.member_reference}</p>
                 </div>
-              ))}
-              {payInfo.instructions?.map((line, i) => (
-                <p key={i} style={{ fontSize:"12px", color:T.textDim, margin:0 }}>• {line}</p>
-              ))}
+                {payInfo.accounts?.filter((a) => a.is_primary).map((a) => (
+                  <div key={a.provider} style={{ padding:"12px 14px", background:T.surface, borderRadius:"8px", border:`1px solid ${T.border}` }}>
+                    <p style={{ fontSize:"11px", color:T.textDim, margin:"0 0 4px", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.05em" }}>{a.label}</p>
+                    <p style={{ fontSize:"14px", fontWeight:600, color:T.green, margin:0, fontFamily:T.fontMono }}>{a.phone_number}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
-            <p style={{ fontSize:"14px", color:T.textMid, margin:0 }}>Your SACCO admin has not registered an official MTN/Airtel number yet. Ask them to add it in Payment Settings.</p>
+            <p style={{ fontSize:"14px", color:T.textMid, margin:0 }}>Payment numbers are not set up yet. Contact your SACCO admin.</p>
           )}
-        </div>
-
-        <div style={{ ...card(), padding:"18px 24px", marginBottom:"24px", display:"flex", gap:"32px", alignItems:"center", flexWrap:"wrap" }}>
-          <p style={{ fontSize:"11px", color:T.textDim, textTransform:"uppercase", letterSpacing:"1px", fontWeight:700, fontFamily:T.fontMono, margin:0 }}>How to deposit</p>
-          <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-            <div style={{ padding:"6px 14px", borderRadius:"8px", background:T.greenLite, border:`1px solid ${T.greenBdr}` }}>
-              <span style={{ fontSize:"14px", fontWeight:800, color:T.green, fontFamily:T.fontMono }}>Dial *334#</span>
-            </div>
-            <span style={{ fontSize:"14px", fontWeight:600, color:T.textMid }}>Mobile Money</span>
           </div>
         </div>
 
@@ -443,11 +409,6 @@ export default function MemberDashboard() {
               )}
             </div>
           )}
-          <div style={{ padding:"12px 24px", borderTop:`1px solid ${T.border2}`, background:T.surface }}>
-            <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textXdim, margin:0 }}>
-              All deposits confirmed automatically via Mobile Money. Every hash independently verifiable on Stellar.
-            </p>
-          </div>
         </div>
 
       </div>

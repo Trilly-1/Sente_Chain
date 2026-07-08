@@ -27,10 +27,10 @@ const TH = (h) => (
 )
 
 const statCard = (label, value, accent, isMobile) => (
-  <div style={{ ...card(), padding: isMobile ? "16px" : "22px", position: "relative", overflow: "hidden" }}>
-    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: accent, borderRadius: "16px 16px 0 0" }} />
-    <p style={{ fontSize: "10px", fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px", fontFamily: T.fontMono }}>{label}</p>
-    <p style={{ fontSize: isMobile ? "18px" : "24px", fontWeight: 900, color: T.textHi, margin: 0 }}>{value}</p>
+  <div style={{ ...card(), padding: isMobile ? "18px 16px" : "22px 20px", position: "relative", overflow: "hidden" }}>
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: accent }} />
+    <p style={{ fontSize: "11px", fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>{label}</p>
+    <p style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: 700, color: T.textHi, margin: 0, letterSpacing: "-0.02em" }}>{value}</p>
   </div>
 )
 
@@ -395,7 +395,6 @@ export default function AdminDashboard() {
 
         {/* REGISTER MEMBER */}
             <div style={{ ...cardMd(), overflow: "hidden" }}>
-              <div style={{ height: "3px", background: `linear-gradient(90deg,${T.green},${T.goldMid})` }} />
               <div style={{ padding: "28px 32px" }}>
                 <h2 style={{ fontSize: "19px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Register Member or Cashier</h2>
                 <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 24px" }}>Staff-assisted signup — account is active immediately.</p>
@@ -437,11 +436,10 @@ export default function AdminDashboard() {
         {!loading && tab === "Payments" && (
           <div style={{ maxWidth: "560px" }}>
             <div style={{ ...cardMd(), overflow: "hidden" }}>
-              <div style={{ height: "3px", background: `linear-gradient(90deg,${T.green},#059669)` }} />
               <div style={{ padding: "24px 28px" }}>
-                <h2 style={{ fontSize: "18px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>SACCO Payment Numbers</h2>
-                <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 20px" }}>
-                  Member deposits go directly to these wallets. SenteChain never holds money.
+                <h2 style={{ fontSize: "15px", fontWeight: 600, color: T.textHi, margin: "0 0 4px" }}>Payment Numbers</h2>
+                <p style={{ fontSize: "13px", color: T.textDim, margin: "0 0 20px" }}>
+                  Official MTN and Airtel numbers for member payments.
                 </p>
                 {payIntegration && (
                   <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
@@ -468,9 +466,6 @@ export default function AdminDashboard() {
                       <input type="tel" value={payForm.airtel_phone} onChange={(e) => setPayForm((p) => ({ ...p, airtel_phone: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="750 123 456" style={{ ...inp(), flex: 1 }} onFocus={onF} onBlur={onB} />
                     </div>
                   </div>
-                  <p style={{ fontSize: "12px", color: T.textDim, margin: 0, lineHeight: 1.5 }}>
-                    After members pay via USSD (*334# / *185#) to your official number with the correct reference, their balance updates automatically.
-                  </p>
                   {payErr && <div style={{ padding: "12px", borderRadius: "10px", background: T.redBg, color: T.red, fontSize: "14px" }}>{payErr}</div>}
                   {payOk && <div style={{ padding: "12px", borderRadius: "10px", background: T.greenLite, color: T.green, fontSize: "14px", fontWeight: 700 }}>Payment numbers saved</div>}
                   <button type="submit" disabled={payLoading} style={{ padding: "13px", borderRadius: "10px", border: "none", fontFamily: T.font, background: payLoading ? T.border2 : T.green, color: "#fff", fontSize: "15px", fontWeight: 800, cursor: payLoading ? "not-allowed" : "pointer" }}>
@@ -485,9 +480,8 @@ export default function AdminDashboard() {
         {!loading && tab === "Loans" && (
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "24px" }}>
             <div style={{ ...cardMd(), overflow: "hidden" }}>
-              <div style={{ height: "3px", background: `linear-gradient(90deg,${T.goldMid},${T.green})` }} />
               <div style={{ padding: "24px 28px" }}>
-                <h2 style={{ fontSize: "18px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Create Loan Product</h2>
+                <h2 style={{ fontSize: "15px", fontWeight: 600, color: T.textHi, margin: "0 0 4px" }}>Create Loan Product</h2>
                 <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 20px" }}>Set interest rate and repayment method for your SACCO</p>
                 <form onSubmit={handleCreateProduct} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                   <div>

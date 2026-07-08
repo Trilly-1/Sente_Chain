@@ -23,8 +23,8 @@ const C = {
   red: "#dc2626", redBg: "#fef2f2", redBdr: "#fecaca",
   textHi: "#0a0a0a", textMid: "#374151", textDim: "#6b7280", textXdim: "#9ca3af",
   border: "#e5e7eb", surface: "#f8faf8",
-  font: "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif",
-  fontMono: "'DM Mono', 'JetBrains Mono', monospace",
+  font: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  fontMono: "'JetBrains Mono', 'Roboto Mono', ui-monospace, monospace",
 }
 const inp = (e = {}) => ({ background: "#ffffff", border: `1.5px solid ${C.border}`, color: "#0a0a0a", borderRadius: "10px", padding: "13px 16px", width: "100%", outline: "none", fontSize: "15px", fontFamily: C.font, fontWeight: 500, transition: "border-color 0.18s, box-shadow 0.18s", ...e })
 const onFG = (e) => { e.target.style.borderColor = C.green; e.target.style.boxShadow = `0 0 0 3px ${C.greenLite}` }
@@ -262,7 +262,7 @@ function LoginPanel({ onSwitch }) {
       <div style={{ height: "4px", background: `linear-gradient(90deg, ${C.green}, ${C.goldMid})` }} />
       <div style={{ padding: "32px 28px" }}>
         <h2 style={{ fontSize: "22px", fontWeight: 900, color: C.textHi, margin: "0 0 6px", fontFamily: C.font }}>Sign in</h2>
-        <p style={{ fontSize: "14px", color: C.textDim, margin: "0 0 24px", fontFamily: C.font, lineHeight: 1.5 }}>One login for all roles — member, cashier, SACCO admin, or platform staff. You are routed to the right dashboard automatically.</p>
+        <p style={{ fontSize: "14px", color: C.textMid, margin: "0 0 24px", fontFamily: C.font, lineHeight: 1.5 }}>Phone and PIN — you are routed to the right dashboard automatically.</p>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div>
             <Lbl text="Phone Number" />
@@ -317,7 +317,6 @@ export default function AuthPage() {
   return (
     <div style={{ minHeight: "100vh", fontFamily: C.font, position: "relative", overflow: "hidden" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500;600&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes floatUp    { 0%{transform:translateY(0)    } 50%{transform:translateY(-28px)} 100%{transform:translateY(0)    } }
         @keyframes floatDown  { 0%{transform:translateY(0)    } 50%{transform:translateY( 22px)} 100%{transform:translateY(0)    } }

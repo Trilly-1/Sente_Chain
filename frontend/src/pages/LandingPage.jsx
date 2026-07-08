@@ -10,8 +10,8 @@ const C = {
   gold: "#b45309", goldMid: "#d97706", goldLite: "#fef3c7", goldBdr: "#fde68a", goldDark: "#78350f",
   textHi: "#0a0a0a", textMid: "#374151", textDim: "#6b7280", textXdim: "#9ca3af",
   border: "#e5e7eb", border2: "#f3f4f6", borderDark: "#d1d5db",
-  font: "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif",
-  fontMono: "'DM Mono', 'JetBrains Mono', monospace",
+  font: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  fontMono: "'JetBrains Mono', 'Roboto Mono', ui-monospace, monospace",
 }
 
 // Mobile detection hook
@@ -46,7 +46,7 @@ const SLIDES = [
   },
   {
     heading: (<>Pay via <span style={{ color: C.green }}>Mobile Money</span></>),
-    body: "SenteChain is built for Uganda — members contribute via MTN MoMo and Airtel Money using familiar USSD codes. When payments are integrated, the system will match each transaction to the correct member account and update the SACCO ledger automatically.",
+    body: "Members pay via MTN MoMo or Airtel Money. Payments are matched to the right account and your SACCO ledger updates automatically.",
     accent: C.green, accentLite: C.greenLite, accentBdr: C.greenBdr, image: "/image7.jpg",
   },
   {
@@ -640,7 +640,6 @@ export default function LandingPage() {
   return (
     <div style={{ background: C.pageBg, fontFamily: C.font, minHeight: "100vh" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500;600&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #ffffff; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }

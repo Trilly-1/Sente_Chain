@@ -20,7 +20,7 @@ const C = {
   gold: "#b45309", goldMid: "#d97706", goldLite: "#fef3c7", goldBdr: "#fde68a",
   textHi: "#0a0a0a", textMid: "#374151", textDim: "#6b7280",
   border: "#e5e7eb", surface: "#f9fafb",
-  font: "'DM Sans', sans-serif"
+  font: "'Inter', sans-serif"
 }
 
 const inpStyle = {
@@ -235,7 +235,6 @@ export default function SACCORegistration() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: C.font }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&display=swap');`}</style>
 
       <nav style={{
         position: "sticky", top: 0, zIndex: 100,

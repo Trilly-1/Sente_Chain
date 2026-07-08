@@ -31,10 +31,10 @@ const TH = (h) => (
 )
 
 const statCard = (label, value, accent, isMobile) => (
-  <div style={{ ...card(), padding: isMobile ? "16px" : "20px", position:"relative", overflow:"hidden" }}>
-    <div style={{ position:"absolute", top:0, left:0, right:0, height:"3px", background:accent, borderRadius:"16px 16px 0 0" }} />
-    <p style={{ fontSize:"10px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"1px", marginBottom:"8px", fontFamily:T.fontMono }}>{label}</p>
-    <p style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 900, color: T.textHi, margin: 0 }}>{value}</p>
+  <div style={{ ...card(), padding: isMobile ? "18px 16px" : "22px 20px", position:"relative", overflow:"hidden" }}>
+    <div style={{ position:"absolute", top:0, left:0, right:0, height:"2px", background:accent }} />
+    <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"8px" }}>{label}</p>
+    <p style={{ fontSize: isMobile ? "20px" : "24px", fontWeight:700, color: T.textHi, margin: 0, letterSpacing:"-0.02em" }}>{value}</p>
   </div>
 )
 
@@ -204,7 +204,7 @@ export default function CashierDashboard() {
         <div style={{ marginBottom: isMobile ? "24px" : "32px" }}>
           <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, marginBottom:"8px", letterSpacing:"1.5px", textTransform:"uppercase" }}>{saccoName || "SACCO"} Cashier Portal</p>
           <h1 style={{ fontSize: isMobile ? "28px" : "36px", fontWeight:900, color:T.textHi, margin:"0 0 6px", letterSpacing:"-0.5px" }}>Cashier <span style={{color:T.green}}>Dashboard</span></h1>
-          <p style={{ fontSize: isMobile ? "14px" : "15px", color:T.textMid }}>Manage loan requests, member records and transactions</p>
+          <p style={{ fontSize: isMobile ? "14px" : "15px", color:T.textMid }}>Loans, members, and transactions</p>
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(5,1fr)", gap:"14px", marginBottom:"28px" }}>

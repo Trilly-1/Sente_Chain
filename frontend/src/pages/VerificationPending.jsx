@@ -20,7 +20,7 @@ const C = {
   amber: "#b45309", amberLite: "#fef3c7", amberBdr: "#fde68a",
   textHi: "#0a0a0a", textMid: "#374151", textDim: "#6b7280",
   border: "#e5e7eb", surface: "#f9fafb",
-  font: "'DM Sans', sans-serif"
+  font: "'Inter', sans-serif"
 }
 
 const StatusBadge = ({ status }) => {
@@ -79,7 +79,6 @@ export default function VerificationPending() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: C.font }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&display=swap');`}</style>
       
       <nav style={{
         position: "sticky", top: 0, zIndex: 100,

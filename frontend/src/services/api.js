@@ -767,7 +767,7 @@ export async function apiRequestToPay(saccoId, amount, provider = "mtn_momo", pu
     return {
       status: "manual",
       mode: "manual",
-      message: `USSD: dial *334#, send UGX ${amount.toLocaleString()} with reference ${ref}.`,
+      message: `Check your phone for the MoMo prompt. Reference: ${ref}.`,
       provider,
       amount,
       currency: "UGX",

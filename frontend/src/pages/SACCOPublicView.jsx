@@ -99,7 +99,7 @@ export default function SACCOPublicView() {
             <div style={{ textAlign:"center", marginBottom: isMobile ? "32px" : "48px" }}>
               <div style={{ display:"inline-flex", alignItems: isMobile ? "flex-start" : "center", gap:"8px", padding:"6px 16px", borderRadius:"99px", background:T.greenLite, border:`1.5px solid ${T.greenBdr}`, marginBottom:"18px" }}>
                 {!isMobile && <span style={{ width:"7px", height:"7px", borderRadius:"50%", background:T.green, display:"inline-block", animation:"pulse 2s infinite", boxShadow:`0 0 6px ${T.green}` }} />}
-                <span style={{ fontSize:"11px", fontFamily:T.fontMono, color:T.green, fontWeight:700, letterSpacing:"0.5px" }}>{isMobile ? "Public View • Verifiable" : "Public view. No login required. Blockchain verified."}</span>
+                <span style={{ fontSize:"11px", fontFamily:T.fontMono, color:T.green, fontWeight:600, letterSpacing:"0.5px" }}>Public view</span>
               </div>
               <h1 style={{ fontSize: isMobile ? "30px" : "40px", fontWeight:900, color:T.textHi, margin:"0 0 10px", letterSpacing:"-0.5px" }}>{summary.name}</h1>
               <p style={{ fontSize:"14px", fontFamily:T.fontMono, color:T.textDim, marginBottom:"5px" }}>Registration: {summary.registration}</p>
@@ -113,27 +113,26 @@ export default function SACCOPublicView() {
                 {label:"Total Repayments", value:`${currency} ${summary.total_repayments.toLocaleString()}`, accent:"#059669"},
                 {label:"Active Members",   value:summary.active_members,                              accent:"#7c3aed"},
               ].map(c => (
-                <div key={c.label} style={{ ...cardMd(), padding: isMobile ? "16px" : "24px", position:"relative", overflow:"hidden" }}>
-                  <div style={{ position:"absolute", top:0, left:0, right:0, height:"3px", background:c.accent, borderRadius:"18px 18px 0 0" }} />
-                  <p style={{ fontSize:"10px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"1px", marginBottom:"8px", fontFamily:T.fontMono }}>{c.label}</p>
-                  <p style={{ fontSize: isMobile ? "18px" : "22px", fontWeight:900, color:T.textHi, margin:0 }}>{c.value}</p>
+                <div key={c.label} style={{ ...card(), padding: isMobile ? "18px 16px" : "22px 20px", position:"relative", overflow:"hidden" }}>
+                  <div style={{ position:"absolute", top:0, left:0, right:0, height:"2px", background:c.accent }} />
+                  <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"8px" }}>{c.label}</p>
+                  <p style={{ fontSize: isMobile ? "20px" : "24px", fontWeight:700, color:T.textHi, margin:0, letterSpacing:"-0.02em" }}>{c.value}</p>
                 </div>
               ))}
             </div>
 
             <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap:"20px", marginBottom:"24px" }}>
               <div style={{ ...cardMd(), overflow:"hidden" }}>
-                <div style={{ height:"3px", background:`linear-gradient(90deg,${T.green},${T.goldMid})` }} />
-                <div style={{ padding:"20px 24px", borderBottom:`1px solid ${T.border}` }}>
-                  <h3 style={{ fontSize:"17px", fontWeight:800, color:T.textHi, margin:0 }}>Stellar Verification</h3>
+                <div style={{ padding:"18px 22px", borderBottom:`1px solid ${T.border}` }}>
+                  <h3 style={{ fontSize:"15px", fontWeight:600, color:T.textHi, margin:0 }}>On-chain proof</h3>
                 </div>
-                <div style={{ padding: isMobile ? "20px 16px" : "20px 24px" }}>
-                  <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.65, marginBottom:"18px" }}>Every transaction is permanently sealed on the Stellar blockchain. Click any hash to verify directly, no trust required.</p>
+                <div style={{ padding: isMobile ? "18px 16px" : "18px 22px" }}>
+                  <p style={{ fontSize:"13px", color:T.textDim, lineHeight:1.5, marginBottom:"14px" }}>Verify any transaction hash on Stellar.</p>
                   <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
                     {[
-                      {label:"Latest deposit",   sub:"Mobile money auto-confirmed",  hash:recentTxs.find(t=>t.type==="Deposit")?.stellar_tx_hash  },
-                      {label:"Latest loan",      sub:"Admin recorded",          hash:recentTxs.find(t=>t.type==="Loan")?.stellar_tx_hash     },
-                      {label:"Latest repayment", sub:"Mobile money auto-confirmed",  hash:recentTxs.find(t=>t.type==="Repayment")?.stellar_tx_hash },
+                      {label:"Latest deposit",   sub:"MoMo",  hash:recentTxs.find(t=>t.type==="Deposit")?.stellar_tx_hash  },
+                      {label:"Latest loan",      sub:"Recorded",          hash:recentTxs.find(t=>t.type==="Loan")?.stellar_tx_hash     },
+                      {label:"Latest repayment", sub:"MoMo",  hash:recentTxs.find(t=>t.type==="Repayment")?.stellar_tx_hash },
                     ].map(item => (
                       <div key={item.label} style={{ ...card(), padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                         <div>
@@ -171,15 +170,12 @@ export default function SACCOPublicView() {
               </div>
             </div>
 
-            <div style={{ ...card(), padding: isMobile ? "24px 20px" : "32px 40px", textAlign:"center", border:`1.5px solid ${T.greenBdr}`, background:`linear-gradient(180deg, #fff, ${T.greenLite}44)` }}>
-              <h3 style={{ fontSize: isMobile ? "18px" : "22px", fontWeight:900, color:T.textHi, marginBottom:"8px" }}>
-                {auth ? "Already a member?" : `Join ${summary.name} today`}
+            <div style={{ ...card(), padding: isMobile ? "24px 20px" : "28px 32px", textAlign:"center" }}>
+              <h3 style={{ fontSize: isMobile ? "17px" : "20px", fontWeight:700, color:T.textHi, marginBottom:"8px" }}>
+                {auth ? "Member dashboard" : `Join ${summary.name}`}
               </h3>
-              <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.6, marginBottom:"24px", maxWidth:"500px", margin:"0 auto 24px" }}>
-                {auth 
-                  ? "You can view your personal balances and loan status in your private dashboard." 
-                  : "Become a member of this SACCO to start saving, earning interest, and accessing affordable loans on the blockchain."
-                }
+              <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.5, marginBottom:"20px", maxWidth:"480px", margin:"0 auto 20px" }}>
+                {auth ? "View your balance and loan status." : "Sign up to save and access loans with this SACCO."}
               </p>
               
               {auth ? (
@@ -188,18 +184,14 @@ export default function SACCOPublicView() {
                 </button>
               ) : (
                 <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", justifyContent:"center", gap:"12px" }}>
-                  <button onClick={()=>navigate("/auth?tab=signup", { state: { from: `/sacco/${saccoId}` } })} style={{ padding:"12px 32px", borderRadius:"12px", border:"none", background:T.green, color:"#fff", fontWeight:800, cursor:"pointer", fontSize:"15px", boxShadow:`0 4px 14px ${T.green}44` }}>
-                    Create Account & Join
+                  <button onClick={()=>navigate("/auth?tab=signup", { state: { from: `/sacco/${saccoId}` } })} style={{ padding:"12px 28px", borderRadius:"10px", border:"none", background:T.green, color:"#fff", fontWeight:600, cursor:"pointer", fontSize:"14px" }}>
+                    Join SACCO
                   </button>
                   <button onClick={()=>navigate("/auth", { state: { from: `/sacco/${saccoId}` } })} style={{ padding:"12px 32px", borderRadius:"12px", border:`1.5px solid ${T.border}`, background:"#fff", color:T.textHi, fontWeight:700, cursor:"pointer", fontSize:"15px" }}>
                     Sign In
                   </button>
                 </div>
               )}
-              
-              <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, marginTop:"24px" }}>
-                Blockchain verified. Safe. Transparent.
-              </p>
             </div>
           </>
         )}
