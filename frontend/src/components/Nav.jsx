@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext"
 import { T } from "../styles/theme"
 import { apiGetDefaultSaccoId } from "../services/api"
 import { UGANDA } from "../data/countries"
+import { roleLabel } from "../utils/roleRouting"
 
 // Mobile detection hook
 function useWindowSize() {
@@ -20,7 +21,13 @@ function useWindowSize() {
 const roleTag = {
   member:  { color:T.green,   bg:T.greenLite, bdr:T.greenBdr,  label:"Member"  },
   cashier: { color:T.goldMid, bg:T.goldLite,  bdr:T.goldBdr,   label:"Cashier" },
-  admin:   { color:T.purple,  bg:"rgba(124,58,237,0.10)", bdr:T.purpleBdr, label:"Admin" },
+  admin:   { color:T.purple,  bg:"rgba(124,58,237,0.10)", bdr:T.purpleBdr, label:"SACCO Admin" },
+  project_admin: { color: "#0f766e", bg: "rgba(15,118,110,0.10)", bdr: "rgba(15,118,110,0.25)", label: "Platform" },
+}
+
+function navRoleStyle(auth) {
+  if (auth?.is_project_admin) return roleTag.project_admin
+  return roleTag[auth?.role] || roleTag.member
 }
 
 export default function Nav({ hidePublicView }) {
@@ -28,7 +35,8 @@ export default function Nav({ hidePublicView }) {
   const navigate = useNavigate()
   const { width } = useWindowSize()
   const isMobile = width < 900
-  const rt = roleTag[auth?.role] || roleTag.member
+  const rt = navRoleStyle(auth)
+  const displayRole = roleLabel(auth)
   const [publicSaccoId, setPublicSaccoId] = useState(auth?.sacco_id || "")
 
   useEffect(() => {
@@ -56,9 +64,9 @@ export default function Nav({ hidePublicView }) {
             <span style={{color:T.textHi}}>SENTE</span><span style={{color:T.goldMid}}>CHAIN</span>
           </span>
         )}
-        {auth?.role && !isMobile && (
+        {auth && !isMobile && (
           <span style={{ fontSize:"11px", fontFamily:T.fontMono, fontWeight:700, padding:"4px 12px", borderRadius:"99px", letterSpacing:"1px", background:rt.bg, color:rt.color, border:`1px solid ${rt.bdr}`, textTransform:"uppercase" }}>
-            {rt.label}
+            {displayRole}
           </span>
         )}
       </div>

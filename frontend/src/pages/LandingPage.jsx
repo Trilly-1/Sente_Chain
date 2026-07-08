@@ -201,7 +201,7 @@ function Navbar({ onHome, onFeatures, onAbout, onGetStarted }) {
           <div style={{ marginTop: "auto", paddingTop: "24px", borderTop: `1px solid ${C.border}` }}>
             <button onClick={() => { setMenuOpen(false); navigate("/auth?tab=login") }} style={{
               width: "100%", padding: "16px", borderRadius: "12px", background: "#fff", color: C.green, border: `2px solid ${C.green}`, fontSize: "16px", fontWeight: 800, marginBottom: "12px"
-            }}>Member Sign In</button>
+            }}>Sign In</button>
             <button onClick={() => { setMenuOpen(false); navigate("/register-sacco") }} style={{
               width: "100%", padding: "16px", borderRadius: "12px", background: C.green, color: "#fff", border: "none", fontSize: "16px", fontWeight: 800, marginBottom: "12px"
             }}>Register Your SACCO</button>
@@ -520,7 +520,7 @@ function CTA({ ctaRef }) {
               }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.70)"; e.currentTarget.style.background = "rgba(255,255,255,0.08)" }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.35)"; e.currentTarget.style.background = "transparent" }}>
-                Member Login
+                Sign In
               </button>
             </div>
 

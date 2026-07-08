@@ -14,6 +14,7 @@ import MemberVerificationPending from "./pages/MemberVerificationPending"
 import ProjectAdminDashboard from "./pages/ProjectAdminDashboard"
 import LedgerProof from "./pages/LedgerProof"
 import { SKIP_KYC } from "./services/api"
+import { getPostLoginPath } from "./utils/roleRouting"
 
 function RoleRoute() {
   const { auth } = useAuth()
@@ -50,7 +51,7 @@ function RootRoute() {
 
 function AuthRoute() {
   const { auth } = useAuth()
-  return auth ? <Navigate to="/dashboard" replace /> : <AuthPage />
+  return auth ? <Navigate to={getPostLoginPath(auth)} replace /> : <AuthPage />
 }
 
 export default function App() {

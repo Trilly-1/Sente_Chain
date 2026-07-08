@@ -45,7 +45,7 @@ export default function VerificationPending() {
 
   const handleSignOut = () => {
     logout()
-    navigate("/login")
+    navigate("/auth")
   }
 
   const [saccoName, setSaccoName] = useState("")

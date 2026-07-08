@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { apiGetMembers, apiListTransactions, apiStaffRegisterMember, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiCreateTransaction, apiAnchorTransaction, apiVerifyTransaction, apiListLoanProducts, apiCreateLoanProduct, apiGetPaymentAccounts, apiSavePaymentAccounts, apiGetPaymentIntegrationStatus, apiGetPendingMembers, apiApproveMember, apiRejectMember } from "../services/api"
+import { apiGetMembers, apiListTransactions, apiStaffRegisterMember, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiListLoanProducts, apiCreateLoanProduct, apiGetPaymentAccounts, apiSavePaymentAccounts, apiGetPaymentIntegrationStatus, apiGetPendingMembers, apiApproveMember, apiRejectMember } from "../services/api"
 import { UGANDA } from "../data/countries"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
@@ -20,7 +20,7 @@ function useWindowSize() {
 }
 
 const typeColor = { Deposit: T.green, Withdrawal: T.red, Loan: T.goldMid, Repayment: "#059669" }
-const TABS = ["SACCO Summary", "Payment Settings", "Loan Products", "Pending Approvals", "Members and Roles", "Register Member", "All Transactions"]
+const TABS = ["Overview", "Members", "Payments", "Loans"]
 
 const TH = (h) => (
   <th key={h} style={{ padding: "12px 20px", textAlign: "left", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: T.textDim, borderBottom: `1.5px solid ${T.border}`, background: T.surface, whiteSpace: "nowrap", fontFamily: T.fontMono }}>{h}</th>
@@ -38,14 +38,13 @@ export default function AdminDashboard() {
   const { auth, currency } = useAuth()
   const { width } = useWindowSize()
   const isMobile = width < 900
-  const [tab, setTab] = useState("SACCO Summary")
+  const [tab, setTab] = useState("Overview")
   const [members, setMembers] = useState([])
   const [pendingMembers, setPendingMembers] = useState([])
   const [allTxs, setAllTxs] = useState([])
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [regForm, setRegForm] = useState({ name: "", phone: "", role: "member", pin: "1234" })
-  const [txActionId, setTxActionId] = useState(null)
   const [regOk, setRegOk] = useState(false)
   const [regLoading, setRegLoading] = useState(false)
   const [saccoInfo, setSaccoInfo] = useState({ name: "SACCO" })
@@ -60,8 +59,6 @@ export default function AdminDashboard() {
   const [payErr, setPayErr] = useState("")
   const [payLoading, setPayLoading] = useState(false)
   const [payIntegration, setPayIntegration] = useState(null)
-  const [staffTxnForm, setStaffTxnForm] = useState({ memberId: "", amount: "", type: "deposit" })
-
 
   useEffect(() => {
     if (!auth?.sacco_id) return
@@ -137,24 +134,6 @@ export default function AdminDashboard() {
     finally { setRegLoading(false) }
   }
 
-  async function handleAnchorTx(txId) {
-    setTxActionId(txId)
-    try {
-      const updated = await apiAnchorTransaction(txId)
-      setAllTxs((prev) => prev.map((t) => (t.id === txId ? { ...t, ...updated } : t)))
-    } catch (err) { alert(err.message || "Anchor failed") }
-    finally { setTxActionId(null) }
-  }
-
-  async function handleVerifyTx(txId) {
-    setTxActionId(txId)
-    try {
-      const result = await apiVerifyTransaction(txId)
-      alert(result.verified ? "Stellar proof verified on-chain" : `Verify result: ${JSON.stringify(result)}`)
-    } catch (err) { alert(err.message || "Verify failed") }
-    finally { setTxActionId(null) }
-  }
-
   async function handleSavePaymentAccounts(e) {
     e.preventDefault()
     setPayErr("")
@@ -206,31 +185,6 @@ export default function AdminDashboard() {
     }
   }
 
-  async function handleRecordStaffTxn(e) {
-    e.preventDefault()
-    if (!staffTxnForm.memberId || !staffTxnForm.amount) return
-    const amount = parseFloat(staffTxnForm.amount)
-    const member = members.find((m) => m.member_id === staffTxnForm.memberId)
-    if (staffTxnForm.type === "withdrawal" && member && amount > member.balance_kes) {
-      alert(`Insufficient balance. Available: ${currency} ${member.balance_kes.toLocaleString()}`)
-      return
-    }
-    try {
-      const tx = await apiCreateTransaction({
-        saccoId: auth.sacco_id,
-        membershipId: staffTxnForm.memberId,
-        transactionType: staffTxnForm.type,
-        amount: String(staffTxnForm.amount),
-        currency,
-        description: staffTxnForm.type === "withdrawal" ? "Admin-recorded withdrawal" : "Admin-recorded deposit",
-      })
-      setAllTxs((prev) => [tx, ...prev])
-      setStaffTxnForm((p) => ({ ...p, amount: "" }))
-      const mems = await apiGetMembers(auth.sacco_id)
-      setMembers(mems)
-    } catch (err) { alert(err.message || "Failed to record transaction") }
-  }
-
   const totalDeposits = allTxs.filter(t => t.type === "Deposit").reduce((s, t) => s + t.amount_kes, 0)
   const totalLoans = allTxs.filter(t => t.type === "Loan").reduce((s, t) => s + t.amount_kes, 0)
   const totalRepayments = allTxs.filter(t => t.type === "Repayment").reduce((s, t) => s + t.amount_kes, 0)
@@ -249,8 +203,14 @@ export default function AdminDashboard() {
         <div style={{ marginBottom: isMobile ? "24px" : "32px" }}>
           <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, marginBottom: "8px", letterSpacing: "1.5px", textTransform: "uppercase" }}>{saccoInfo.name} Admin Portal</p>
           <h1 style={{ fontSize: isMobile ? "28px" : "36px", fontWeight: 900, color: T.textHi, margin: "0 0 6px", letterSpacing: "-0.5px" }}>Admin <span style={{ color: T.green }}>Dashboard</span></h1>
-          <p style={{ fontSize: isMobile ? "14px" : "15px", color: T.textMid }}>Full SACCO oversight, members, transactions, and audit log</p>
+          <p style={{ fontSize: isMobile ? "14px" : "15px", color: T.textMid }}>Manage members, payments, loans, and SACCO activity</p>
         </div>
+
+        {pendingMembers.length > 0 && tab !== "Members" && (
+          <button type="button" onClick={() => setTab("Members")} style={{ marginBottom: "16px", padding: "10px 16px", borderRadius: "10px", border: `1px solid ${T.goldBdr}`, background: T.goldBg, color: T.goldMid, fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: T.font }}>
+            {pendingMembers.length} member{pendingMembers.length !== 1 ? "s" : ""} awaiting approval →
+          </button>
+        )}
 
         <div style={{ display: "flex", gap: "6px", marginBottom: isMobile ? "20px" : "28px", flexWrap: "wrap", padding: "4px", background: "#fff", borderRadius: "12px", border: `1.5px solid ${T.border}`, boxShadow: T.shadow, width: "fit-content" }}>
           {TABS.map(t => (
@@ -261,7 +221,7 @@ export default function AdminDashboard() {
         {loading && <div style={{ ...card(), padding: "60px", textAlign: "center" }}><p style={{ fontSize: "15px", color: T.textDim, fontFamily: T.fontMono }}>Loading...</p></div>}
 
         {/* SUMMARY */}
-        {!loading && tab === "SACCO Summary" && (
+        {!loading && tab === "Overview" && (
           <div>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: "16px", marginBottom: "28px" }}>
               {statCard("Total Deposits", `${currency} ${(totalDeposits / 1000).toFixed(0)}K`, T.green, isMobile)}
@@ -326,8 +286,9 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {!loading && tab === "Members" && (
+          <div style={{ display: "grid", gap: "24px" }}>
         {/* PENDING APPROVALS */}
-        {!loading && tab === "Pending Approvals" && (
           <div style={{ ...cardMd(), overflow: "hidden" }}>
             <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
               <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Pending Member Approvals</h2>
@@ -352,10 +313,8 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
-        )}
 
         {/* MEMBERS AND ROLES */}
-        {!loading && tab === "Members and Roles" && (
           <div style={{ ...cardMd(), overflow: "hidden" }}>
             <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: "16px", background: "#fff" }}>
               <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: 0 }}>Members and Roles</h2>
@@ -433,10 +392,49 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+
+        {/* REGISTER MEMBER */}
+            <div style={{ ...cardMd(), overflow: "hidden" }}>
+              <div style={{ height: "3px", background: `linear-gradient(90deg,${T.green},${T.goldMid})` }} />
+              <div style={{ padding: "28px 32px" }}>
+                <h2 style={{ fontSize: "19px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Register Member or Cashier</h2>
+                <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 24px" }}>Staff-assisted signup — account is active immediately.</p>
+                <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {[
+                    { label: "Full Name", key: "name", type: "text", placeholder: "e.g. Sarah Nambi" },
+                    { label: "PIN (4 digits)", key: "pin", type: "password", placeholder: "1234" },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <Lbl text={f.label} />
+                      <input type={f.type} value={regForm[f.key]} onChange={e => setRegForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} required style={inp()} onFocus={onF} onBlur={onB} />
+                    </div>
+                  ))}
+                  <div>
+                    <Lbl text="Phone (Uganda)" />
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <span style={{ ...inp(), width: "auto", minWidth: "72px", textAlign: "center", fontWeight: 700, background: T.surface }}>{UGANDA.prefix}</span>
+                      <input type="tel" value={regForm.phone} onChange={e => setRegForm(p => ({ ...p, phone: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="700 123 456" required style={{ ...inp(), flex: 1 }} onFocus={onF} onBlur={onB} />
+                    </div>
+                  </div>
+                  <div>
+                    <Lbl text="Role" />
+                    <select value={regForm.role} onChange={e => setRegForm(p => ({ ...p, role: e.target.value }))} style={{ ...inp(), cursor: "pointer" }}>
+                      <option value="member">Member (active)</option>
+                      <option value="cashier">Cashier (active)</option>
+                    </select>
+                  </div>
+                  {regErr && <div style={{ padding: "12px 16px", borderRadius: "10px", background: T.redBg, border: `1px solid ${T.redBdr}`, color: T.red, fontSize: "14px" }}>{regErr}</div>}
+                  {regOk && <div style={{ padding: "13px 16px", borderRadius: "10px", background: T.greenLite, border: `1px solid ${T.greenBdr}`, color: T.green, fontSize: "14px", fontWeight: 700 }}>Account created. They can sign in with phone + PIN.</div>}
+                  <button type="submit" disabled={regLoading} style={{ padding: "14px", borderRadius: "10px", border: "none", fontFamily: T.font, background: regLoading ? T.border2 : T.green, color: regLoading ? T.textXdim : "#fff", fontSize: "15px", fontWeight: 800, cursor: regLoading ? "not-allowed" : "pointer" }}>
+                    {regLoading ? "Registering..." : "Register & Activate"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
         )}
 
-        {/* PAYMENT SETTINGS */}
-        {!loading && tab === "Payment Settings" && (
+        {!loading && tab === "Payments" && (
           <div style={{ maxWidth: "560px" }}>
             <div style={{ ...cardMd(), overflow: "hidden" }}>
               <div style={{ height: "3px", background: `linear-gradient(90deg,${T.green},#059669)` }} />
@@ -484,8 +482,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* LOAN PRODUCTS */}
-        {!loading && tab === "Loan Products" && (
+        {!loading && tab === "Loans" && (
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "24px" }}>
             <div style={{ ...cardMd(), overflow: "hidden" }}>
               <div style={{ height: "3px", background: `linear-gradient(90deg,${T.goldMid},${T.green})` }} />
@@ -553,145 +550,6 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
-          </div>
-        )}
-
-        {/* REGISTER MEMBER */}
-        {!loading && tab === "Register Member" && (
-          <div style={{ maxWidth: "480px" }}>
-            <div style={{ ...cardMd(), overflow: "hidden" }}>
-              <div style={{ height: "3px", background: `linear-gradient(90deg,${T.green},${T.goldMid})` }} />
-              <div style={{ padding: "28px 32px" }}>
-                <h2 style={{ fontSize: "19px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Register Staff / Member</h2>
-                <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 24px" }}>Creates an active account. Cashiers can be hired here; promote later via Members and Roles if needed.</p>
-                <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  {[
-                    { label: "Full Name", key: "name", type: "text", placeholder: "e.g. Sarah Nambi" },
-                    { label: "PIN (4 digits)", key: "pin", type: "password", placeholder: "1234" },
-                  ].map(f => (
-                    <div key={f.key}>
-                      <Lbl text={f.label} />
-                      <input type={f.type} value={regForm[f.key]} onChange={e => setRegForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} required style={inp()} onFocus={onF} onBlur={onB} />
-                    </div>
-                  ))}
-                  <div>
-                    <Lbl text="Phone (Uganda)" />
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <span style={{ ...inp(), width: "auto", minWidth: "72px", textAlign: "center", fontWeight: 700, background: T.surface }}>{UGANDA.prefix}</span>
-                      <input type="tel" value={regForm.phone} onChange={e => setRegForm(p => ({ ...p, phone: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="700 123 456" required style={{ ...inp(), flex: 1 }} onFocus={onF} onBlur={onB} />
-                    </div>
-                  </div>
-                  <div>
-                    <Lbl text="Role" />
-                    <select value={regForm.role} onChange={e => setRegForm(p => ({ ...p, role: e.target.value }))} style={{ ...inp(), cursor: "pointer" }}>
-                      <option value="member">Member (active)</option>
-                      <option value="cashier">Cashier (active)</option>
-                    </select>
-                  </div>
-                  {regErr && <div style={{ padding: "12px 16px", borderRadius: "10px", background: T.redBg, border: `1px solid ${T.redBdr}`, color: T.red, fontSize: "14px" }}>{regErr}</div>}
-                  {regOk && <div style={{ padding: "13px 16px", borderRadius: "10px", background: T.greenLite, border: `1px solid ${T.greenBdr}`, color: T.green, fontSize: "14px", fontWeight: 700 }}>Account created and activated. They can log in with this phone + PIN.</div>}
-                  <button type="submit" disabled={regLoading} style={{ padding: "14px", borderRadius: "10px", border: "none", fontFamily: T.font, background: regLoading ? T.border2 : T.green, color: regLoading ? T.textXdim : "#fff", fontSize: "15px", fontWeight: 800, cursor: regLoading ? "not-allowed" : "pointer" }}>
-                    {regLoading ? "Registering..." : "Register & Activate"}
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
-
-
-
-        {/* ALL TRANSACTIONS */}
-        {!loading && tab === "All Transactions" && (
-          <div>
-            <form onSubmit={handleRecordStaffTxn} style={{ ...card(), padding: "16px 20px", marginBottom: "16px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "flex-end" }}>
-              <div style={{ flex: "0 1 120px" }}>
-                <Lbl text="Type" />
-                <select value={staffTxnForm.type} onChange={(e) => setStaffTxnForm((p) => ({ ...p, type: e.target.value }))} style={inp()}>
-                  <option value="deposit">Deposit</option>
-                  <option value="withdrawal">Withdrawal</option>
-                </select>
-              </div>
-              <div style={{ flex: "1 1 200px" }}>
-                <Lbl text="Member" />
-                <select value={staffTxnForm.memberId} onChange={(e) => setStaffTxnForm((p) => ({ ...p, memberId: e.target.value }))} style={inp()} required>
-                  <option value="">Select member</option>
-                  {members.filter((m) => m.role === "member" && m.status === "active" && (staffTxnForm.type === "deposit" || m.balance_kes > 0)).map((m) => (
-                    <option key={m.member_id} value={m.member_id}>{m.name} ({currency} {m.balance_kes.toLocaleString()})</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ flex: "0 1 140px" }}>
-                <Lbl text="Amount" />
-                <input type="number" min="1" placeholder="UGX" value={staffTxnForm.amount} onChange={(e) => setStaffTxnForm((p) => ({ ...p, amount: e.target.value }))} style={inp()} required />
-              </div>
-              <button type="submit" style={{ padding: "11px 18px", borderRadius: "9px", border: "none", background: staffTxnForm.type === "withdrawal" ? T.red : T.green, color: "#fff", fontWeight: 800, cursor: "pointer", fontFamily: T.font }}>
-                {staffTxnForm.type === "withdrawal" ? "Withdraw" : "Deposit"}
-              </button>
-            </form>
-          <div style={{ ...cardMd(), overflow: "hidden" }}>
-            <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff" }}>
-              <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: 0 }}>All Transactions</h2>
-              {!isMobile && <span style={{ fontSize: "12px", fontFamily: T.fontMono, fontWeight: 600, padding: "4px 12px", borderRadius: "99px", background: T.greenLite, color: T.green, border: `1px solid ${T.greenBdr}` }}>{allTxs.length} total</span>}
-            </div>
-            
-            {isMobile ? (
-              <div style={{ padding: "16px", display: "grid", gap: "12px" }}>
-                {allTxs.map(tx => (
-                  <div key={tx.id} style={{ padding: "16px", background: "#fff", border: `1px solid ${T.border}`, borderRadius: "12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                      <span style={{ fontSize: "11px", fontFamily: T.fontMono, color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString()}</span>
-                      <StatusBadge status="confirmed" />
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                      <div>
-                        <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: "0 0 2px" }}>{members.find(m => m.member_id === tx.member_id)?.name}</p>
-                        <p style={{ fontSize: "13px", fontWeight: 700, color: typeColor[tx.type] }}>{tx.type}</p>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <p style={{ fontSize: "16px", fontWeight: 900, color: T.textHi, fontFamily: T.fontMono }}>{currency} {tx.amount_kes.toLocaleString()}</p>
-                        <StellarHashLink hash={tx.stellar_tx_hash} isCompact />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead><tr>{["Date", "Member", "Type", "Amount", "Status", "Stellar Proof", "Actions"].map(TH)}</tr></thead>
-                  <tbody>
-                    {allTxs.map((tx, i) => {
-                      const mem = members.find(m => m.member_id === tx.member_id)
-                      return (
-                        <tr key={tx.id} style={{ borderBottom: i < allTxs.length - 1 ? `1px solid ${T.border2}` : "none", background: "#fff" }}
-                          onMouseEnter={e => e.currentTarget.style.background = T.surface}
-                          onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
-                          <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>{new Date(tx.recorded_at).toLocaleDateString("en-UG", { day: "2-digit", month: "short", year: "numeric" })}</td>
-                          <td style={{ padding: "15px 20px" }}>
-                            <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: "0 0 2px" }}>{mem?.name || "—"}</p>
-                            <p style={{ fontSize: "11px", fontFamily: T.fontMono, color: T.textDim, margin: 0 }}>{tx.member_id?.slice(0, 8)}</p>
-                          </td>
-                          <td style={{ padding: "15px 20px", fontSize: "15px", fontWeight: 700, color: typeColor[tx.type] || T.textHi }}>{tx.type}</td>
-                          <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "15px", fontWeight: 800, color: T.textHi }}>{currency} {tx.amount_kes.toLocaleString()}</td>
-                          <td style={{ padding: "15px 20px" }}><StatusBadge status={tx.status || "recorded"} /></td>
-                          <td style={{ padding: "15px 20px" }}><StellarHashLink hash={tx.stellar_tx_hash} /></td>
-                          <td style={{ padding: "15px 20px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                            {!tx.stellar_tx_hash && (
-                              <button disabled={txActionId === tx.id} onClick={() => handleAnchorTx(tx.id)} style={{ padding: "4px 10px", borderRadius: "6px", border: "none", background: T.green, color: "#fff", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>Anchor</button>
-                            )}
-                            {tx.stellar_tx_hash && (
-                              <button disabled={txActionId === tx.id} onClick={() => handleVerifyTx(tx.id)} style={{ padding: "4px 10px", borderRadius: "6px", border: `1px solid ${T.border}`, background: "#fff", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>Verify</button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
           </div>
         )}
 
