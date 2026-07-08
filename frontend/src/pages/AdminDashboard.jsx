@@ -331,7 +331,7 @@ export default function AdminDashboard() {
           <div style={{ ...cardMd(), overflow: "hidden" }}>
             <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
               <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Pending Member Approvals</h2>
-              <p style={{ fontSize: "13px", color: T.textDim, margin: 0 }}>Members who signed up via Member Login and submitted KYC — approve them to access their dashboard.</p>
+              <p style={{ fontSize: "13px", color: T.textDim, margin: 0 }}>New members who joined your SACCO — approve them here before they can use their dashboard.</p>
             </div>
             {pendingMembers.length === 0 ? (
               <p style={{ padding: "32px", textAlign: "center", color: T.textDim }}>No pending applications.</p>

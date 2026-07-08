@@ -4,11 +4,8 @@ import Nav from "../components/Nav"
 import StatusBadge from "../components/StatusBadge"
 import {
   apiGetPendingSaccos,
-  apiGetAdminPendingMembers,
   apiApproveSacco,
   apiRejectSacco,
-  apiAdminApproveMember,
-  apiAdminRejectMember,
   apiGetAuditLog,
   apiListSaccos,
   apiHealth,
@@ -25,7 +22,7 @@ function useWindowSize() {
   return size
 }
 
-const TABS = ["Project Overview", "SACCO Approvals", "Member KYC", "Network Health", "Audit Log"]
+const TABS = ["Project Overview", "SACCO Approvals", "Network Health", "Audit Log"]
 
 const TH = (h) => (
   <th key={h} style={{ padding: "12px 20px", textAlign: "left", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: T.textDim, borderBottom: `1.5px solid ${T.border}`, background: T.surface, whiteSpace: "nowrap", fontFamily: T.fontMono }}>{h}</th>
@@ -47,28 +44,24 @@ export default function ProjectAdminDashboard() {
   const [error, setError] = useState("")
 
   const [pendingSaccos, setPendingSaccos] = useState([])
-  const [pendingMembers, setPendingMembers] = useState([])
   const [auditLogs, setAuditLogs] = useState([])
-  const [networkStats, setNetworkStats] = useState({ totalSaccos: 0, pendingSaccos: 0, pendingMembers: 0 })
+  const [networkStats, setNetworkStats] = useState({ totalSaccos: 0, pendingSaccos: 0 })
   const [health, setHealth] = useState({ api: null, db: null })
 
   const loadData = useCallback(async () => {
     setLoading(true)
     setError("")
     try {
-      const [saccos, members, logs, approved] = await Promise.all([
+      const [saccos, logs, approved] = await Promise.all([
         apiGetPendingSaccos(),
-        apiGetAdminPendingMembers(),
         apiGetAuditLog(50, 0),
         apiListSaccos(),
       ])
       setPendingSaccos(saccos)
-      setPendingMembers(members)
       setAuditLogs(logs)
       setNetworkStats({
         totalSaccos: approved.length,
         pendingSaccos: saccos.length,
-        pendingMembers: members.length,
       })
     } catch (err) {
       setError(err.message || "Failed to load admin data")
@@ -105,25 +98,6 @@ export default function ProjectAdminDashboard() {
     }
   }
 
-  async function handleApproveMember(membershipId) {
-    try {
-      await apiAdminApproveMember(membershipId)
-      await loadData()
-    } catch (err) {
-      alert(err.message || "Approval failed")
-    }
-  }
-
-  async function handleRejectMember(membershipId) {
-    const reason = window.prompt("Rejection reason (optional):") || ""
-    try {
-      await apiAdminRejectMember(membershipId, reason)
-      await loadData()
-    } catch (err) {
-      alert(err.message || "Rejection failed")
-    }
-  }
-
   return (
     <div style={{ minHeight: "100vh", background: T.pageBg, fontFamily: T.font }}>
       <Nav hidePublicView />
@@ -132,7 +106,7 @@ export default function ProjectAdminDashboard() {
         <div style={{ marginBottom: isMobile ? "24px" : "32px" }}>
           <p style={{ fontSize: "12px", fontFamily: T.fontMono, color: T.textDim, marginBottom: "8px", letterSpacing: "1.5px", textTransform: "uppercase" }}>Master Project Control</p>
           <h1 style={{ fontSize: isMobile ? "28px" : "36px", fontWeight: 900, color: T.textHi, margin: "0 0 6px", letterSpacing: "-0.5px" }}>Project <span style={{ color: T.green }}>Administration</span></h1>
-          <p style={{ fontSize: isMobile ? "14px" : "15px", color: T.textMid }}>Approve SACCOs and member KYC, monitor network health, and review audit logs.</p>
+          <p style={{ fontSize: isMobile ? "14px" : "15px", color: T.textMid }}>Approve new SACCOs on the platform. Member join requests are approved by each SACCO&apos;s own administrator.</p>
         </div>
 
         {error && (
@@ -151,11 +125,15 @@ export default function ProjectAdminDashboard() {
 
         {!loading && tab === "Project Overview" && (
           <div>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: "16px", marginBottom: "28px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(3,1fr)", gap: "16px", marginBottom: "28px" }}>
               {statCard("Approved SACCOs", networkStats.totalSaccos, T.green, isMobile)}
               {statCard("Pending SACCOs", networkStats.pendingSaccos, T.goldMid, isMobile)}
-              {statCard("Pending Members", networkStats.pendingMembers, "#059669", isMobile)}
               {statCard("Audit Events", auditLogs.length, "#7c3aed", isMobile)}
+            </div>
+            <div style={{ ...card(), padding: "20px 24px", background: T.blueBg, border: `1px solid ${T.blueBdr}` }}>
+              <p style={{ margin: 0, fontSize: "14px", color: T.textMid, lineHeight: 1.6 }}>
+                <strong>Member approvals</strong> are not handled here. When someone joins a SACCO, that SACCO&apos;s admin approves them under <strong>Pending Approvals</strong> in their dashboard.
+              </p>
             </div>
           </div>
         )}
@@ -200,42 +178,6 @@ export default function ProjectAdminDashboard() {
           </div>
         )}
 
-        {!loading && tab === "Member KYC" && (
-          <div style={{ ...cardMd(), overflow: "hidden" }}>
-            <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
-              <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: 0 }}>Pending Member Verifications</h2>
-            </div>
-            {pendingMembers.length === 0 ? (
-              <p style={{ padding: "24px", color: T.textDim }}>No members awaiting KYC approval.</p>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead><tr>{["Submitted", "Member", "SACCO", "Documents", "Actions"].map(TH)}</tr></thead>
-                  <tbody>
-                    {pendingMembers.map((m, i) => (
-                      <tr key={m.membership_id} style={{ borderBottom: i < pendingMembers.length - 1 ? `1px solid ${T.border2}` : "none", background: "#fff" }}>
-                        <td style={{ padding: "15px 20px", fontFamily: T.fontMono, fontSize: "13px", color: T.textDim }}>
-                          {m.submitted_at ? new Date(m.submitted_at).toLocaleDateString() : "—"}
-                        </td>
-                      <td style={{ padding: "15px 20px" }}>
-                          <p style={{ fontSize: "14px", fontWeight: 700, color: T.textHi, margin: 0 }}>{m.full_name}</p>
-                          <p style={{ fontSize: "11px", color: T.textDim }}>{m.phone}</p>
-                      </td>
-                        <td style={{ padding: "15px 20px", fontSize: "13px", color: T.textMid }}>{m.sacco_name}</td>
-                        <td style={{ padding: "15px 20px", fontSize: "12px", color: T.textDim }}>{(m.documents || []).length} uploaded</td>
-                      <td style={{ padding: "15px 20px", display: "flex", gap: "8px" }}>
-                          <button onClick={() => handleApproveMember(m.membership_id)} style={{ padding: "6px 12px", borderRadius: "6px", border: "none", background: T.green, color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Approve</button>
-                          <button onClick={() => handleRejectMember(m.membership_id)} style={{ padding: "6px 12px", borderRadius: "6px", border: `1px solid ${T.redBdr}`, background: T.redBg, color: T.red, fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Reject</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
-            )}
-          </div>
-        )}
-
         {!loading && tab === "Network Health" && (
           <div style={{ display: "grid", gap: "16px", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr" }}>
             <div style={{ ...card(), padding: "24px" }}>
@@ -274,7 +216,6 @@ export default function ProjectAdminDashboard() {
              ))}
            </div>
         )}
-
       </div>
     </div>
   )

@@ -568,27 +568,7 @@ export async function apiVerifyTransaction(transactionId) {
   return apiFetch(`/transactions/${transactionId}/verify`)
 }
 
-// ─── Project admin ────────────────────────────────────────────────────────────
-
-export async function apiGetAdminPendingMembers() {
-  if (USE_DEMO) return []
-  const data = await apiFetch("/admin/members/pending")
-  return data.members || []
-}
-
-export async function apiAdminApproveMember(membershipId) {
-  return apiFetch(`/admin/members/${membershipId}/approve`, {
-    method: "PATCH",
-    body: JSON.stringify({}),
-  })
-}
-
-export async function apiAdminRejectMember(membershipId, reason) {
-  return apiFetch(`/admin/members/${membershipId}/reject`, {
-    method: "PATCH",
-    body: JSON.stringify({ reason }),
-  })
-}
+// ─── Project admin (SACCO onboarding only — member approvals are per-SACCO) ───
 
 export async function apiGetPendingSaccos() {
   if (USE_DEMO) return []

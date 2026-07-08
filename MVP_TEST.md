@@ -39,6 +39,8 @@ Use **new** phone numbers for SACCO admin + member (not already registered).
 2. Approve the new SACCO.
 3. SACCO admin: refresh / re-login → **Admin Dashboard**.
 
+> **Note:** Platform admin only approves **SACCOs**. Member join requests are **not** approved here.
+
 ### 4) SACCO admin setup
 1. **Payment Settings** — set official MTN/Airtel payee numbers (real MoMo numbers for your SACCO).
 2. Optional: create loan product.

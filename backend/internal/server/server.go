@@ -321,9 +321,7 @@ func (s *Server) registerAdminRoutes() {
 		middleware.ProjectAdminMiddleware(s.pool),
 	)
 	{
-		adminGroup.GET("/members/pending", handler.HandleListPendingMembers)
-		adminGroup.PATCH("/members/:memberId/approve", handler.HandleApproveMember)
-		adminGroup.PATCH("/members/:memberId/reject", handler.HandleRejectMember)
+		// Member join approvals are SACCO-scoped: PATCH /saccos/:saccoId/members/:id/approve
 		adminGroup.GET("/saccos/pending", handler.HandleListPendingSaccos)
 		adminGroup.PATCH("/saccos/:saccoId/approve", handler.HandleApproveSacco)
 		adminGroup.PATCH("/saccos/:saccoId/reject", handler.HandleRejectSacco)

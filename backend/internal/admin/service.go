@@ -77,53 +77,9 @@ type RejectRequest struct {
 	Reason string `json:"reason"`
 }
 
+// ListPendingMembers is deprecated — member approvals are handled per-SACCO by SACCO admins.
 func (s *Service) ListPendingMembers(ctx context.Context) ([]PendingMember, error) {
-	membershipsList, err := s.membershipRepo.ListByStatus(ctx, memberships.StatusUnderReview)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pending members: %w", err)
-	}
-
-	result := make([]PendingMember, 0, len(membershipsList))
-	for _, m := range membershipsList {
-		user, err := s.userRepo.GetByID(ctx, m.UserID.String())
-		if err != nil {
-			return nil, fmt.Errorf("failed to load user %s: %w", m.UserID, err)
-		}
-
-		saccoRecord, err := s.saccoRepo.GetByID(ctx, m.SaccoID.String())
-		if err != nil {
-			return nil, fmt.Errorf("failed to load sacco %s: %w", m.SaccoID, err)
-		}
-
-		// Skip SACCO admins waiting on SACCO approval (member KYC queue only)
-		if saccoRecord.Status != sacco.StatusApproved {
-			continue
-		}
-
-		docs, err := s.documentRepo.ListByOwner(ctx, documents.OwnerTypeMembership, m.ID.String())
-		if err != nil {
-			return nil, fmt.Errorf("failed to load documents: %w", err)
-		}
-
-		adminDocs := make([]documents.AdminView, 0, len(docs))
-		for _, doc := range docs {
-			adminDocs = append(adminDocs, documents.ToAdminView(doc))
-		}
-
-		result = append(result, PendingMember{
-			MembershipID: m.ID.String(),
-			UserID:       user.ID.String(),
-			FullName:     user.FullName,
-			Phone:        user.Phone,
-			SaccoID:      saccoRecord.ID.String(),
-			SaccoName:    saccoRecord.Name,
-			Status:       m.Status,
-			SubmittedAt:  m.UpdatedAt.Format(time.RFC3339),
-			Documents:    adminDocs,
-		})
-	}
-
-	return result, nil
+	return nil, errors.New("member approvals are handled by each SACCO administrator")
 }
 
 func (s *Service) ListPendingSaccos(ctx context.Context) ([]PendingSacco, error) {
@@ -166,72 +122,14 @@ func (s *Service) ListPendingSaccos(ctx context.Context) ([]PendingSacco, error)
 	return result, nil
 }
 
+// ApproveMember is deprecated — use SACCO admin PATCH /saccos/:saccoId/members/:id/approve.
 func (s *Service) ApproveMember(ctx context.Context, actorUserID, membershipID string) (*ReviewResponse, error) {
-	membership, err := s.getReviewableMembership(ctx, membershipID)
-	if err != nil {
-		return nil, err
-	}
-	if membership.Role != memberships.RoleMember {
-		return nil, errors.New("only member KYC applications can be approved via this endpoint")
-	}
-
-	updated, err := s.membershipRepo.Activate(ctx, membership.ID.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to approve member: %w", err)
-	}
-
-	actorUUID, _ := uuid.Parse(actorUserID)
-	_, err = s.auditRepo.Create(ctx, &audit.CreateRequest{
-		ActorUserID: &actorUUID,
-		Action:      audit.ActionMemberApproved,
-		EntityType:  "membership",
-		EntityID:    updated.ID,
-		Details: map[string]interface{}{
-			"user_id":  updated.UserID.String(),
-			"sacco_id": updated.SaccoID.String(),
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to write audit log: %w", err)
-	}
-
-	return &ReviewResponse{
-		MembershipID: updated.ID.String(),
-		Status:       updated.Status,
-	}, nil
+	return nil, errors.New("member approvals are handled by each SACCO administrator")
 }
 
+// RejectMember is deprecated — use SACCO admin PATCH /saccos/:saccoId/members/:id/reject.
 func (s *Service) RejectMember(ctx context.Context, actorUserID, membershipID string, reason string) (*ReviewResponse, error) {
-	membership, err := s.getReviewableMembership(ctx, membershipID)
-	if err != nil {
-		return nil, err
-	}
-
-	updated, err := s.membershipRepo.UpdateStatus(ctx, membership.ID.String(), memberships.StatusRejected)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reject member: %w", err)
-	}
-
-	actorUUID, _ := uuid.Parse(actorUserID)
-	_, err = s.auditRepo.Create(ctx, &audit.CreateRequest{
-		ActorUserID: &actorUUID,
-		Action:      audit.ActionMemberRejected,
-		EntityType:  "membership",
-		EntityID:    updated.ID,
-		Details: map[string]interface{}{
-			"user_id":  updated.UserID.String(),
-			"sacco_id": updated.SaccoID.String(),
-			"reason":   reason,
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to write audit log: %w", err)
-	}
-
-	return &ReviewResponse{
-		MembershipID: updated.ID.String(),
-		Status:       updated.Status,
-	}, nil
+	return nil, errors.New("member approvals are handled by each SACCO administrator")
 }
 
 func (s *Service) ApproveSacco(ctx context.Context, actorUserID, saccoID string) (*SaccoReviewResponse, error) {
@@ -312,22 +210,6 @@ func (s *Service) ListAuditLogs(ctx context.Context, limit, offset int) ([]*audi
 		return nil, 0, err
 	}
 	return logs, total, nil
-}
-
-func (s *Service) getReviewableMembership(ctx context.Context, membershipID string) (*memberships.Membership, error) {
-	membership, err := s.membershipRepo.GetByID(ctx, membershipID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("membership not found")
-		}
-		return nil, fmt.Errorf("failed to get membership: %w", err)
-	}
-
-	if membership.Status != memberships.StatusUnderReview {
-		return nil, fmt.Errorf("membership is not under review (current status: %s)", membership.Status)
-	}
-
-	return membership, nil
 }
 
 func (s *Service) getReviewableSacco(ctx context.Context, saccoID string) (*sacco.SACCO, error) {
