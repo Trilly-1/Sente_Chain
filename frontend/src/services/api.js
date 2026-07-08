@@ -1,6 +1,8 @@
 export const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080"
 export const USE_DEMO = import.meta.env.VITE_USE_DEMO === "true"
 export const IS_LIVE = !USE_DEMO && !BASE_URL.includes("localhost")
+// TESTING ONLY — set VITE_SKIP_KYC=false (or remove) before pilot to restore KYC gates.
+export const SKIP_KYC = import.meta.env.VITE_SKIP_KYC === "true" || import.meta.env.VITE_SKIP_KYC === "1"
 
 const STORAGE_KEY = "sente_auth"
 

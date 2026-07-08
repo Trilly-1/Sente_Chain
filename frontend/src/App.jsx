@@ -13,6 +13,7 @@ import MemberOnboarding from "./pages/MemberOnboarding"
 import MemberVerificationPending from "./pages/MemberVerificationPending"
 import ProjectAdminDashboard from "./pages/ProjectAdminDashboard"
 import LedgerProof from "./pages/LedgerProof"
+import { SKIP_KYC } from "./services/api"
 
 function RoleRoute() {
   const { auth } = useAuth()
@@ -21,12 +22,19 @@ function RoleRoute() {
   if (auth.is_project_admin) return <Navigate to="/sc-project-master-gate" replace />
   
   if (auth.role === "member") {
-    if (auth.status === "pending_kyc") return <Navigate to="/member-onboarding" replace />
-    if (auth.status === "under_review") return <MemberVerificationPending />
+    // TESTING: SKIP_KYC skips document upload; SACCO admin still approves.
+    // Pilot: set VITE_SKIP_KYC=false to restore full KYC screens.
+    if (!SKIP_KYC) {
+      if (auth.status === "pending_kyc") return <Navigate to="/member-onboarding" replace />
+      if (auth.status === "under_review") return <MemberVerificationPending />
+    } else if (auth.status === "pending_kyc" || auth.status === "under_review") {
+      return <MemberVerificationPending />
+    }
     return <MemberDashboard />
   }
   
   if (auth.role === "admin") {
+    // SACCO still needs platform approval — only document KYC is skipped for testing.
     const saccoPending = auth.sacco_status && auth.sacco_status !== "approved"
     if (saccoPending && !auth.sacco_id) return <Navigate to="/register-sacco" replace />
     if (saccoPending) return <Navigate to="/verification-pending" replace />

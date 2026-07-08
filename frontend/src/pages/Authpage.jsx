@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { apiLogin, apiRegister, apiContact, apiListSaccos, apiGetDefaultSaccoId } from "../services/api"
+import { apiLogin, apiRegister, apiContact, apiListSaccos, apiGetDefaultSaccoId, SKIP_KYC } from "../services/api"
 import { UGANDA } from "../data/countries"
 
 function useWindowSize() {
@@ -154,7 +154,8 @@ function SignUpPanel({ onSwitch }) {
     try {
       const user = await apiRegister({ name, phone: fullPhone, role: "member", saccoId, pin, country: UGANDA.code })
       login(user)
-      if (user.status === "pending_kyc") {
+      // TESTING: SKIP_KYC skips document upload. Pilot: set VITE_SKIP_KYC=false.
+      if (!SKIP_KYC && user.status === "pending_kyc") {
         navigate("/member-onboarding")
       } else {
         navigate("/dashboard")

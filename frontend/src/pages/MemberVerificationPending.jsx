@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { T, card } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { apiGetOnboardingStatus, apiListSaccos, apiGetMe } from "../services/api"
+import { apiGetOnboardingStatus, apiListSaccos, apiGetMe, SKIP_KYC } from "../services/api"
 
 function useWindowSize() {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -76,7 +76,8 @@ export default function MemberVerificationPending() {
     { name: "National ID (Back)", status: "In Review", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> },
     { name: "Liveliness Selfie", status: "In Review", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg> },
   ]
-  const docsToShow = submittedDocs.length ? submittedDocs : defaultDocs
+  // TESTING: SKIP_KYC hides fake document list. Pilot: VITE_SKIP_KYC=false.
+  const docsToShow = SKIP_KYC ? [] : (submittedDocs.length ? submittedDocs : defaultDocs)
 
   const handleLogout = () => {
     logout()
@@ -117,15 +118,23 @@ export default function MemberVerificationPending() {
           <div style={{ width: "64px", height: "64px", background: T.blueBg, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
-          <h1 style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: 900, color: T.textHi, marginBottom: "8px" }}>Verification in Progress</h1>
-          <p style={{ color: T.textMid, fontSize: isMobile ? "14px" : "16px", marginBottom: "20px" }}>Welcome to <strong>{saccoName}</strong>. Your SACCO administrator is reviewing your application.</p>
+          <h1 style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: 900, color: T.textHi, marginBottom: "8px" }}>
+            {SKIP_KYC ? "Waiting for SACCO approval" : "Verification in Progress"}
+          </h1>
+          <p style={{ color: T.textMid, fontSize: isMobile ? "14px" : "16px", marginBottom: "20px" }}>
+            Welcome to <strong>{saccoName}</strong>.{" "}
+            {SKIP_KYC
+              ? "Your SACCO administrator needs to approve your membership before you can use the dashboard."
+              : "Your SACCO administrator is reviewing your application."}
+          </p>
           <StatusBadge status={status} />
         </div>
 
 
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr", gap: "24px" }}>
-          {/* Document Summary */}
+          {/* Document Summary — hidden when SKIP_KYC (testing) */}
+          {!SKIP_KYC && (
           <div style={{ ...card(), background: "#fff", padding: "24px" }}>
             <h3 style={{ fontSize: "15px", fontWeight: 800, marginBottom: "16px", color: T.textHi }}>Your Submissions</h3>
             <div style={{ display: "grid", gap: "10px" }}>
@@ -140,6 +149,7 @@ export default function MemberVerificationPending() {
               ))}
             </div>
           </div>
+          )}
 
           {/* Info Card */}
           <div style={{ display: "grid", gap: "20px" }}>

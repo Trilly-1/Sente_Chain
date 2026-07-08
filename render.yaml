@@ -72,6 +72,9 @@ services:
         sync: false
       - key: PLATFORM_FEE_PERCENT
         value: "1.5"
+      # TESTING ONLY — set "false" before pilot to restore document KYC
+      - key: SKIP_KYC
+        value: "true"
 
   - type: web
     name: sentechain-web
@@ -95,5 +98,7 @@ services:
         value: https://sente-chain.onrender.com
       - key: VITE_USE_DEMO
         value: "false"
+      - key: VITE_SKIP_KYC
+        value: "true"
       - key: VITE_STELLAR_NETWORK
         value: testnet

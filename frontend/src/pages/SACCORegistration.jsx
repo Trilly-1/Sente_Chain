@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { apiRegister, apiCreateSacco, apiUpdateSacco, apiUploadSaccoDocuments, apiSubmitSacco } from "../services/api"
+import { apiRegister, apiCreateSacco, apiUpdateSacco, apiUploadSaccoDocuments, apiSubmitSacco, SKIP_KYC } from "../services/api"
 import { UGANDA } from "../data/countries"
 
 // Mobile detection hook
@@ -172,6 +172,11 @@ export default function SACCORegistration() {
         setLoading(false)
       }
     } else if (step === 4) {
+      // TESTING: SKIP_KYC skips compliance uploads. Pilot: set VITE_SKIP_KYC=false.
+      if (SKIP_KYC) {
+        setStep(s => s + 1)
+        return
+      }
       setLoading(true)
       try {
         await apiUploadSaccoDocuments(saccoId, [
@@ -190,8 +195,11 @@ export default function SACCORegistration() {
       if (!formData.chairmanID) newErrors.chairmanID = "Required"
       if (!formData.secretaryName) newErrors.secretaryName = "Required"
       if (!formData.secretaryID) newErrors.secretaryID = "Required"
-      if (!formData.chairmanVerified) newErrors.chairmanVerified = "Verification required"
-      if (!formData.secretaryVerified) newErrors.secretaryVerified = "Verification required"
+      // TESTING: SKIP_KYC skips camera ID verification. Pilot: set VITE_SKIP_KYC=false.
+      if (!SKIP_KYC) {
+        if (!formData.chairmanVerified) newErrors.chairmanVerified = "Verification required"
+        if (!formData.secretaryVerified) newErrors.secretaryVerified = "Verification required"
+      }
       
       if (Object.keys(newErrors).length > 0) return setErrors(newErrors)
       setErrors({})

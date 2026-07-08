@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { T, card } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { apiSubmitMemberKYC } from "../services/api"
+import { apiSubmitMemberKYC, SKIP_KYC } from "../services/api"
 
 // Mobile detection hook
 function useWindowSize() {
@@ -27,6 +27,16 @@ export default function MemberOnboarding() {
     { id: 1, title: "Identity Document", sub: "National ID or Passport" },
     { id: 2, title: "Review", sub: "Confirm and submit" },
   ]
+
+  // TESTING: SKIP_KYC — skip document form; wait for SACCO admin approval.
+  // Pilot: set VITE_SKIP_KYC=false to restore KYC upload UI.
+  useEffect(() => {
+    if (SKIP_KYC) {
+      navigate("/dashboard", { replace: true })
+    }
+  }, [navigate])
+
+  if (SKIP_KYC) return null
 
   const handleNext = () => {
     if (step < 2) setStep(step + 1);
