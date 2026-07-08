@@ -191,26 +191,27 @@ export default function SACCORegistration() {
         setLoading(false)
       }
     } else if (step === 5) {
-      if (!formData.chairmanName) newErrors.chairmanName = "Required"
-      if (!formData.chairmanID) newErrors.chairmanID = "Required"
-      if (!formData.secretaryName) newErrors.secretaryName = "Required"
-      if (!formData.secretaryID) newErrors.secretaryID = "Required"
-      // TESTING: SKIP_KYC skips camera ID verification. Pilot: set VITE_SKIP_KYC=false.
+      // TESTING: SKIP_KYC skips National ID + liveliness. Pilot: VITE_SKIP_KYC=false.
       if (!SKIP_KYC) {
+        if (!formData.chairmanName) newErrors.chairmanName = "Required"
+        if (!formData.chairmanID) newErrors.chairmanID = "Required"
+        if (!formData.secretaryName) newErrors.secretaryName = "Required"
+        if (!formData.secretaryID) newErrors.secretaryID = "Required"
         if (!formData.chairmanVerified) newErrors.chairmanVerified = "Verification required"
         if (!formData.secretaryVerified) newErrors.secretaryVerified = "Verification required"
       }
-      
+
       if (Object.keys(newErrors).length > 0) return setErrors(newErrors)
       setErrors({})
       setLoading(true)
       try {
+        const chairmanName = formData.chairmanName || adminData.name || "SACCO Admin"
         await apiUpdateSacco(saccoId, {
           profile: {
-            chairman_name: formData.chairmanName,
-            chairman_id: formData.chairmanID,
-            secretary_name: formData.secretaryName,
-            secretary_id: formData.secretaryID,
+            chairman_name: chairmanName,
+            chairman_id: SKIP_KYC ? (formData.chairmanID || "SKIPPED-TEST") : formData.chairmanID,
+            secretary_name: formData.secretaryName || (SKIP_KYC ? "TBD" : ""),
+            secretary_id: SKIP_KYC ? (formData.secretaryID || "SKIPPED-TEST") : formData.secretaryID,
           },
         })
         setStep(s => s + 1)
@@ -398,22 +399,34 @@ export default function SACCORegistration() {
 
           {step === 5 && (
             <div>
-              <h2 style={{ fontSize: isMobile ? "18px" : "20px", fontWeight: 800, marginBottom: isMobile ? "16px" : "24px" }}>Key Officials Verification</h2>
+              <h2 style={{ fontSize: isMobile ? "18px" : "20px", fontWeight: 800, marginBottom: isMobile ? "16px" : "24px" }}>
+                {SKIP_KYC ? "Key Officials (KYC skipped for testing)" : "Key Officials Verification"}
+              </h2>
+              {SKIP_KYC && (
+                <p style={{ fontSize: "13px", color: C.goldMid, fontWeight: 600, marginBottom: "16px" }}>
+                  Testing mode: National ID and face verification are off. Names optional — click Continue.
+                </p>
+              )}
               <div style={{ display: "grid", gap: isMobile ? "16px" : "24px" }}>
                 <div style={{ padding: isMobile ? "16px" : "20px", background: C.surface, borderRadius: "12px", border: errors.chairmanVerified ? "1px solid #dc2626" : "none" }}>
                   <h3 style={{ fontSize: "14px", fontWeight: 800, marginBottom: "12px", color: C.green }}>Chairman Details</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile || SKIP_KYC ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: SKIP_KYC ? 0 : "16px" }}>
                     <div>
-                      <Label>Full Name</Label>
-                      <input style={{ ...inpStyle, borderColor: errors.chairmanName ? "#dc2626" : C.border }} placeholder="Name" value={formData.chairmanName} onChange={e => { setFormData({ ...formData, chairmanName: e.target.value }); setErrors({...errors, chairmanName: null}) }} />
+                      <Label>Full Name{SKIP_KYC ? " (optional)" : ""}</Label>
+                      <input style={{ ...inpStyle, borderColor: errors.chairmanName ? "#dc2626" : C.border }} placeholder={adminData.name || "Name"} value={formData.chairmanName} onChange={e => { setFormData({ ...formData, chairmanName: e.target.value }); setErrors({...errors, chairmanName: null}) }} />
                       {errors.chairmanName && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.chairmanName}</span>}
                     </div>
+                    {/* TESTING: National ID hidden when SKIP_KYC. Pilot: VITE_SKIP_KYC=false */}
+                    {!SKIP_KYC && (
                     <div>
                       <Label>National ID Number</Label>
                       <input style={{ ...inpStyle, borderColor: errors.chairmanID ? "#dc2626" : C.border }} placeholder="ID Number" value={formData.chairmanID} onChange={e => { setFormData({ ...formData, chairmanID: e.target.value }); setErrors({...errors, chairmanID: null}) }} />
                       {errors.chairmanID && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.chairmanID}</span>}
                     </div>
+                    )}
                   </div>
+                  {/* TESTING: Liveliness hidden when SKIP_KYC. Pilot: VITE_SKIP_KYC=false */}
+                  {!SKIP_KYC && (
                   <div>
                     <Label>Liveliness Check</Label>
                     {!formData.chairmanVerified ? (
@@ -442,21 +455,25 @@ export default function SACCORegistration() {
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
                 <div style={{ padding: isMobile ? "16px" : "20px", background: C.surface, borderRadius: "12px", border: errors.secretaryVerified ? "1px solid #dc2626" : "none" }}>
                   <h3 style={{ fontSize: "14px", fontWeight: 800, marginBottom: "12px", color: C.green }}>Secretary Details</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile || SKIP_KYC ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: SKIP_KYC ? 0 : "16px" }}>
                     <div>
-                      <Label>Full Name</Label>
+                      <Label>Full Name{SKIP_KYC ? " (optional)" : ""}</Label>
                       <input style={{ ...inpStyle, borderColor: errors.secretaryName ? "#dc2626" : C.border }} placeholder="Name" value={formData.secretaryName} onChange={e => { setFormData({ ...formData, secretaryName: e.target.value }); setErrors({...errors, secretaryName: null}) }} />
                       {errors.secretaryName && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.secretaryName}</span>}
                     </div>
+                    {!SKIP_KYC && (
                     <div>
                       <Label>National ID Number</Label>
                       <input style={{ ...inpStyle, borderColor: errors.secretaryID ? "#dc2626" : C.border }} placeholder="ID Number" value={formData.secretaryID} onChange={e => { setFormData({ ...formData, secretaryID: e.target.value }); setErrors({...errors, secretaryID: null}) }} />
                       {errors.secretaryID && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.secretaryID}</span>}
                     </div>
+                    )}
                   </div>
+                  {!SKIP_KYC && (
                   <div>
                     <Label>Liveliness Check</Label>
                     {!formData.secretaryVerified ? (
@@ -485,6 +502,7 @@ export default function SACCORegistration() {
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               </div>
             </div>
