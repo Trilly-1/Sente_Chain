@@ -95,6 +95,10 @@ func (r *Repository) FindMembershipByReference(ctx context.Context, saccoID, ref
 	if ref == "" {
 		return "", pgx.ErrNoRows
 	}
+	_, memberRef := ParseReference(ref)
+	if memberRef != "" {
+		ref = memberRef
+	}
 	// Full UUID
 	var id string
 	err := r.db.QueryRow(ctx, `
@@ -160,6 +164,29 @@ func (r *Repository) InsertInboundEvent(ctx context.Context, event *InboundEvent
 		event.MembershipID, event.TransactionID, event.RawPayload,
 	).Scan(&event.ID, &event.CreatedAt)
 	return event, err
+}
+
+// GetInboundByProviderExternalID returns a prior webhook event (idempotent replay).
+func (r *Repository) GetInboundByProviderExternalID(ctx context.Context, provider, externalID string) (*InboundEvent, error) {
+	q := `
+		SELECT id, sacco_id, provider, external_id, payer_phone, payee_phone,
+			amount::text, currency, reference_text, status, membership_id, transaction_id, raw_payload, created_at
+		FROM inbound_payment_events
+		WHERE provider = $1 AND external_id = $2`
+	ev := &InboundEvent{}
+	var saccoID, membershipID, txnID *uuid.UUID
+	err := r.db.QueryRow(ctx, q, provider, externalID).Scan(
+		&ev.ID, &saccoID, &ev.Provider, &ev.ExternalID, &ev.PayerPhone, &ev.PayeePhone,
+		&ev.Amount, &ev.Currency, &ev.ReferenceText, &ev.Status,
+		&membershipID, &txnID, &ev.RawPayload, &ev.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	ev.SaccoID = saccoID
+	ev.MembershipID = membershipID
+	ev.TransactionID = txnID
+	return ev, nil
 }
 
 func (r *Repository) UpdateInboundEventStatus(ctx context.Context, eventID, status string, membershipID, transactionID *uuid.UUID) error {

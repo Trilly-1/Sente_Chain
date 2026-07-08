@@ -1,7 +1,7 @@
 // src/pages/MemberDashboard.jsx
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
-import { apiGetTransactions, apiListSaccos, apiGetMyLoans, apiApplyLoan, apiListLoanProducts, apiGetPaymentInstructions, apiRequestToPay, apiGetMemberBalance, apiRepayLoan } from "../services/api"
+import { apiGetTransactions, apiListSaccos, apiGetMyLoans, apiApplyLoan, apiListLoanProducts, apiGetPaymentInstructions, apiRequestToPay, apiGetMemberBalance, apiRepayLoan, apiGetPlatformConfig, calcPlatformFee, IS_LIVE, BASE_URL } from "../services/api"
 import { T, card, cardMd } from "../styles/theme"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
@@ -44,6 +44,8 @@ export default function MemberDashboard() {
   const [payInfo, setPayInfo] = useState(null)
   const [payAmount, setPayAmount] = useState("")
   const [payProvider, setPayProvider] = useState("mtn_momo")
+  const [payPurpose, setPayPurpose] = useState("savings")
+  const [platformConfig, setPlatformConfig] = useState({ fee_percent: 1.5, applies_to: ["savings"] })
   const [payMsg, setPayMsg] = useState("")
   const [payErr, setPayErr] = useState("")
   const [payLoading, setPayLoading] = useState(false)
@@ -88,8 +90,12 @@ export default function MemberDashboard() {
     apiGetMyLoans(auth.sacco_id).then(setLoans).catch(() => {})
     apiListLoanProducts(auth.sacco_id).then(setProducts).catch(() => {})
     apiGetPaymentInstructions(auth.sacco_id).then(setPayInfo).catch(() => setPayInfo(null))
+    apiGetPlatformConfig().then(setPlatformConfig).catch(() => {})
     refreshBalance()
   }, [auth?.sacco_id])
+
+  const feePct = payInfo?.platform_fee?.fee_percent ?? platformConfig.fee_percent ?? 1.5
+  const payBreakdown = calcPlatformFee(payAmount, feePct, payPurpose)
 
   const totalDeposited = balance?.total_deposits ?? txs.filter(t=>t.type==="Deposit").reduce((s,t)=>s+t.amount_kes,0)
   const totalLoans     = balance?.total_loans_received ?? txs.filter(t=>t.type==="Loan").reduce((s,t)=>s+t.amount_kes,0)
@@ -161,9 +167,15 @@ export default function MemberDashboard() {
     }
     setPayLoading(true)
     try {
-      const result = await apiRequestToPay(auth.sacco_id, amount, payProvider)
+      const result = await apiRequestToPay(auth.sacco_id, amount, payProvider, payPurpose)
       setPayMsg(result.message || (result.mode === "stk" ? "Check your phone for the MoMo prompt." : "Payment initiated."))
       if (result.mode === "stk") setPayAmount("")
+      // Poll for balance update after USSD/MoMo payment
+      setTimeout(async () => {
+        await refreshBalance()
+        const txs = await apiGetTransactions(auth.member_id)
+        setTxs(txs)
+      }, 8000)
     } catch (err) {
       setPayErr(err.message || "Payment request failed")
     } finally {
@@ -284,10 +296,24 @@ export default function MemberDashboard() {
         </div>
 
         <div style={{ ...card(), padding:"20px 24px", marginBottom:"16px", borderLeft:`4px solid ${T.green}` }}>
-          <p style={{ fontSize:"15px", fontWeight:700, color:T.textHi, margin:"0 0 12px" }}>Deposit to your SACCO</p>
+          <p style={{ fontSize:"15px", fontWeight:700, color:T.textHi, margin:"0 0 6px" }}>Pay on web or mobile money</p>
+          <p style={{ fontSize:"13px", color:T.textDim, margin:"0 0 8px" }}>Same steps either way — pick purpose, amount, and provider. Pay Now sends a prompt to your phone, or use the reference below with USSD (*334# / *185#).</p>
+          {IS_LIVE && (
+            <p style={{ fontSize:"11px", fontFamily:T.fontMono, color:T.green, margin:"0 0 12px", fontWeight:600 }}>
+              Live API: {BASE_URL.replace(/^https?:\/\//, "")}
+            </p>
+          )}
           {payInfo ? (
             <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
-              <form onSubmit={handlePayNow} style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 160px auto", gap:"10px", alignItems:"end" }}>
+              <form onSubmit={handlePayNow} style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 160px auto", gap:"10px", alignItems:"end" }}>
+                <div>
+                  <p style={{ fontSize:"11px", fontWeight:700, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", fontFamily:T.fontMono }}>Purpose</p>
+                  <select value={payPurpose} onChange={(e) => setPayPurpose(e.target.value)} disabled={payLoading} style={{ ...inp, cursor:"pointer" }}>
+                    <option value="savings">Savings deposit</option>
+                    <option value="loan_repayment">Loan repayment</option>
+                    <option value="interest">Interest payment</option>
+                  </select>
+                </div>
                 <div>
                   <p style={{ fontSize:"11px", fontWeight:700, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", fontFamily:T.fontMono }}>Amount (UGX)</p>
                   <input type="number" min="1" placeholder="e.g. 50000" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required disabled={payLoading} style={inp} />
@@ -303,6 +329,26 @@ export default function MemberDashboard() {
                   {payLoading ? "Sending..." : "Pay Now"}
                 </button>
               </form>
+              {payAmount && payBreakdown.fee > 0 && payPurpose === "savings" && (
+                <div style={{ padding:"10px 14px", background:T.goldLite, borderRadius:"8px", border:`1px solid ${T.goldBdr}`, fontSize:"12px", color:T.textMid }}>
+                  <strong>Payment breakdown:</strong> You send {currency} {payBreakdown.gross.toLocaleString()} →
+                  SenteChain fee ({payBreakdown.percent}%): {currency} {payBreakdown.fee.toLocaleString()} →
+                  <strong> Net to your savings: {currency} {payBreakdown.net.toLocaleString()}</strong>
+                </div>
+              )}
+              {payInfo.payment_purposes?.length > 0 && (
+                <div style={{ padding:"12px 14px", background:T.surface, borderRadius:"10px", border:`1px solid ${T.border}` }}>
+                  <p style={{ fontSize:"11px", fontWeight:700, color:T.textDim, margin:"0 0 8px", textTransform:"uppercase" }}>USSD reference codes</p>
+                  {payInfo.payment_purposes.map((p) => (
+                    <p key={p.code} style={{ fontSize:"12px", color:T.textMid, margin:"4px 0" }}>
+                      <strong>{p.label}:</strong> <span style={{ fontFamily:T.fontMono, color:T.goldMid }}>{p.reference}</span>
+                    </p>
+                  ))}
+                </div>
+              )}
+              {payInfo.ussd_steps?.map((step, i) => (
+                <p key={i} style={{ fontSize:"12px", color:T.textDim, margin:0 }}>{i + 1}. {step}</p>
+              ))}
               {(payInfo.mtn_api_ready || payInfo.airtel_api_ready) && (
                 <p style={{ fontSize:"12px", color:T.green, margin:0, fontWeight:600 }}>Mobile money API connected — Pay Now sends an STK prompt to your phone.</p>
               )}
@@ -325,7 +371,7 @@ export default function MemberDashboard() {
               ))}
             </div>
           ) : (
-            <p style={{ fontSize:"14px", color:T.textMid, margin:0 }}>Your SACCO admin has not configured payment numbers yet. Ask them to add MTN/Airtel numbers in Payment Settings.</p>
+            <p style={{ fontSize:"14px", color:T.textMid, margin:0 }}>Your SACCO admin has not registered an official MTN/Airtel number yet. Ask them to add it in Payment Settings.</p>
           )}
         </div>
 

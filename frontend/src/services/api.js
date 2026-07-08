@@ -1,5 +1,6 @@
 export const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080"
 export const USE_DEMO = import.meta.env.VITE_USE_DEMO === "true"
+export const IS_LIVE = !USE_DEMO && !BASE_URL.includes("localhost")
 
 const STORAGE_KEY = "sente_auth"
 
@@ -180,25 +181,59 @@ export async function apiRegister({ name, phone, role = "member", saccoId, pin, 
     await new Promise((r) => setTimeout(r, 900))
     return { 
       token: "demo-token", 
-      member_id: "MBR_NEW", 
+      member_id: "MBR_NEW",
+      membership_id: "MBR_NEW",
       name, 
       phone, 
-      role, 
+      role: "member", 
       sacco_id: saccoId, 
       status: "pending_kyc", 
       balance_kes: 0,
     }
   }
+  // Never persist the new user's JWT — staff-assisted register must keep the caller's session.
   const body = {
     full_name: name,
     phone: phone.replace(/\s/g, "").startsWith("+") ? phone.replace(/\s/g, "") : normalizePhone(phone),
     pin,
     country,
-    role,
+    role: role === "admin" && !saccoId ? "admin" : "member",
   }
   if (saccoId) body.sacco_id = saccoId
   const data = await apiFetch("/auth/register", { method: "POST", body: JSON.stringify(body) })
   return mapAuthUser(data)
+}
+
+/** Staff-assisted: register member, optionally activate + promote to cashier (keeps admin session). */
+export async function apiStaffRegisterMember({ name, phone, pin, country = "UG", saccoId, role = "member", activate = true }) {
+  const created = await apiRegister({ name, phone, role: "member", saccoId, pin, country })
+  const membershipId = created.membership_id || created.member_id
+  if (!membershipId) {
+    return { ...created, activated: false, promoted: false }
+  }
+  let activated = false
+  let promoted = false
+  let status = created.status
+  let finalRole = "member"
+  if (activate) {
+    await apiUpdateMemberStatus(membershipId, "active", saccoId)
+    activated = true
+    status = "active"
+  }
+  if (role === "cashier" && activated) {
+    await apiUpdateMemberRole(membershipId, "cashier", saccoId)
+    promoted = true
+    finalRole = "cashier"
+  }
+  return {
+    ...created,
+    membership_id: membershipId,
+    member_id: membershipId,
+    role: finalRole,
+    status,
+    activated,
+    promoted,
+  }
 }
 
 export async function apiGetMe() {
@@ -224,8 +259,6 @@ export async function apiVerifyOTP({ phone, code, fullName }) {
   return mapAuthUser({ token: data.token, user: data.user })
 }
 
-// ─── Public platform stats ────────────────────────────────────────────────────
-
 export async function apiGetPublicStats(country = "UG") {
   if (USE_DEMO) {
     const { ALL_SACCOS } = await import("../data/demo")
@@ -239,6 +272,36 @@ export async function apiGetPublicStats(country = "UG") {
   }
   const q = country ? `?country=${encodeURIComponent(country)}` : ""
   return apiFetch(`/public/stats${q}`)
+}
+
+/** Platform fee config (live API). Default 1.5% on savings — set PLATFORM_FEE_PERCENT on backend. */
+export async function apiGetPlatformConfig() {
+  if (USE_DEMO) {
+    return {
+      fee_percent: 1.5,
+      fee_model: "net_deduction",
+      description: "Service fee deducted from credited savings amount.",
+      applies_to: ["savings"],
+      max_recommended_percent: 2.5,
+    }
+  }
+  return apiFetch("/public/platform-config")
+}
+
+export function calcPlatformFee(gross, feePercent, purpose = "savings") {
+  const amount = parseFloat(gross) || 0
+  const pct = parseFloat(feePercent) || 0
+  if (!amount || purpose !== "savings" || pct <= 0) {
+    return { gross: amount, fee: 0, net: amount, percent: pct }
+  }
+  const fee = Math.round(amount * pct) / 100
+  const roundedFee = Math.round(fee * 100) / 100
+  return {
+    gross: amount,
+    fee: roundedFee,
+    net: Math.round((amount - roundedFee) * 100) / 100,
+    percent: pct,
+  }
 }
 
 // ─── SACCOs (public + onboarding) ─────────────────────────────────────────────
@@ -378,6 +441,42 @@ export async function apiGetMembers(saccoId, status) {
   const q = status ? `?status=${encodeURIComponent(status)}` : ""
   const data = await apiFetch(`/saccos/${id}/members${q}`)
   return (data.members || []).map(mapMember)
+}
+
+export async function apiGetPendingMembers(saccoId) {
+  if (USE_DEMO) {
+    const { DEMO_MEMBERS } = await import("../data/demo")
+    return DEMO_MEMBERS.filter((m) => m.status === "pending_kyc" || m.status === "under_review").map(mapMember)
+  }
+  const id = saccoId || _saccoId
+  const data = await apiFetch(`/saccos/${id}/members/pending`)
+  return (data.members || []).map(mapMember)
+}
+
+export async function apiApproveMember(membershipId, saccoId) {
+  const id = saccoId || _saccoId
+  return apiFetch(`/saccos/${id}/members/${membershipId}/approve`, { method: "PATCH", body: "{}" })
+}
+
+export async function apiRejectMember(membershipId, saccoId) {
+  const id = saccoId || _saccoId
+  return apiFetch(`/saccos/${id}/members/${membershipId}/reject`, { method: "PATCH", body: "{}" })
+}
+
+export async function apiGetPublicLedger(stellarHash) {
+  if (USE_DEMO) {
+    return {
+      transaction_id: "demo-tx",
+      reference_number: "SC-DEMO",
+      transaction_type: "deposit",
+      amount: "50000",
+      currency: "UGX",
+      status: "blockchain_verified",
+      stellar_tx_hash: stellarHash,
+      created_at: new Date().toISOString(),
+    }
+  }
+  return apiFetch(`/public/ledger/${encodeURIComponent(stellarHash)}`)
 }
 
 export async function apiUpdateMemberRole(membershipId, role, saccoId) {
@@ -679,13 +778,14 @@ export async function apiGetPaymentIntegrationStatus() {
   return apiFetch("/payments/integration-status")
 }
 
-export async function apiRequestToPay(saccoId, amount, provider = "mtn_momo") {
+export async function apiRequestToPay(saccoId, amount, provider = "mtn_momo", purpose = "savings") {
   if (USE_DEMO) {
     await new Promise((r) => setTimeout(r, 800))
+    const ref = purpose === "loan_repayment" ? "L-DEMO" : purpose === "interest" ? "I-DEMO" : "S-DEMO"
     return {
       status: "manual",
       mode: "manual",
-      message: `Pay UGX ${amount.toLocaleString()} to Demo SACCO MoMo +256700000099 with your reference.`,
+      message: `USSD: dial *334#, send UGX ${amount.toLocaleString()} with reference ${ref}.`,
       provider,
       amount,
       currency: "UGX",
@@ -693,16 +793,23 @@ export async function apiRequestToPay(saccoId, amount, provider = "mtn_momo") {
   }
   return apiFetch("/members/payments/request-to-pay", {
     method: "POST",
-    body: JSON.stringify({ sacco_id: saccoId, amount, provider }),
+    body: JSON.stringify({ sacco_id: saccoId, amount, provider, purpose }),
   })
 }
 
 // ─── Stubs (no backend yet) ───────────────────────────────────────────────────
 
-export async function apiContact() {
+export async function apiContact({ name, email, message } = {}) {
   if (USE_DEMO) {
     await new Promise((r) => setTimeout(r, 600))
     return { success: true }
   }
-  throw new Error("Contact endpoint is not configured")
+  // No dedicated backend inbox yet — acknowledge client-side and surface a mailto fallback.
+  const subject = encodeURIComponent(`SenteChain contact from ${name || "visitor"}`)
+  const body = encodeURIComponent(`From: ${name || ""}\nEmail: ${email || ""}\n\n${message || ""}`)
+  return {
+    success: true,
+    message: "Thanks — your message was recorded locally. Email support@sentechain.app if you need a reply.",
+    mailto: `mailto:support@sentechain.app?subject=${subject}&body=${body}`,
+  }
 }

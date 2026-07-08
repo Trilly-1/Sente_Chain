@@ -23,11 +23,14 @@ Apply migrations (including dev seed):
 migrate -path ./migrations -database "<MIGRATIONS_DATABASE_URL as postgres://...>" up
 ```
 
-### Dev seed accounts (migration `000003`)
+### Dev seed accounts (migrations `000003` + `000008`)
 
 | Role | Phone | PIN | Notes |
 |------|-------|-----|-------|
 | Project admin | `+256700000001` | `1234` | `is_project_admin = true` |
+| SACCO admin | `+256700000002` | `1234` | Demo SACCO (`DEMO01`) admin |
+| Cashier | `+256700000003` | `1234` | Demo SACCO cashier |
+| Member | `+256700000004` | `1234` | Active Demo SACCO membership |
 | Approved SACCO | — | — | **Demo SACCO** / code `DEMO01` |
 
 Get SACCO id for member registration:

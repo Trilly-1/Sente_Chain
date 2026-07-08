@@ -97,16 +97,19 @@ func LoadProvidersConfigFromEnv() ProvidersConfig {
 
 // IntegrationStatus is safe to expose (no secrets).
 type IntegrationStatus struct {
-	MTNConfigured    bool   `json:"mtn_configured"`
-	AirtelConfigured bool   `json:"airtel_configured"`
-	MTNCallbackURL   string `json:"mtn_callback_url,omitempty"`
-	AirtelCallbackURL string `json:"airtel_callback_url,omitempty"`
-	MTNEnvironment   string `json:"mtn_environment,omitempty"`
-	AirtelEnvironment string `json:"airtel_environment,omitempty"`
-	WebhooksReady    bool   `json:"webhooks_ready"`
+	MTNConfigured     bool              `json:"mtn_configured"`
+	AirtelConfigured  bool              `json:"airtel_configured"`
+	MTNCallbackURL    string            `json:"mtn_callback_url,omitempty"`
+	AirtelCallbackURL string            `json:"airtel_callback_url,omitempty"`
+	MTNEnvironment    string            `json:"mtn_environment,omitempty"`
+	AirtelEnvironment string            `json:"airtel_environment,omitempty"`
+	WebhooksReady     bool              `json:"webhooks_ready"`
+	WebhookEndpoints  map[string]string `json:"webhook_endpoints"`
+	SignatureRequired bool              `json:"signature_required"`
 }
 
 func (c ProvidersConfig) Status() IntegrationStatus {
+	sigRequired := c.MTN.WebhookSecret != "" || c.Airtel.WebhookSecret != ""
 	return IntegrationStatus{
 		MTNConfigured:     c.MTN.Enabled,
 		AirtelConfigured:  c.Airtel.Enabled,
@@ -115,5 +118,11 @@ func (c ProvidersConfig) Status() IntegrationStatus {
 		MTNEnvironment:    c.MTN.TargetEnvironment,
 		AirtelEnvironment: c.Airtel.Environment,
 		WebhooksReady:     true,
+		WebhookEndpoints: map[string]string{
+			"mtn_momo":      "/webhooks/mtn/momo",
+			"airtel_money":  "/webhooks/airtel/money",
+			"health":        "/webhooks/health",
+		},
+		SignatureRequired: sigRequired,
 	}
 }

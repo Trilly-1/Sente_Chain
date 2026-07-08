@@ -19,6 +19,16 @@ type UpdateRoleRequest struct {
 	Role string `json:"role"`
 }
 
+// PendingMemberItem is a member awaiting SACCO admin approval.
+type PendingMemberItem struct {
+	MembershipID string `json:"membership_id"`
+	UserID       string `json:"user_id"`
+	FullName     string `json:"full_name"`
+	Phone        string `json:"phone"`
+	Status       string `json:"status"`
+	SubmittedAt  string `json:"submitted_at,omitempty"`
+}
+
 // MemberActionResponse is returned after suspend/activate/role change.
 type MemberActionResponse struct {
 	MembershipID string `json:"membership_id"`
@@ -49,4 +59,18 @@ type PublicSummary struct {
 	TransactionCount   int                 `json:"transaction_count"`
 	AnchoredCount      int                 `json:"anchored_count"`
 	RecentTransactions []PublicTransaction `json:"recent_transactions"`
+}
+
+// PublicLedgerEntry is a transparency view for a single anchored transaction.
+type PublicLedgerEntry struct {
+	TransactionID   string `json:"transaction_id"`
+	SaccoID         string `json:"sacco_id"`
+	ReferenceNumber string `json:"reference_number"`
+	TransactionType string `json:"transaction_type"`
+	Amount          string `json:"amount"`
+	Currency        string `json:"currency"`
+	Status          string `json:"status"`
+	StellarTxHash   string `json:"stellar_tx_hash"`
+	CreatedAt       string `json:"created_at"`
+	ProofHash       string `json:"proof_hash,omitempty"`
 }

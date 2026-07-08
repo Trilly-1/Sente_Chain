@@ -142,6 +142,7 @@ function SignUpPanel({ onSwitch }) {
   }, [preselectedSaccoId])
 
   const [pin, setPin] = useState("")
+  const [signupType, setSignupType] = useState("member")
   const [showPin, setShowPin] = useState(false)
   const [ok, setOk] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -166,8 +167,18 @@ function SignUpPanel({ onSwitch }) {
     <div style={{ background: "#fff", border: `1.5px solid ${C.border}`, borderRadius: "20px", overflow: "hidden", boxShadow: "0 4px 32px rgba(0,0,0,0.06)" }}>
       <div style={{ height: "4px", background: `linear-gradient(90deg, ${C.green}, ${C.greenMid})` }} />
       <div style={{ padding: "36px 40px 32px" }}>
-        <h2 style={{ fontSize: "24px", fontWeight: 900, color: C.textHi, margin: "0 0 4px", fontFamily: C.font }}>Create your account</h2>
-        <p style={{ fontSize: "14px", color: C.textDim, margin: "0 0 28px", fontFamily: C.font }}>Register to access your SACCO financial records on the blockchain</p>
+        <h2 style={{ fontSize: "24px", fontWeight: 900, color: C.textHi, margin: "0 0 4px", fontFamily: C.font }}>Member sign up</h2>
+        <p style={{ fontSize: "14px", color: C.textDim, margin: "0 0 22px", fontFamily: C.font }}>Select your SACCO. Your SACCO admin approves you before you can access your dashboard.</p>
+        <div style={{ display: "flex", gap: "4px", marginBottom: "18px", background: C.surface, borderRadius: "10px", padding: "4px", border: `1px solid ${C.border}` }}>
+          {[{ id: "member", label: "Member" }, { id: "staff", label: "Staff (cashier)" }].map((opt) => (
+            <button key={opt.id} type="button" onClick={() => setSignupType(opt.id)} style={{ flex: 1, padding: "9px", borderRadius: "7px", fontFamily: C.font, cursor: "pointer", fontSize: "13px", fontWeight: 700, border: "none", background: signupType === opt.id ? C.green : "transparent", color: signupType === opt.id ? "#fff" : C.textDim }}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {signupType === "staff" && (
+          <p style={{ fontSize: "12px", color: C.goldMid, margin: "0 0 16px", fontWeight: 600 }}>Staff register as members first. Your SACCO admin will promote you to cashier after approval.</p>
+        )}
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div>
             <Lbl text="SACCO to Join" />
@@ -364,7 +375,7 @@ function ContactPanel({ contactRef }) {
             <textarea value={msg} onChange={e => setMsg(e.target.value)} placeholder="Tell us about your SACCO or ask a question..." required rows={4} style={{ ...inp(), resize: "vertical", lineHeight: 1.6 }} onFocus={onFG} onBlur={onBG} />
           </div>
           {error && <div style={{ padding: "12px 16px", borderRadius: "10px", background: C.redBg, border: `1px solid ${C.redBdr}`, color: C.red, fontSize: "14px" }}>{error}</div>}
-          {sent && <div style={{ padding: "12px 16px", borderRadius: "10px", background: C.greenLite, border: `1px solid ${C.greenBdr}`, color: C.green, fontSize: "14px", fontWeight: 700 }}>Message sent. We will be in touch within 24 hours.</div>}
+          {sent && <div style={{ padding: "12px 16px", borderRadius: "10px", background: C.greenLite, border: `1px solid ${C.greenBdr}`, color: C.green, fontSize: "14px", fontWeight: 700 }}>Thanks — we received your message. Email support@sentechain.app if you need a reply.</div>}
           <button type="submit" disabled={loading} style={loading ? disBtn : greenBtn}
             onMouseEnter={e => { if (!loading) e.currentTarget.style.background = C.greenDark }}
             onMouseLeave={e => { if (!loading) e.currentTarget.style.background = C.green }}>

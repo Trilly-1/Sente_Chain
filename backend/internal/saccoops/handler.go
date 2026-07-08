@@ -94,6 +94,40 @@ func (h *Handler) HandleActivate(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(result))
 }
 
+func (h *Handler) HandleListPendingMembers(c *gin.Context) {
+	saccoID := c.Param("saccoId")
+	members, err := h.service.ListPendingMembers(c.Request.Context(), saccoID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(gin.H{"members": members}))
+}
+
+func (h *Handler) HandleApproveMember(c *gin.Context) {
+	actorUserID := c.GetString("user_id")
+	saccoID := c.Param("saccoId")
+	membershipID := c.Param("membershipId")
+	result, err := h.service.ApproveMember(c.Request.Context(), actorUserID, saccoID, membershipID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(result))
+}
+
+func (h *Handler) HandleRejectMember(c *gin.Context) {
+	actorUserID := c.GetString("user_id")
+	saccoID := c.Param("saccoId")
+	membershipID := c.Param("membershipId")
+	result, err := h.service.RejectMember(c.Request.Context(), actorUserID, saccoID, membershipID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(result))
+}
+
 func (h *Handler) HandlePublicSummary(c *gin.Context) {
 	saccoID := c.Param("saccoId")
 
@@ -104,6 +138,16 @@ func (h *Handler) HandlePublicSummary(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response.Success(summary))
+}
+
+func (h *Handler) HandlePublicLedger(c *gin.Context) {
+	hash := c.Param("stellarHash")
+	entry, err := h.service.GetPublicLedgerByHash(c.Request.Context(), hash)
+	if err != nil {
+		c.JSON(http.StatusNotFound, response.Error(err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(entry))
 }
 
 // StaffRoles returns roles allowed for read-only SACCO staff endpoints.

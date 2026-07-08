@@ -132,6 +132,18 @@ func (r *Repository) List(ctx context.Context, filter ListFilter) ([]*Transactio
 	return list, rows.Err()
 }
 
+func (r *Repository) GetByStellarHash(ctx context.Context, stellarHash string) (*Transaction, error) {
+	query := `SELECT ` + txnColumns + ` FROM transactions WHERE stellar_tx_hash = $1 LIMIT 1`
+	t, err := scanTransaction(r.db.QueryRow(ctx, query, stellarHash))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, pgx.ErrNoRows
+		}
+		return nil, fmt.Errorf("failed to get transaction by stellar hash: %w", err)
+	}
+	return t, nil
+}
+
 // SaccoStats holds aggregate transaction counts for a SACCO.
 type SaccoStats struct {
 	Total    int

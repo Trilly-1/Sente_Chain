@@ -198,8 +198,15 @@ func (s *Service) Activate(ctx context.Context, actorUserID, saccoID, membership
 	if err != nil {
 		return nil, err
 	}
-	if target.Status != memberships.StatusSuspended {
-		return nil, errors.New("only suspended memberships can be reactivated")
+	// SACCO admins may activate staff-assisted registrations (pending_kyc / under_review)
+	// and reactivate suspended members. Project-admin KYC remains the public path.
+	switch target.Status {
+	case memberships.StatusSuspended, memberships.StatusPendingKYC, memberships.StatusUnderReview:
+		// allowed
+	case memberships.StatusActive:
+		return nil, errors.New("membership is already active")
+	default:
+		return nil, errors.New("membership cannot be activated from current status")
 	}
 
 	updated, err := s.membershipRepo.Activate(ctx, membershipID)
@@ -284,6 +291,121 @@ func (s *Service) GetPublicSummary(ctx context.Context, saccoID string) (*Public
 	}
 
 	return summary, nil
+}
+
+func (s *Service) ListPendingMembers(ctx context.Context, saccoID string) ([]PendingMemberItem, error) {
+	if err := s.requireApprovedSacco(ctx, saccoID); err != nil {
+		return nil, err
+	}
+	list, err := s.membershipRepo.ListBySacco(ctx, saccoID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]PendingMemberItem, 0)
+	for _, m := range list {
+		if m.Role != memberships.RoleMember {
+			continue
+		}
+		if m.Status != memberships.StatusPendingKYC && m.Status != memberships.StatusUnderReview {
+			continue
+		}
+		user, err := s.userRepo.GetByID(ctx, m.UserID.String())
+		if err != nil {
+			continue
+		}
+		item := PendingMemberItem{
+			MembershipID: m.ID.String(),
+			UserID:       user.ID.String(),
+			FullName:     user.FullName,
+			Phone:        user.Phone,
+			Status:       m.Status,
+		}
+		if !m.UpdatedAt.IsZero() {
+			item.SubmittedAt = m.UpdatedAt.UTC().Format(time.RFC3339)
+		} else {
+			item.SubmittedAt = m.CreatedAt.UTC().Format(time.RFC3339)
+		}
+		result = append(result, item)
+	}
+	return result, nil
+}
+
+func (s *Service) GetPublicLedgerByHash(ctx context.Context, stellarHash string) (*PublicLedgerEntry, error) {
+	if stellarHash == "" {
+		return nil, errors.New("stellar hash is required")
+	}
+	txn, err := s.txnRepo.GetByStellarHash(ctx, stellarHash)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("ledger entry not found")
+		}
+		return nil, err
+	}
+	entry := &PublicLedgerEntry{
+		TransactionID:   txn.ID.String(),
+		SaccoID:         txn.SaccoID.String(),
+		ReferenceNumber: txn.ReferenceNumber,
+		TransactionType: txn.TransactionType,
+		Amount:          txn.Amount,
+		Currency:        txn.Currency,
+		Status:          txn.Status,
+		CreatedAt:       txn.CreatedAt.UTC().Format(time.RFC3339),
+	}
+	if txn.StellarTxHash != nil {
+		entry.StellarTxHash = *txn.StellarTxHash
+	}
+	if txn.ProofHash != nil {
+		entry.ProofHash = *txn.ProofHash
+	}
+	return entry, nil
+}
+
+func (s *Service) ApproveMember(ctx context.Context, actorUserID, saccoID, membershipID string) (*MemberActionResponse, error) {
+	target, err := s.getSaccoMembership(ctx, saccoID, membershipID)
+	if err != nil {
+		return nil, err
+	}
+	if target.Role != memberships.RoleMember {
+		return nil, errors.New("only member applications can be approved")
+	}
+	if target.Status != memberships.StatusPendingKYC && target.Status != memberships.StatusUnderReview {
+		return nil, errors.New("member is not pending approval")
+	}
+	return s.Activate(ctx, actorUserID, saccoID, membershipID)
+}
+
+func (s *Service) RejectMember(ctx context.Context, actorUserID, saccoID, membershipID string) (*MemberActionResponse, error) {
+	target, err := s.getSaccoMembership(ctx, saccoID, membershipID)
+	if err != nil {
+		return nil, err
+	}
+	if target.Role != memberships.RoleMember {
+		return nil, errors.New("only member applications can be rejected")
+	}
+	if target.Status != memberships.StatusPendingKYC && target.Status != memberships.StatusUnderReview {
+		return nil, errors.New("member is not pending approval")
+	}
+	updated, err := s.membershipRepo.UpdateStatus(ctx, membershipID, memberships.StatusRejected)
+	if err != nil {
+		return nil, err
+	}
+	actorUUID, _ := uuid.Parse(actorUserID)
+	_, _ = s.auditRepo.Create(ctx, &audit.CreateRequest{
+		ActorUserID: &actorUUID,
+		Action:      audit.ActionMemberRejected,
+		EntityType:  "membership",
+		EntityID:    updated.ID,
+		Details: map[string]interface{}{
+			"sacco_id": saccoID,
+			"user_id":  target.UserID.String(),
+			"by":       "sacco_admin",
+		},
+	})
+	return &MemberActionResponse{
+		MembershipID: updated.ID.String(),
+		Role:         updated.Role,
+		Status:       updated.Status,
+	}, nil
 }
 
 func (s *Service) requireApprovedSacco(ctx context.Context, saccoID string) error {

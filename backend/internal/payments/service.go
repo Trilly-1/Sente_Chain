@@ -128,11 +128,27 @@ func (s *Service) GetInstructions(ctx context.Context, saccoID, membershipID str
 		PaymentReference: ref,
 		MemberReference:  shortRef,
 		Accounts:         display,
-		Instructions: []string{
-			"Money goes directly to your SACCO wallet — SenteChain never holds your funds.",
-			fmt.Sprintf("Include reference %s in the payment reason/message.", shortRef),
-			"Use Pay Now for STK prompt when API is connected, or pay manually to the numbers below.",
+		PaymentPurposes: []PurposeOption{
+			{Code: PurposeSavings, Label: "Savings deposit", Reference: EncodeReference(PurposeSavings, shortRef), Description: "Add to your savings balance"},
+			{Code: PurposeLoanRepayment, Label: "Loan repayment", Reference: EncodeReference(PurposeLoanRepayment, shortRef), Description: "Pay down an active loan"},
+			{Code: PurposeInterest, Label: "Interest payment", Reference: EncodeReference(PurposeInterest, shortRef), Description: "Pay loan or SACCO interest"},
 		},
+		USSDSteps: []string{
+			"Dial *334# (MTN) or *185# (Airtel) on your phone",
+			"Select Send Money / Mobile Money",
+			"Enter your SACCO official number (shown below)",
+			"Enter amount and confirm",
+			"Select purpose: Savings (S-), Loan (L-), or Interest (I-) and include your reference in the reason",
+		},
+		Instructions: []string{
+			"Money goes directly to your SACCO official account — SenteChain never holds your funds.",
+			fmt.Sprintf("Savings: use reference %s", EncodeReference(PurposeSavings, shortRef)),
+			fmt.Sprintf("Loan repayment: use reference %s", EncodeReference(PurposeLoanRepayment, shortRef)),
+			fmt.Sprintf("Interest: use reference %s", EncodeReference(PurposeInterest, shortRef)),
+			fmt.Sprintf("SenteChain service fee on savings: %.2f%% (deducted from credited amount)", PlatformFeePercent()),
+			"Your balance updates automatically once the payment is confirmed.",
+		},
+		PlatformFee:    PlatformFeeConfigPublic(),
 		MTNApiReady:    s.gateway != nil && s.gateway.MTN.Configured(),
 		AirtelApiReady: s.gateway != nil && s.gateway.Airtel.Configured(),
 	}, nil
@@ -172,6 +188,15 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 		shortRef = shortRef[:8]
 	}
 
+	purpose := req.Purpose
+	if purpose == "" {
+		purpose = PurposeSavings
+	}
+	if purpose != PurposeSavings && purpose != PurposeLoanRepayment && purpose != PurposeInterest {
+		return nil, errors.New("purpose must be savings, loan_repayment, or interest")
+	}
+	paymentRef := EncodeReference(purpose, shortRef)
+
 	payee, err := s.repo.FindAccountByProvider(ctx, req.SaccoID, provider)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -192,57 +217,89 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 		Currency:     "UGX",
 		PayerPhone:   payerPhone,
 		PayeePhone:   payee.PhoneNumber,
-		Reference:    shortRef,
+		Reference:    paymentRef,
 		Provider:     provider,
 	}
 
 	if s.gateway == nil {
-		return manualPayResponse(provider, req.Amount, shortRef, payee.PhoneNumber), nil
+		return manualPayResponse(provider, req.Amount, paymentRef, payee.PhoneNumber, purpose), nil
 	}
 
 	var result *RequestToPayResult
 	switch provider {
 	case ProviderMTNMoMo:
 		if !s.gateway.MTN.Configured() {
-			return manualPayResponse(provider, req.Amount, shortRef, payee.PhoneNumber), nil
+			return manualPayResponse(provider, req.Amount, paymentRef, payee.PhoneNumber, purpose), nil
 		}
 		result, err = s.gateway.MTN.RequestToPay(ctx, in)
 	case ProviderAirtelMoney:
 		if !s.gateway.Airtel.Configured() {
-			return manualPayResponse(provider, req.Amount, shortRef, payee.PhoneNumber), nil
+			return manualPayResponse(provider, req.Amount, paymentRef, payee.PhoneNumber, purpose), nil
 		}
 		result, err = s.gateway.Airtel.RequestToPay(ctx, in)
 	}
 	if err != nil {
 		if errors.Is(err, ErrProviderNotConfigured) {
-			return manualPayResponse(provider, req.Amount, shortRef, payee.PhoneNumber), nil
+			return manualPayResponse(provider, req.Amount, paymentRef, payee.PhoneNumber, purpose), nil
 		}
 		return nil, err
 	}
 
+	net, fee := payFeeBreakdown(purpose, req.Amount)
 	return &RequestToPayResponse{
-		Status:     result.Status,
-		Message:    result.Message,
-		ExternalID: result.ExternalID,
-		Provider:   provider,
-		Amount:     req.Amount,
-		Currency:   "UGX",
-		Mode:       "stk",
+		Status:      result.Status,
+		Message:     result.Message,
+		ExternalID:  result.ExternalID,
+		Provider:    provider,
+		Amount:      req.Amount,
+		GrossAmount: req.Amount,
+		NetAmount:   net,
+		PlatformFee: fee,
+		FeePercent:  PlatformFeePercent(),
+		Currency:    "UGX",
+		Mode:        "stk",
 	}, nil
 }
 
-func manualPayResponse(provider string, amount float64, ref, payeePhone string) *RequestToPayResponse {
+func payFeeBreakdown(purpose string, gross float64) (net, fee float64) {
+	if purpose == PurposeSavings {
+		return SplitGrossAmount(gross)
+	}
+	return gross, 0
+}
+
+func manualPayResponse(provider string, amount float64, ref, payeePhone, purpose string) *RequestToPayResponse {
 	label := "MTN MoMo"
 	if provider == ProviderAirtelMoney {
 		label = "Airtel Money"
 	}
+	purposeLabel := "savings"
+	switch purpose {
+	case PurposeLoanRepayment:
+		purposeLabel = "loan repayment"
+	case PurposeInterest:
+		purposeLabel = "interest"
+	}
+	net, fee := payFeeBreakdown(purpose, amount)
+	msg := fmt.Sprintf(
+		"USSD: dial *334# (MTN) or *185# (Airtel), send %s to %s on %s for %s. Include reference %s in the reason.",
+		FormatAmount(amount), payeePhone, label, purposeLabel, ref,
+	)
+	if fee > 0 {
+		msg += fmt.Sprintf(" Service fee %.2f%%: %s UGX — net to savings: %s UGX.",
+			PlatformFeePercent(), FormatAmount(fee), FormatAmount(net))
+	}
 	return &RequestToPayResponse{
-		Status:  "manual",
-		Mode:    "manual",
-		Provider: provider,
-		Amount:  amount,
-		Currency: "UGX",
-		Message: fmt.Sprintf("Pay %s to %s on %s and include reference %s in the reason. Your cashier will confirm once API keys are added.", FormatAmount(amount), payeePhone, label, ref),
+		Status:      "manual",
+		Mode:        "manual",
+		Provider:    provider,
+		Amount:      amount,
+		GrossAmount: amount,
+		NetAmount:   net,
+		PlatformFee: fee,
+		FeePercent:  PlatformFeePercent(),
+		Currency:    "UGX",
+		Message:     msg,
 	}
 }
 
@@ -260,6 +317,13 @@ func (s *Service) ProcessInbound(ctx context.Context, payload *WebhookPayload, r
 		payload.Currency = "UGX"
 	}
 
+	// Idempotent: providers may retry the same callback
+	if existing, err := s.repo.GetInboundByProviderExternalID(ctx, payload.Provider, payload.ExternalID); err == nil {
+		return existing, nil
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
 	saccoID, err := s.repo.FindSaccoByPayeePhone(ctx, payload.PayeePhone)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -273,6 +337,11 @@ func (s *Service) ProcessInbound(ctx context.Context, payload *WebhookPayload, r
 		membershipID, matchErr = s.repo.FindMembershipByPhone(ctx, saccoID, payload.PayerPhone)
 	}
 
+	purpose := payload.Purpose
+	if purpose == "" {
+		purpose, _ = ParseReference(payload.Reference)
+	}
+
 	if matchErr != nil {
 		sid, _ := uuid.Parse(saccoID)
 		return s.logInbound(ctx, &sid, payload, raw, EventUnmatched, nil, nil)
@@ -282,14 +351,36 @@ func (s *Service) ProcessInbound(ctx context.Context, payload *WebhookPayload, r
 	saccoUUID, _ := uuid.Parse(saccoID)
 	sid := saccoUUID
 
-	desc := fmt.Sprintf("Mobile money deposit via %s", payload.Provider)
+	txnType := transactions.TypeDeposit
+	descText := fmt.Sprintf("Mobile money %s via %s", purpose, payload.Provider)
+	switch purpose {
+	case PurposeLoanRepayment:
+		txnType = transactions.TypeLoanRepayment
+		descText = fmt.Sprintf("Loan repayment via %s", payload.Provider)
+	case PurposeInterest:
+		txnType = transactions.TypeFee
+		descText = fmt.Sprintf("Interest payment via %s", payload.Provider)
+	}
+
+	desc := descText
+	gross := payload.Amount
+	creditAmount := gross
+	var platformFee float64
+	if purpose == PurposeSavings && txnType == transactions.TypeDeposit {
+		creditAmount, platformFee = SplitGrossAmount(gross)
+	}
+
 	meta, _ := json.Marshal(map[string]interface{}{
-		"provider":      payload.Provider,
-		"external_id":   payload.ExternalID,
-		"payer_phone":   payload.PayerPhone,
-		"payee_phone":   payload.PayeePhone,
-		"reference":     payload.Reference,
-		"auto_matched":  true,
+		"provider":        payload.Provider,
+		"external_id":     payload.ExternalID,
+		"payer_phone":     payload.PayerPhone,
+		"payee_phone":     payload.PayeePhone,
+		"reference":       payload.Reference,
+		"payment_purpose": purpose,
+		"gross_amount":    gross,
+		"platform_fee":    platformFee,
+		"fee_percent":     PlatformFeePercent(),
+		"auto_matched":    true,
 	})
 
 	txn, err := s.txnRepo.Create(ctx, &transactions.CreateParams{
@@ -297,8 +388,8 @@ func (s *Service) ProcessInbound(ctx context.Context, payload *WebhookPayload, r
 		SaccoID:         saccoUUID,
 		MembershipID:    memUUID,
 		InitiatedBy:     memUUID,
-		TransactionType: transactions.TypeDeposit,
-		Amount:          FormatAmount(payload.Amount),
+		TransactionType: txnType,
+		Amount:          FormatAmount(creditAmount),
 		Currency:        strings.ToUpper(payload.Currency),
 		Description:     &desc,
 		ProofHash:       "",
@@ -306,6 +397,28 @@ func (s *Service) ProcessInbound(ctx context.Context, payload *WebhookPayload, r
 	})
 	if err != nil {
 		return s.logInbound(ctx, &sid, payload, raw, EventFailed, &memUUID, nil)
+	}
+
+	if platformFee > 0 {
+		feeDesc := "SenteChain platform service fee"
+		feeMeta, _ := json.Marshal(map[string]interface{}{
+			"fee_type":           "platform",
+			"gross_amount":       gross,
+			"linked_deposit_ref": txn.ReferenceNumber,
+			"external_id":        payload.ExternalID,
+		})
+		_, _ = s.txnRepo.Create(ctx, &transactions.CreateParams{
+			ReferenceNumber: transactions.GenerateReferenceNumber(),
+			SaccoID:         saccoUUID,
+			MembershipID:    memUUID,
+			InitiatedBy:     memUUID,
+			TransactionType: transactions.TypeFee,
+			Amount:          FormatAmount(platformFee),
+			Currency:        strings.ToUpper(payload.Currency),
+			Description:     &feeDesc,
+			ProofHash:       "",
+			Metadata:        feeMeta,
+		})
 	}
 
 	proofHash, err := transactions.ComputeProofHash(txn)
@@ -365,31 +478,55 @@ func (s *Service) requireApprovedSacco(ctx context.Context, saccoID string) erro
 }
 
 // ParseMTNWebhook maps MTN MoMo callback fields into a normalized payload.
-// Field names will be adjusted once live API credentials and docs are available.
 func ParseMTNWebhook(body map[string]interface{}) (*WebhookPayload, error) {
-	extID := stringField(body, "externalId", "financialTransactionId", "transactionId", "id")
+	// MTN may nest fields under "data" or send flat JSON
+	if data, ok := body["data"].(map[string]interface{}); ok {
+		body = mergeMaps(body, data)
+	}
+	extID := stringField(body, "externalId", "financialTransactionId", "transactionId", "id", "referenceId")
 	amount := floatField(body, "amount", "Amount")
+	ref := stringField(body, "externalReference", "payerMessage", "reference", "note", "payeeNote")
+	purpose, _ := ParseReference(ref)
 	return &WebhookPayload{
 		ExternalID: extID,
 		Amount:     amount,
 		Currency:   stringField(body, "currency", "Currency"),
-		PayerPhone: stringField(body, "payer", "payerPartyId", "payer_phone"),
-		PayeePhone: stringField(body, "payee", "payeePartyId", "payee_phone"),
-		Reference:  stringField(body, "externalReference", "payerMessage", "reference", "note"),
+		PayerPhone: stringField(body, "payer", "payerPartyId", "payer_phone", "payerMsisdn"),
+		PayeePhone: stringField(body, "payee", "payeePartyId", "payee_phone", "payeeMsisdn"),
+		Reference:  ref,
+		Purpose:    purpose,
 		Provider:   ProviderMTNMoMo,
 	}, nil
 }
 
+func mergeMaps(base, overlay map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(base)+len(overlay))
+	for k, v := range base {
+		out[k] = v
+	}
+	for k, v := range overlay {
+		out[k] = v
+	}
+	return out
+}
+
 func ParseAirtelWebhook(body map[string]interface{}) (*WebhookPayload, error) {
-	extID := stringField(body, "transaction_id", "id", "txn_id")
-	amount := floatField(body, "amount", "transaction_amount")
+	if data, ok := body["data"].(map[string]interface{}); ok {
+		body = mergeMaps(body, data)
+	}
+	if tx, ok := body["transaction"].(map[string]interface{}); ok {
+		body = mergeMaps(body, tx)
+	}
+	ref := stringField(body, "reference", "narration", "note", "external_reference")
+	purpose, _ := ParseReference(ref)
 	return &WebhookPayload{
-		ExternalID: extID,
-		Amount:     amount,
+		ExternalID: stringField(body, "transaction_id", "id", "txn_id", "external_id"),
+		Amount:     floatField(body, "amount", "transaction_amount"),
 		Currency:   stringField(body, "currency", "currency_code"),
 		PayerPhone: stringField(body, "msisdn", "payer_msisdn", "phone"),
 		PayeePhone: stringField(body, "payee_msisdn", "merchant_msisdn"),
-		Reference:  stringField(body, "reference", "narration", "note"),
+		Reference:  ref,
+		Purpose:    purpose,
 		Provider:   ProviderAirtelMoney,
 	}, nil
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -85,6 +86,20 @@ func (s *Service) Create(ctx context.Context, actorUserID string, req *CreateReq
 
 	if err := authorizeTransactionCreate(actorMembership, req.TransactionType, actor.IsProjectAdmin); err != nil {
 		return nil, err
+	}
+
+	if req.TransactionType == TypeWithdrawal {
+		bal, err := s.txnRepo.GetMemberBalance(ctx, targetMembership.ID.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to check member balance: %w", err)
+		}
+		amount, err := strconv.ParseFloat(req.Amount, 64)
+		if err != nil {
+			return nil, errors.New("invalid withdrawal amount")
+		}
+		if amount > bal.SavingsBalance {
+			return nil, fmt.Errorf("insufficient balance: available %.2f %s", bal.SavingsBalance, bal.Currency)
+		}
 	}
 
 	metadata := json.RawMessage(`{}`)

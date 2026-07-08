@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { apiGetMembers, apiListTransactions, apiRegister, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiCreateTransaction, apiAnchorTransaction, apiVerifyTransaction, apiListLoanProducts, apiCreateLoanProduct, apiGetPaymentAccounts, apiSavePaymentAccounts, apiGetPaymentIntegrationStatus } from "../services/api"
+import { apiGetMembers, apiListTransactions, apiStaffRegisterMember, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiCreateTransaction, apiAnchorTransaction, apiVerifyTransaction, apiListLoanProducts, apiCreateLoanProduct, apiGetPaymentAccounts, apiSavePaymentAccounts, apiGetPaymentIntegrationStatus, apiGetPendingMembers, apiApproveMember, apiRejectMember } from "../services/api"
 import { UGANDA } from "../data/countries"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
@@ -19,8 +19,8 @@ function useWindowSize() {
   return size;
 }
 
-const typeColor = { Deposit: T.green, Loan: T.goldMid, Repayment: "#059669" }
-const TABS = ["SACCO Summary", "Payment Settings", "Loan Products", "Members and Roles", "Register Member", "All Transactions"]
+const typeColor = { Deposit: T.green, Withdrawal: T.red, Loan: T.goldMid, Repayment: "#059669" }
+const TABS = ["SACCO Summary", "Payment Settings", "Loan Products", "Pending Approvals", "Members and Roles", "Register Member", "All Transactions"]
 
 const TH = (h) => (
   <th key={h} style={{ padding: "12px 20px", textAlign: "left", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: T.textDim, borderBottom: `1.5px solid ${T.border}`, background: T.surface, whiteSpace: "nowrap", fontFamily: T.fontMono }}>{h}</th>
@@ -40,6 +40,7 @@ export default function AdminDashboard() {
   const isMobile = width < 900
   const [tab, setTab] = useState("SACCO Summary")
   const [members, setMembers] = useState([])
+  const [pendingMembers, setPendingMembers] = useState([])
   const [allTxs, setAllTxs] = useState([])
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
@@ -59,19 +60,22 @@ export default function AdminDashboard() {
   const [payErr, setPayErr] = useState("")
   const [payLoading, setPayLoading] = useState(false)
   const [payIntegration, setPayIntegration] = useState(null)
+  const [staffTxnForm, setStaffTxnForm] = useState({ memberId: "", amount: "", type: "deposit" })
 
 
   useEffect(() => {
     if (!auth?.sacco_id) return
     async function load() {
       try {
-        const [mems, summary, products, payAccounts] = await Promise.all([
+        const [mems, summary, products, payAccounts, pending] = await Promise.all([
           apiGetMembers(auth.sacco_id),
           apiGetSaccoSummary(auth.sacco_id).catch(() => null),
           apiListLoanProducts(auth.sacco_id).catch(() => []),
           apiGetPaymentAccounts(auth.sacco_id).catch(() => []),
+          apiGetPendingMembers(auth.sacco_id).catch(() => []),
         ])
         setMembers(mems)
+        setPendingMembers(pending)
         setLoanProducts(products)
         const mtn = payAccounts.find((a) => a.provider === "mtn_momo")
         const airtel = payAccounts.find((a) => a.provider === "airtel_money")
@@ -102,17 +106,28 @@ export default function AdminDashboard() {
     await apiUpdateMemberRole(id, role, auth?.sacco_id)
     setMembers(prev => prev.map(m => m.member_id === id ? { ...m, role } : m))
   }
+  async function handleApprovePending(id) {
+    await apiApproveMember(id, auth.sacco_id)
+    const [mems, pending] = await Promise.all([apiGetMembers(auth.sacco_id), apiGetPendingMembers(auth.sacco_id)])
+    setMembers(mems)
+    setPendingMembers(pending)
+  }
+  async function handleRejectPending(id) {
+    await apiRejectMember(id, auth.sacco_id)
+    setPendingMembers((prev) => prev.filter((m) => m.member_id !== id))
+  }
   async function handleRegister(e) {
     e.preventDefault(); setRegErr(""); setRegLoading(true)
     try {
       const phone = UGANDA.prefix + regForm.phone.replace(/^0+/, "")
-      await apiRegister({
+      await apiStaffRegisterMember({
         name: regForm.name,
         phone,
-        role: regForm.role,
         pin: regForm.pin,
         country: UGANDA.code,
         saccoId: auth.sacco_id,
+        role: regForm.role === "cashier" ? "cashier" : "member",
+        activate: true,
       })
       const mems = await apiGetMembers(auth.sacco_id)
       setMembers(mems)
@@ -191,18 +206,28 @@ export default function AdminDashboard() {
     }
   }
 
-  async function handleRecordDeposit(membershipId, amount) {
-    if (!amount || !membershipId) return
+  async function handleRecordStaffTxn(e) {
+    e.preventDefault()
+    if (!staffTxnForm.memberId || !staffTxnForm.amount) return
+    const amount = parseFloat(staffTxnForm.amount)
+    const member = members.find((m) => m.member_id === staffTxnForm.memberId)
+    if (staffTxnForm.type === "withdrawal" && member && amount > member.balance_kes) {
+      alert(`Insufficient balance. Available: ${currency} ${member.balance_kes.toLocaleString()}`)
+      return
+    }
     try {
       const tx = await apiCreateTransaction({
         saccoId: auth.sacco_id,
-        membershipId,
-        transactionType: "deposit",
-        amount: String(amount),
+        membershipId: staffTxnForm.memberId,
+        transactionType: staffTxnForm.type,
+        amount: String(staffTxnForm.amount),
         currency,
-        description: "Admin-recorded deposit",
+        description: staffTxnForm.type === "withdrawal" ? "Admin-recorded withdrawal" : "Admin-recorded deposit",
       })
       setAllTxs((prev) => [tx, ...prev])
+      setStaffTxnForm((p) => ({ ...p, amount: "" }))
+      const mems = await apiGetMembers(auth.sacco_id)
+      setMembers(mems)
     } catch (err) { alert(err.message || "Failed to record transaction") }
   }
 
@@ -298,6 +323,34 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* PENDING APPROVALS */}
+        {!loading && tab === "Pending Approvals" && (
+          <div style={{ ...cardMd(), overflow: "hidden" }}>
+            <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
+              <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Pending Member Approvals</h2>
+              <p style={{ fontSize: "13px", color: T.textDim, margin: 0 }}>Members who signed up via Member Login and submitted KYC — approve them to access their dashboard.</p>
+            </div>
+            {pendingMembers.length === 0 ? (
+              <p style={{ padding: "32px", textAlign: "center", color: T.textDim }}>No pending applications.</p>
+            ) : (
+              <div style={{ padding: "16px", display: "grid", gap: "12px" }}>
+                {pendingMembers.map((m) => (
+                  <div key={m.member_id} style={{ padding: "16px 20px", border: `1px solid ${T.border}`, borderRadius: "12px", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+                    <div>
+                      <p style={{ fontSize: "15px", fontWeight: 700, color: T.textHi, margin: "0 0 2px" }}>{m.name}</p>
+                      <p style={{ fontSize: "12px", color: T.textDim, margin: 0 }}>{m.phone} • <StatusBadge status={m.status} /></p>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button onClick={() => handleApprovePending(m.member_id)} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: T.green, color: "#fff", fontWeight: 700, cursor: "pointer" }}>Approve</button>
+                      <button onClick={() => handleRejectPending(m.member_id)} style={{ padding: "8px 16px", borderRadius: "8px", border: `1px solid ${T.redBdr}`, background: T.redBg, color: T.red, fontWeight: 700, cursor: "pointer" }}>Reject</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -418,7 +471,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <p style={{ fontSize: "12px", color: T.textDim, margin: 0, lineHeight: 1.5 }}>
-                    After MTN/Airtel merchant API is connected, payments to these numbers will auto-credit members who include their reference.
+                    After members pay via USSD (*334# / *185#) to your official number with the correct reference, their balance updates automatically.
                   </p>
                   {payErr && <div style={{ padding: "12px", borderRadius: "10px", background: T.redBg, color: T.red, fontSize: "14px" }}>{payErr}</div>}
                   {payOk && <div style={{ padding: "12px", borderRadius: "10px", background: T.greenLite, color: T.green, fontSize: "14px", fontWeight: 700 }}>Payment numbers saved</div>}
@@ -509,8 +562,8 @@ export default function AdminDashboard() {
             <div style={{ ...cardMd(), overflow: "hidden" }}>
               <div style={{ height: "3px", background: `linear-gradient(90deg,${T.green},${T.goldMid})` }} />
               <div style={{ padding: "28px 32px" }}>
-                <h2 style={{ fontSize: "19px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Register New Member</h2>
-                <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 24px" }}>Add a new member to the SACCO system</p>
+                <h2 style={{ fontSize: "19px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Register Staff / Member</h2>
+                <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 24px" }}>Creates an active account. Cashiers can be hired here; promote later via Members and Roles if needed.</p>
                 <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   {[
                     { label: "Full Name", key: "name", type: "text", placeholder: "e.g. Sarah Nambi" },
@@ -531,15 +584,14 @@ export default function AdminDashboard() {
                   <div>
                     <Lbl text="Role" />
                     <select value={regForm.role} onChange={e => setRegForm(p => ({ ...p, role: e.target.value }))} style={{ ...inp(), cursor: "pointer" }}>
-                      <option value="member">Member</option>
-                      <option value="cashier">Cashier</option>
-                      <option value="admin">Admin</option>
+                      <option value="member">Member (active)</option>
+                      <option value="cashier">Cashier (active)</option>
                     </select>
                   </div>
                   {regErr && <div style={{ padding: "12px 16px", borderRadius: "10px", background: T.redBg, border: `1px solid ${T.redBdr}`, color: T.red, fontSize: "14px" }}>{regErr}</div>}
-                  {regOk && <div style={{ padding: "13px 16px", borderRadius: "10px", background: T.greenLite, border: `1px solid ${T.greenBdr}`, color: T.green, fontSize: "14px", fontWeight: 700 }}>Member registered. Login credentials sent via SMS.</div>}
+                  {regOk && <div style={{ padding: "13px 16px", borderRadius: "10px", background: T.greenLite, border: `1px solid ${T.greenBdr}`, color: T.green, fontSize: "14px", fontWeight: 700 }}>Account created and activated. They can log in with this phone + PIN.</div>}
                   <button type="submit" disabled={regLoading} style={{ padding: "14px", borderRadius: "10px", border: "none", fontFamily: T.font, background: regLoading ? T.border2 : T.green, color: regLoading ? T.textXdim : "#fff", fontSize: "15px", fontWeight: 800, cursor: regLoading ? "not-allowed" : "pointer" }}>
-                    {regLoading ? "Registering..." : "Register Member"}
+                    {regLoading ? "Registering..." : "Register & Activate"}
                   </button>
                 </form>
               </div>
@@ -551,6 +603,32 @@ export default function AdminDashboard() {
 
         {/* ALL TRANSACTIONS */}
         {!loading && tab === "All Transactions" && (
+          <div>
+            <form onSubmit={handleRecordStaffTxn} style={{ ...card(), padding: "16px 20px", marginBottom: "16px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "flex-end" }}>
+              <div style={{ flex: "0 1 120px" }}>
+                <Lbl text="Type" />
+                <select value={staffTxnForm.type} onChange={(e) => setStaffTxnForm((p) => ({ ...p, type: e.target.value }))} style={inp()}>
+                  <option value="deposit">Deposit</option>
+                  <option value="withdrawal">Withdrawal</option>
+                </select>
+              </div>
+              <div style={{ flex: "1 1 200px" }}>
+                <Lbl text="Member" />
+                <select value={staffTxnForm.memberId} onChange={(e) => setStaffTxnForm((p) => ({ ...p, memberId: e.target.value }))} style={inp()} required>
+                  <option value="">Select member</option>
+                  {members.filter((m) => m.role === "member" && m.status === "active" && (staffTxnForm.type === "deposit" || m.balance_kes > 0)).map((m) => (
+                    <option key={m.member_id} value={m.member_id}>{m.name} ({currency} {m.balance_kes.toLocaleString()})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: "0 1 140px" }}>
+                <Lbl text="Amount" />
+                <input type="number" min="1" placeholder="UGX" value={staffTxnForm.amount} onChange={(e) => setStaffTxnForm((p) => ({ ...p, amount: e.target.value }))} style={inp()} required />
+              </div>
+              <button type="submit" style={{ padding: "11px 18px", borderRadius: "9px", border: "none", background: staffTxnForm.type === "withdrawal" ? T.red : T.green, color: "#fff", fontWeight: 800, cursor: "pointer", fontFamily: T.font }}>
+                {staffTxnForm.type === "withdrawal" ? "Withdraw" : "Deposit"}
+              </button>
+            </form>
           <div style={{ ...cardMd(), overflow: "hidden" }}>
             <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff" }}>
               <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: 0 }}>All Transactions</h2>
@@ -613,6 +691,7 @@ export default function AdminDashboard() {
                 </table>
               </div>
             )}
+          </div>
           </div>
         )}
 

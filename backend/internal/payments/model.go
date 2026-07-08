@@ -48,24 +48,39 @@ type PaymentInstructions struct {
 	MemberReference    string           `json:"member_reference"`
 	Accounts           []AccountDisplay `json:"accounts"`
 	Instructions       []string         `json:"instructions"`
+	USSDSteps          []string         `json:"ussd_steps"`
+	PaymentPurposes    []PurposeOption  `json:"payment_purposes"`
+	PlatformFee        PlatformFeeConfig `json:"platform_fee"`
 	MTNApiReady        bool             `json:"mtn_api_ready"`
 	AirtelApiReady     bool             `json:"airtel_api_ready"`
+}
+
+type PurposeOption struct {
+	Code        string `json:"code"`
+	Label       string `json:"label"`
+	Reference   string `json:"reference"`
+	Description string `json:"description"`
 }
 
 type RequestToPayBody struct {
 	SaccoID  string  `json:"sacco_id"`
 	Amount   float64 `json:"amount"`
 	Provider string  `json:"provider"`
+	Purpose  string  `json:"purpose"`
 }
 
 type RequestToPayResponse struct {
-	Status    string `json:"status"`
-	Message   string `json:"message"`
-	ExternalID string `json:"external_id,omitempty"`
-	Provider  string `json:"provider"`
-	Amount    float64 `json:"amount"`
-	Currency  string `json:"currency"`
-	Mode      string `json:"mode"`
+	Status         string  `json:"status"`
+	Message        string  `json:"message"`
+	ExternalID     string  `json:"external_id,omitempty"`
+	Provider       string  `json:"provider"`
+	Amount         float64 `json:"amount"`
+	Currency       string  `json:"currency"`
+	Mode           string  `json:"mode"`
+	GrossAmount    float64 `json:"gross_amount,omitempty"`
+	NetAmount      float64 `json:"net_amount,omitempty"`
+	PlatformFee    float64 `json:"platform_fee,omitempty"`
+	FeePercent     float64 `json:"fee_percent,omitempty"`
 }
 
 type AccountDisplay struct {
@@ -102,4 +117,5 @@ type WebhookPayload struct {
 	PayeePhone  string  `json:"payee_phone"`
 	Reference   string  `json:"reference"`
 	Provider    string  `json:"provider"`
+	Purpose     string  `json:"purpose,omitempty"`
 }

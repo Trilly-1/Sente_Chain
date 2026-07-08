@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { T, card } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { apiGetOnboardingStatus, apiListSaccos } from "../services/api"
+import { apiGetOnboardingStatus, apiListSaccos, apiGetMe } from "../services/api"
 
 function useWindowSize() {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -30,7 +30,7 @@ const StatusBadge = ({ status }) => {
 
 export default function MemberVerificationPending() {
   const navigate = useNavigate()
-  const { auth, logout } = useAuth()
+  const { auth, logout, login } = useAuth()
   const { width } = useWindowSize()
   const isMobile = width < 768
   
@@ -57,6 +57,19 @@ export default function MemberVerificationPending() {
       })
       .catch(() => {})
   }, [auth?.sacco_id])
+
+  useEffect(() => {
+    const poll = setInterval(async () => {
+      try {
+        const me = await apiGetMe()
+        if (me?.status === "active") {
+          login(me)
+          navigate("/dashboard", { replace: true })
+        }
+      } catch { /* ignore */ }
+    }, 12000)
+    return () => clearInterval(poll)
+  }, [login, navigate])
 
   const defaultDocs = [
     { name: "National ID (Front)", status: "In Review", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2"/></svg> },
@@ -105,7 +118,7 @@ export default function MemberVerificationPending() {
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <h1 style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: 900, color: T.textHi, marginBottom: "8px" }}>Verification in Progress</h1>
-          <p style={{ color: T.textMid, fontSize: isMobile ? "14px" : "16px", marginBottom: "20px" }}>Welcome to <strong>{saccoName}</strong>. We are currently reviewing your documents.</p>
+          <p style={{ color: T.textMid, fontSize: isMobile ? "14px" : "16px", marginBottom: "20px" }}>Welcome to <strong>{saccoName}</strong>. Your SACCO administrator is reviewing your application.</p>
           <StatusBadge status={status} />
         </div>
 
@@ -133,7 +146,7 @@ export default function MemberVerificationPending() {
             <div style={{ ...card(), background: T.blueBg, border: `1px solid ${T.blueBdr}`, padding: "20px" }}>
               <h3 style={{ fontSize: "14px", fontWeight: 800, marginBottom: "8px", color: T.blue }}>Why wait?</h3>
               <p style={{ fontSize: "12px", color: T.textMid, lineHeight: 1.5, margin: 0 }}>
-                To comply with regional financial regulations, each member must be manually verified by the SACCO. This keeps the network secure and trusted.
+                To comply with SACCO policy, each member must be approved by your SACCO administrator before accessing personal records. You will be redirected automatically once approved.
               </p>
             </div>
             

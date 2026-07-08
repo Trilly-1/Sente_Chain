@@ -160,6 +160,7 @@ export default function SACCOPublicView() {
                         <div>
                           <p style={{ fontSize:"14px", fontWeight:700, color:T.textHi, margin:"0 0 2px" }}>{tx.type}</p>
                           <p style={{ fontSize:"12px", fontFamily:T.fontMono, color:T.textDim, margin:0 }}>{tx.entry_type==="MOMO"||tx.entry_type==="MPESA"?"MTN MoMo":"Admin"}</p>
+                          <StellarHashLink hash={tx.stellar_tx_hash} isCompact />
                         </div>
                         <span style={{ fontFamily:T.fontMono, fontSize:"14px", fontWeight:800, color:typeColor[tx.type]||T.textHi }}>{currency} {tx.amount_kes.toLocaleString()}</span>
                       </div>

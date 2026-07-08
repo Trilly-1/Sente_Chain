@@ -151,6 +151,7 @@ func (s *Server) registerSaccoOpsPublicRoutes() {
 	handler := saccoops.NewHandler(service)
 
 	s.engine.GET("/saccos/:saccoId/public", middleware.CacheControl(60), handler.HandlePublicSummary)
+	s.engine.GET("/public/ledger/:stellarHash", middleware.CacheControl(300), handler.HandlePublicLedger)
 }
 
 func (s *Server) registerSaccoOpsRoutes() {
@@ -183,9 +184,12 @@ func (s *Server) registerSaccoOpsRoutes() {
 		middleware.SaccoStaffMiddleware(s.pool, saccoops.AdminOnlyRoles()...),
 	)
 	{
+		adminGroup.GET("/members/pending", handler.HandleListPendingMembers)
 		adminGroup.PATCH("/members/:membershipId/role", handler.HandleUpdateRole)
 		adminGroup.PATCH("/members/:membershipId/suspend", handler.HandleSuspend)
 		adminGroup.PATCH("/members/:membershipId/activate", handler.HandleActivate)
+		adminGroup.PATCH("/members/:membershipId/approve", handler.HandleApproveMember)
+		adminGroup.PATCH("/members/:membershipId/reject", handler.HandleRejectMember)
 	}
 }
 
@@ -254,7 +258,11 @@ func (s *Server) registerPaymentRoutes() {
 	handler := payments.NewHandler(service, providers)
 
 	s.engine.GET("/payments/integration-status", handler.HandleIntegrationStatus)
+	s.engine.GET("/public/platform-config", middleware.CacheControl(300), handler.HandlePlatformConfig)
+	s.engine.GET("/webhooks/health", handler.HandleWebhookHealth)
+	s.engine.GET("/webhooks/mtn/momo", handler.HandleMTNWebhookPing)
 	s.engine.POST("/webhooks/mtn/momo", handler.HandleMTNWebhook)
+	s.engine.GET("/webhooks/airtel/money", handler.HandleAirtelWebhookPing)
 	s.engine.POST("/webhooks/airtel/money", handler.HandleAirtelWebhook)
 	if !s.cfg.IsProduction() {
 		s.engine.POST("/webhooks/test/inbound-payment", handler.HandleTestWebhook)

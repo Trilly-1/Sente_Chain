@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { T, card, cardMd } from "../styles/theme"
 import { useAuth } from "../context/AuthContext"
-import { apiGetSacco, apiGetLoans, apiApproveLoan, apiRejectLoan, apiGetMembers, apiListTransactions, apiCreateTransaction, apiAnchorTransaction, apiRepayLoan } from "../services/api"
+import { apiGetSaccoSummary, apiGetLoans, apiApproveLoan, apiRejectLoan, apiGetMembers, apiListTransactions, apiCreateTransaction, apiAnchorTransaction, apiRepayLoan } from "../services/api"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
@@ -23,7 +23,7 @@ const methodBadge = {
   MPESA:{ bg:T.greenLite, color:T.green, bdr:T.greenBdr, label:"MTN MoMo" },
   ADMIN:{ bg:T.goldLite,  color:T.goldMid, bdr:T.goldBdr,  label:"Admin"  },
 }
-const typeColor = { Deposit:T.green, Loan:T.goldMid, Repayment:"#059669" }
+const typeColor = { Deposit:T.green, Withdrawal:T.red, Loan:T.goldMid, Repayment:"#059669" }
 const TABS = ["Loan Requests","Active Loans","All Members","Transaction History"]
 
 const TH = (h) => (
@@ -50,6 +50,7 @@ export default function CashierDashboard() {
   const [allTxs,   setAllTxs]   = useState([])
   const [expanded, setExpanded] = useState(null)
   const [depositForm, setDepositForm] = useState({ memberId: "", amount: "" })
+  const [withdrawForm, setWithdrawForm] = useState({ memberId: "", amount: "" })
   const [search,   setSearch]   = useState("")
   const [loading,  setLoading]  = useState(true)
   const [saccoName, setSaccoName] = useState("")
@@ -59,8 +60,8 @@ export default function CashierDashboard() {
 
   useEffect(() => {
     if (!auth?.sacco_id) return
-    apiGetSacco(auth.sacco_id)
-      .then((data) => setSaccoName(data.sacco?.name || data.name || ""))
+    apiGetSaccoSummary(auth.sacco_id)
+      .then((data) => setSaccoName(data.name || ""))
       .catch(() => setSaccoName(""))
   }, [auth?.sacco_id])
 
@@ -127,8 +128,44 @@ export default function CashierDashboard() {
         setSelTxs((prev) => [tx, ...prev])
       }
       setDepositForm({ memberId: depositForm.memberId, amount: "" })
+      const updatedMembers = await apiGetMembers(auth.sacco_id)
+      setMembers(updatedMembers)
     } catch (err) {
       alert(err.message || "Failed to record deposit")
+    }
+  }
+
+  async function recordWithdrawal(e) {
+    e.preventDefault()
+    if (!withdrawForm.memberId || !withdrawForm.amount) return
+    const amount = parseFloat(withdrawForm.amount)
+    const member = members.find((m) => m.member_id === withdrawForm.memberId)
+    if (member && amount > member.balance_kes) {
+      alert(`Insufficient balance. Available: ${currency} ${member.balance_kes.toLocaleString()}`)
+      return
+    }
+    try {
+      const tx = await apiCreateTransaction({
+        saccoId: auth.sacco_id,
+        membershipId: withdrawForm.memberId,
+        transactionType: "withdrawal",
+        amount: withdrawForm.amount,
+        currency,
+        description: "Cashier-recorded withdrawal",
+      })
+      setAllTxs((prev) => [tx, ...prev])
+      if (selected?.member_id === withdrawForm.memberId) {
+        setSelTxs((prev) => [tx, ...prev])
+      }
+      setWithdrawForm({ memberId: withdrawForm.memberId, amount: "" })
+      const updatedMembers = await apiGetMembers(auth.sacco_id)
+      setMembers(updatedMembers)
+      if (selected?.member_id === withdrawForm.memberId) {
+        const refreshed = updatedMembers.find((m) => m.member_id === withdrawForm.memberId)
+        if (refreshed) setSelected(refreshed)
+      }
+    } catch (err) {
+      alert(err.message || "Failed to record withdrawal")
     }
   }
 
@@ -476,20 +513,35 @@ export default function CashierDashboard() {
         {/* TRANSACTION HISTORY */}
         {!loading && tab==="Transaction History" && (
           <div>
-            <form onSubmit={recordDeposit} style={{ ...card(), padding: "16px 20px", marginBottom: "20px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "flex-end" }}>
+            <form onSubmit={recordDeposit} style={{ ...card(), padding: "16px 20px", marginBottom: "12px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "flex-end", borderLeft: `4px solid ${T.green}` }}>
               <div style={{ flex: "1 1 200px" }}>
                 <p style={{ fontSize: "11px", fontWeight: 700, color: T.textDim, marginBottom: "6px" }}>RECORD DEPOSIT</p>
                 <select value={depositForm.memberId} onChange={e => setDepositForm(p => ({ ...p, memberId: e.target.value }))} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${T.border}` }} required>
                   <option value="">Select member</option>
-                  {members.filter(m => m.role === "member").map(m => (
-                    <option key={m.member_id} value={m.member_id}>{m.name}</option>
+                  {members.filter(m => m.role === "member" && m.status === "active").map(m => (
+                    <option key={m.member_id} value={m.member_id}>{m.name} ({currency} {m.balance_kes.toLocaleString()})</option>
                   ))}
                 </select>
               </div>
               <div style={{ flex: "0 1 140px" }}>
                 <input type="number" min="1" placeholder="Amount" value={depositForm.amount} onChange={e => setDepositForm(p => ({ ...p, amount: e.target.value }))} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${T.border}` }} required />
               </div>
-              <button type="submit" style={{ padding: "10px 18px", borderRadius: "8px", border: "none", background: T.green, color: "#fff", fontWeight: 700, cursor: "pointer" }}>Record</button>
+              <button type="submit" style={{ padding: "10px 18px", borderRadius: "8px", border: "none", background: T.green, color: "#fff", fontWeight: 700, cursor: "pointer" }}>Deposit</button>
+            </form>
+            <form onSubmit={recordWithdrawal} style={{ ...card(), padding: "16px 20px", marginBottom: "20px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "flex-end", borderLeft: `4px solid ${T.red}` }}>
+              <div style={{ flex: "1 1 200px" }}>
+                <p style={{ fontSize: "11px", fontWeight: 700, color: T.textDim, marginBottom: "6px" }}>RECORD WITHDRAWAL</p>
+                <select value={withdrawForm.memberId} onChange={e => setWithdrawForm(p => ({ ...p, memberId: e.target.value }))} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${T.border}` }} required>
+                  <option value="">Select member</option>
+                  {members.filter(m => m.role === "member" && m.status === "active" && m.balance_kes > 0).map(m => (
+                    <option key={m.member_id} value={m.member_id}>{m.name} (bal {currency} {m.balance_kes.toLocaleString()})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: "0 1 140px" }}>
+                <input type="number" min="1" placeholder="Amount" value={withdrawForm.amount} onChange={e => setWithdrawForm(p => ({ ...p, amount: e.target.value }))} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: `1px solid ${T.border}` }} required />
+              </div>
+              <button type="submit" style={{ padding: "10px 18px", borderRadius: "8px", border: "none", background: T.red, color: "#fff", fontWeight: 700, cursor: "pointer" }}>Withdraw</button>
             </form>
             <div style={{ display:"flex", gap:"8px", marginBottom:"20px", flexWrap:"wrap", alignItems:"center" }}>
               <p style={{ fontSize:"14px", fontWeight:600, color:T.textMid, margin:0 }}>Select member:</p>

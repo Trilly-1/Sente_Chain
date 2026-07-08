@@ -3,6 +3,7 @@ package payments
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,7 +11,7 @@ import (
 )
 
 type Handler struct {
-	service  *Service
+	service   *Service
 	providers *ProviderGateway
 }
 
@@ -75,14 +76,46 @@ func (h *Handler) HandleRequestToPay(c *gin.Context) {
 
 func (h *Handler) HandleIntegrationStatus(c *gin.Context) {
 	if h.providers == nil {
-		c.JSON(http.StatusOK, response.Success(IntegrationStatus{WebhooksReady: true}))
+		c.JSON(http.StatusOK, response.Success(IntegrationStatus{
+			WebhooksReady: true,
+			WebhookEndpoints: map[string]string{
+				"mtn_momo":     "/webhooks/mtn/momo",
+				"airtel_money": "/webhooks/airtel/money",
+				"health":       "/webhooks/health",
+			},
+		}))
 		return
 	}
 	c.JSON(http.StatusOK, response.Success(h.providers.Status()))
 }
 
+func (h *Handler) HandlePlatformConfig(c *gin.Context) {
+	c.JSON(http.StatusOK, response.Success(PlatformFeeConfigPublic()))
+}
+
+// HandleWebhookHealth confirms webhook routes are live (for ops / provider URL checks).
+func (h *Handler) HandleWebhookHealth(c *gin.Context) {
+	c.JSON(http.StatusOK, response.Success(gin.H{
+		"status":  "ready",
+		"message": "Payment webhooks are accepting POST callbacks",
+		"endpoints": gin.H{
+			"mtn_momo":     "POST /webhooks/mtn/momo",
+			"airtel_money": "POST /webhooks/airtel/money",
+		},
+	}))
+}
+
+func (h *Handler) HandleMTNWebhookPing(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "provider": "mtn_momo"})
+}
+
+func (h *Handler) HandleAirtelWebhookPing(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "provider": "airtel_money"})
+}
+
 func (h *Handler) HandleMTNWebhook(c *gin.Context) {
 	if h.providers != nil && !h.providers.VerifyMTNWebhook(c.GetHeader("X-Callback-Signature")) {
+		log.Printf("payments: rejected MTN webhook — invalid signature")
 		c.JSON(http.StatusUnauthorized, response.Error("invalid webhook signature"))
 		return
 	}
@@ -99,14 +132,16 @@ func (h *Handler) HandleMTNWebhook(c *gin.Context) {
 	raw, _ := json.Marshal(body)
 	event, err := h.service.ProcessInbound(c.Request.Context(), payload, raw)
 	if err != nil {
+		log.Printf("payments: MTN webhook processing error: %v", err)
 		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, response.Success(event))
+	respondWebhookOK(c, event)
 }
 
 func (h *Handler) HandleAirtelWebhook(c *gin.Context) {
 	if h.providers != nil && !h.providers.VerifyAirtelWebhook(c.GetHeader("X-Airtel-Signature")) {
+		log.Printf("payments: rejected Airtel webhook — invalid signature")
 		c.JSON(http.StatusUnauthorized, response.Error("invalid webhook signature"))
 		return
 	}
@@ -123,10 +158,11 @@ func (h *Handler) HandleAirtelWebhook(c *gin.Context) {
 	raw, _ := json.Marshal(body)
 	event, err := h.service.ProcessInbound(c.Request.Context(), payload, raw)
 	if err != nil {
+		log.Printf("payments: Airtel webhook processing error: %v", err)
 		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, response.Success(event))
+	respondWebhookOK(c, event)
 }
 
 // HandleTestWebhook accepts a normalized payload for integration testing before live APIs.
@@ -142,7 +178,18 @@ func (h *Handler) HandleTestWebhook(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, response.Success(event))
+	respondWebhookOK(c, event)
+}
+
+// respondWebhookOK returns 200 so providers stop retrying; includes match status for debugging.
+func respondWebhookOK(c *gin.Context, event *InboundEvent) {
+	c.JSON(http.StatusOK, response.Success(gin.H{
+		"received":       true,
+		"event_id":       event.ID,
+		"status":         event.Status,
+		"transaction_id": event.TransactionID,
+		"membership_id":  event.MembershipID,
+	}))
 }
 
 func readWebhookBody(c *gin.Context) (map[string]interface{}, error) {

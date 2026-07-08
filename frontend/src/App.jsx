@@ -12,6 +12,7 @@ import VerificationPending from "./pages/VerificationPending"
 import MemberOnboarding from "./pages/MemberOnboarding"
 import MemberVerificationPending from "./pages/MemberVerificationPending"
 import ProjectAdminDashboard from "./pages/ProjectAdminDashboard"
+import LedgerProof from "./pages/LedgerProof"
 
 function RoleRoute() {
   const { auth } = useAuth()
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/"               element={<RootRoute />} />
           <Route path="/auth"           element={<AuthRoute />} />
           <Route path="/sacco/:saccoId" element={<SACCOPublicView />} />
+          <Route path="/ledger/:stellarHash" element={<LedgerProof />} />
           <Route path="/register-sacco" element={<SACCORegistration />} />
           <Route path="/member-onboarding" element={<MemberOnboarding />} />
           <Route path="/verification-pending" element={<VerificationPending />} />
