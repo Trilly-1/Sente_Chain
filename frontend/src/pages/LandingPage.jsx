@@ -1,14 +1,14 @@
 // src/pages/LandingPage.jsx
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
-import { apiGetPublicStats, apiListSaccos } from "../services/api"
+import { apiGetPublicStats, apiListSaccos, apiContact } from "../services/api"
 import { UGANDA } from "../data/countries"
 
 const C = {
   pageBg: "#ffffff", surfaceBg: "#f8faf8", cardBg: "#ffffff",
   green: "#15803d", greenMid: "#16a34a", greenLite: "#dcfce7", greenBdr: "#bbf7d0", greenDark: "#14532d",
   gold: "#b45309", goldMid: "#d97706", goldLite: "#fef3c7", goldBdr: "#fde68a", goldDark: "#78350f",
-  textHi: "#0a0a0a", textMid: "#374151", textDim: "#6b7280", textXdim: "#9ca3af",
+  textHi: "#0a0a0a", textMid: "#1f2937", textDim: "#374151", textXdim: "#6b7280",
   border: "#e5e7eb", border2: "#f3f4f6", borderDark: "#d1d5db",
   font: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   fontMono: "'JetBrains Mono', 'Roboto Mono', ui-monospace, monospace",
@@ -62,7 +62,7 @@ const SLIDES = [
 ]
 
 // ── NAVBAR ──────────────────────────────────────────────────────────────────
-function Navbar({ onHome, onFeatures, onAbout, onGetStarted }) {
+function Navbar({ onHome, onFeatures, onAbout, onContact, onGetStarted }) {
   const [scrolled, setScrolled] = useState(false)
   const [activeNav, setActiveNav] = useState("home")
   const [menuOpen, setMenuOpen] = useState(false)
@@ -80,6 +80,7 @@ function Navbar({ onHome, onFeatures, onAbout, onGetStarted }) {
     { id: "home", label: "Home", fn: onHome },
     { id: "features", label: "Features", fn: onFeatures },
     { id: "about", label: "About", fn: onAbout },
+    { id: "contact", label: "Contact", fn: onContact },
     { id: "getstarted", label: "Get Started", fn: onGetStarted },
   ]
 
@@ -382,7 +383,7 @@ function About({ aboutRef }) {
     { title: "Instant SMS Proof", body: "Every confirmed transaction sends an SMS to the member with a Stellar hash link they can verify independently.", accent: C.goldMid, lite: C.goldLite, bdr: C.goldBdr },
   ]
   return (
-    <section ref={aboutRef} style={{ background: C.surfaceBg, padding: isMobile ? "80px 24px" : "100px 64px", borderTop: `1px solid ${C.border}` }}>
+    <section ref={aboutRef} id="about" style={{ background: C.surfaceBg, padding: isMobile ? "80px 24px" : "100px 64px", borderTop: `1px solid ${C.border}` }}>
       <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: "60px" }}>
           <h2 style={{ fontSize: isMobile ? "32px" : "42px", fontWeight: 900, color: C.textHi, margin: "0 0 16px", fontFamily: C.font, letterSpacing: "-0.5px" }}>
@@ -444,7 +445,7 @@ function SaccoDirectory({ directoryRef, saccos, loading }) {
                 onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none" }}>
                 <p style={{ fontSize: "11px", fontWeight: 700, color: C.green, textTransform: "uppercase", letterSpacing: "1.2px", margin: "0 0 10px", fontFamily: C.fontMono }}>{s.code}</p>
                 <p style={{ fontSize: "20px", fontWeight: 900, color: C.textHi, margin: "0 0 8px", fontFamily: C.font }}>{s.name}</p>
-                <p style={{ fontSize: "13px", color: C.textDim, margin: "0 0 20px", fontFamily: C.font }}>{UGANDA.flag} Uganda</p>
+                <p style={{ fontSize: "13px", color: C.textDim, margin: "0 0 20px", fontFamily: C.font }}>Uganda</p>
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                   <button onClick={() => navigate(`/sacco/${s.id}`)} style={{ padding: "10px 16px", borderRadius: "9px", border: "none", background: C.green, color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: C.font }}>
                     View Ledger
@@ -558,6 +559,74 @@ function CTA({ ctaRef }) {
   )
 }
 
+// ── CONTACT ───────────────────────────────────────────────────────────────────
+function Contact({ contactRef }) {
+  const { width } = useWindowSize()
+  const isMobile = width < 900
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [msg, setMsg] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState("")
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+    try {
+      const res = await apiContact({ name, email, message: msg })
+      setSent(true)
+      if (res?.mailto) window.location.href = res.mailto
+      setTimeout(() => { setSent(false); setName(""); setEmail(""); setMsg("") }, 4000)
+    } catch (err) {
+      setError(err.message || "Could not send. Try support@sentechain.app")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const field = {
+    background: "#fff", border: `1.5px solid ${C.border}`, color: C.textHi,
+    borderRadius: "10px", padding: "13px 16px", width: "100%", outline: "none",
+    fontSize: "15px", fontFamily: C.font,
+  }
+
+  return (
+    <section ref={contactRef} id="contact" style={{ background: C.surfaceBg, padding: isMobile ? "72px 20px" : "96px 64px", borderTop: `1px solid ${C.border}` }}>
+      <div style={{ maxWidth: "720px", margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: isMobile ? "32px" : "40px" }}>
+          <h2 style={{ fontSize: isMobile ? "28px" : "36px", fontWeight: 900, color: C.textHi, margin: "0 0 12px", fontFamily: C.font, letterSpacing: "-0.5px" }}>
+            Get in <span style={{ color: C.green }}>touch</span>
+          </h2>
+          <p style={{ fontSize: "16px", color: C.textMid, lineHeight: 1.6, margin: 0, fontFamily: C.font }}>
+            Reach the SenteChain team about onboarding, partnerships, or support.
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: "16px", padding: isMobile ? "24px 18px" : "32px", display: "flex", flexDirection: "column", gap: "14px", boxShadow: "0 4px 24px rgba(0,0,0,0.04)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "14px" }}>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" required style={field} />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required style={field} />
+          </div>
+          <textarea value={msg} onChange={e => setMsg(e.target.value)} placeholder="Your message" required rows={4} style={{ ...field, resize: "vertical", lineHeight: 1.5 }} />
+          {error && <p style={{ margin: 0, color: "#dc2626", fontSize: "14px" }}>{error}</p>}
+          {sent && <p style={{ margin: 0, color: C.green, fontSize: "14px", fontWeight: 700 }}>Thanks — we received your message.</p>}
+          <button type="submit" disabled={loading} style={{
+            padding: "14px 24px", borderRadius: "10px", border: "none", fontFamily: C.font,
+            background: loading ? C.border : C.green, color: "#fff", fontSize: "15px", fontWeight: 800,
+            cursor: loading ? "not-allowed" : "pointer", alignSelf: isMobile ? "stretch" : "flex-start",
+          }}>
+            {loading ? "Sending..." : "Send message"}
+          </button>
+          <p style={{ margin: 0, fontSize: "13px", color: C.textDim, fontFamily: C.font }}>
+            Prefer email? <a href="mailto:support@sentechain.app" style={{ color: C.green, fontWeight: 600, textDecoration: "none" }}>support@sentechain.app</a>
+          </p>
+        </form>
+      </div>
+    </section>
+  )
+}
+
 // ── FOOTER ──────────────────────────────────────────────────────────────────
 function Footer() {
   const { width } = useWindowSize()
@@ -566,7 +635,7 @@ function Footer() {
   return (
     <footer style={{ background: C.greenDark, color: "#fff" }}>
       <div style={{ maxWidth: "1100px", margin: "0 auto", padding: isMobile ? "48px 24px 36px" : "64px 64px 36px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr 1fr 1fr", gap: "48px", marginBottom: "56px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr 1fr", gap: "48px", marginBottom: "56px" }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
               <img src="/image10.png" alt="Logo" style={{ height: "36px", objectFit: "contain" }} />
@@ -579,16 +648,21 @@ function Footer() {
             </p>
           </div>
           {[
-            { title: "Platform", links: ["Member Dashboard", "Cashier Portal", "Admin Dashboard", "Public Ledger"] },
-            { title: "Company", links: ["About", "Contact Us", "Blog", "Careers"] },
-            { title: "Resources", links: ["Stellar Network", "Mobile Money API", "Africa's Talking"] },
+            { title: "Company", links: [
+              { label: "About", href: "#about" },
+              { label: "Contact Us", href: "#contact" },
+            ]},
+            { title: "Resources", links: [
+              { label: "Stellar Network", href: "https://stellar.org" },
+              { label: "Support", href: "mailto:support@sentechain.app" },
+            ]},
           ].map(col => (
             <div key={col.title}>
               <p style={{ fontSize: "12px", fontWeight: 700, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "16px", fontFamily: C.fontMono }}>{col.title}</p>
               {col.links.map(l => (
-                <p key={l} style={{ fontSize: "14px", color: "rgba(255,255,255,0.65)", margin: "0 0 10px", fontFamily: C.font, cursor: "pointer", transition: "color 0.18s" }}
+                <a key={l.label} href={l.href} style={{ display: "block", fontSize: "14px", color: "rgba(255,255,255,0.65)", margin: "0 0 10px", fontFamily: C.font, textDecoration: "none", transition: "color 0.18s" }}
                   onMouseEnter={e => e.currentTarget.style.color = "#fff"}
-                  onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.65)"}>{l}</p>
+                  onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.65)"}>{l.label}</a>
               ))}
             </div>
           ))}
@@ -600,10 +674,8 @@ function Footer() {
             <span style={{ color: "#4ade80" }}>Stellar Blockchain</span>
           </p>
           <div style={{ display: "flex", gap: "24px" }}>
-            {["Privacy Policy", "Terms of Service", "Data Protection"].map(l => (
-              <span key={l} style={{ fontSize: "13px", color: "rgba(255,255,255,0.40)", cursor: "pointer", fontFamily: C.fontMono, transition: "color 0.18s" }}
-                onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.75)"}
-                onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.40)"}>{l}</span>
+            {["Privacy Policy", "Terms of Service"].map(l => (
+              <span key={l} style={{ fontSize: "13px", color: "rgba(255,255,255,0.40)", fontFamily: C.fontMono }}>{l}</span>
             ))}
           </div>
         </div>
@@ -619,6 +691,7 @@ export default function LandingPage() {
   const aboutRef = useRef(null)
   const directoryRef = useRef(null)
   const ctaRef = useRef(null)
+  const contactRef = useRef(null)
   const [stats, setStats] = useState(null)
   const [saccos, setSaccos] = useState([])
   const [statsLoading, setStatsLoading] = useState(true)
@@ -676,6 +749,7 @@ export default function LandingPage() {
         onHome={() => scrollTo(heroRef)}
         onFeatures={() => scrollTo(sliderRef)}
         onAbout={() => scrollTo(aboutRef)}
+        onContact={() => scrollTo(contactRef)}
         onGetStarted={() => scrollTo(ctaRef)}
       />
       <Hero heroRef={heroRef} stats={stats} statsLoading={statsLoading} />
@@ -683,6 +757,7 @@ export default function LandingPage() {
       <About aboutRef={aboutRef} />
       <SaccoDirectory directoryRef={directoryRef} saccos={saccos} loading={saccosLoading} />
       <CTA ctaRef={ctaRef} />
+      <Contact contactRef={contactRef} />
       <Footer />
     </div>
   )

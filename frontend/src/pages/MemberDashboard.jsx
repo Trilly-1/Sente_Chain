@@ -207,8 +207,8 @@ export default function MemberDashboard() {
           ].map(c => (
             <div key={c.label} style={{ ...card(), padding: isMobile ? "18px 16px" : "22px 20px", position:"relative", overflow:"hidden" }}>
               <div style={{ position:"absolute", top:0, left:0, right:0, height:"2px", background:c.accent }} />
-              <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"8px" }}>{c.label}</p>
-              <p style={{ fontSize: isMobile ? "20px" : "24px", fontWeight:700, color:T.textHi, fontVariantNumeric:"tabular-nums", letterSpacing:"-0.02em" }}>{currency} {c.value.toLocaleString()}</p>
+              <p style={{ fontSize: isMobile ? "12px" : "12px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:"8px" }}>{c.label}</p>
+              <p style={{ fontSize: isMobile ? "22px" : "26px", fontWeight:800, color:T.textHi, fontVariantNumeric:"tabular-nums", letterSpacing:"-0.02em" }}>{currency} {c.value.toLocaleString()}</p>
             </div>
           ))}
         </div>

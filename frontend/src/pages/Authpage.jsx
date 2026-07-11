@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { apiLogin, apiRegister, apiListSaccos, SKIP_KYC } from "../services/api"
+import { apiLogin, apiRegister, apiListSaccos, apiContact, SKIP_KYC } from "../services/api"
 import { getPostLoginPath } from "../utils/roleRouting"
 import { UGANDA } from "../data/countries"
+import PhoneInput, { toFullPhone } from "../components/PhoneInput"
 
 function useWindowSize() {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -150,7 +151,7 @@ function SignUpPanel({ onSwitch }) {
 
   async function handleSubmit(e) {
     e.preventDefault(); setError(""); setLoading(true)
-    const fullPhone = UGANDA.prefix + phoneNo.replace(/^0+/, "")
+    const fullPhone = toFullPhone(phoneNo)
     try {
       const user = await apiRegister({ name, phone: fullPhone, role: "member", saccoId, pin, country: UGANDA.code })
       login(user)
@@ -188,30 +189,13 @@ function SignUpPanel({ onSwitch }) {
               )}
             </select>
             <p style={{ fontSize: "12px", color: C.green, marginTop: "6px", fontWeight: 600 }}>
-              {location.state?.from?.includes("/sacco/") ? "✓ Joining from public ledger" : "🇺🇬 Uganda SACCOs only"}
+              {location.state?.from?.includes("/sacco/") ? "✓ Joining from public ledger" : "Uganda SACCOs only"}
             </p>
           </div>
           <div><Lbl text="Full Name" /><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sarah Nambi" required style={inp()} onFocus={onFG} onBlur={onBG} /></div>
           <div>
             <Lbl text="Phone Number" />
-            <div style={{ display: "flex", gap: "8px" }}>
-              <div style={{
-                background: C.surface, border: `1.5px solid ${C.border}`, color: C.textDim,
-                borderRadius: "10px", padding: "13px 16px", fontWeight: 700, fontSize: "15px",
-                display: "flex", alignItems: "center", justifyContent: "center", minWidth: "75px"
-              }}>
-                {UGANDA.prefix}
-              </div>
-              <input 
-                type="tel" 
-                value={phoneNo} 
-                onChange={e => setPhoneNo(e.target.value.replace(/[^0-9]/g, ""))} 
-                placeholder="700 000 000" 
-                required 
-                style={inp()} 
-                onFocus={onFG} onBlur={onBG} 
-              />
-            </div>
+            <PhoneInput value={phoneNo} onChange={setPhoneNo} required onFocus={onFG} onBlur={onBG} />
           </div>
           <div>
             <Lbl text="Create PIN" />
@@ -250,7 +234,7 @@ function LoginPanel({ onSwitch }) {
   async function handleSubmit(e) {
     e.preventDefault(); setError(""); setLoading(true)
     try {
-      const user = await apiLogin({ phone: UGANDA.prefix + phoneNo.replace(/^0+/, ""), pin })
+      const user = await apiLogin({ phone: toFullPhone(phoneNo), pin })
       login(user)
       navigate(getPostLoginPath(user), { replace: true })
     } catch (err) { setError(err.message || "Invalid phone or PIN.") }
@@ -266,16 +250,7 @@ function LoginPanel({ onSwitch }) {
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div>
             <Lbl text="Phone Number" />
-            <div style={{ display: "flex", gap: "8px" }}>
-              <div style={{
-                background: C.surface, border: `1.5px solid ${C.border}`, color: C.textDim,
-                borderRadius: "10px", padding: "13px 16px", fontWeight: 700, fontSize: "15px",
-                display: "flex", alignItems: "center", justifyContent: "center", minWidth: "75px"
-              }}>
-                {UGANDA.prefix}
-              </div>
-              <input type="tel" value={phoneNo} onChange={e => setPhoneNo(e.target.value.replace(/[^0-9]/g, ""))} placeholder="700 000 001" required style={{ ...inp(), flex: 1 }} onFocus={onFG} onBlur={onBG} />
-            </div>
+            <PhoneInput value={phoneNo} onChange={setPhoneNo} required placeholder="700 000 001" onFocus={onFG} onBlur={onBG} />
           </div>
           <div>
             <Lbl text="PIN" />
@@ -295,6 +270,48 @@ function LoginPanel({ onSwitch }) {
           <p style={{ textAlign: "center", fontSize: "13px", color: C.textDim, margin: 0, fontFamily: C.font }}>
             New member?{" "}<span onClick={onSwitch} style={{ color: C.green, cursor: "pointer", fontWeight: 700 }}>Create account</span>
           </p>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function ContactPanel() {
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [msg, setMsg] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState("")
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+    try {
+      const res = await apiContact({ name, email, message: msg })
+      setSent(true)
+      if (res?.mailto) window.location.href = res.mailto
+      setTimeout(() => { setSent(false); setName(""); setEmail(""); setMsg("") }, 4000)
+    } catch (err) {
+      setError(err.message || "Could not send. Email support@sentechain.app")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ background: "#fff", border: `1.5px solid ${C.border}`, borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.06)", marginTop: "28px" }}>
+      <div style={{ padding: "28px 24px" }}>
+        <h2 style={{ fontSize: "18px", fontWeight: 800, color: C.textHi, margin: "0 0 6px", fontFamily: C.font }}>Contact us</h2>
+        <p style={{ fontSize: "13px", color: C.textDim, margin: "0 0 18px", fontFamily: C.font, lineHeight: 1.5 }}>Questions about SenteChain or onboarding your SACCO? Send a message.</p>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" required style={inp()} onFocus={onFG} onBlur={onBG} />
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required style={inp()} onFocus={onFG} onBlur={onBG} />
+          <textarea value={msg} onChange={e => setMsg(e.target.value)} placeholder="How can we help?" required rows={3} style={{ ...inp(), resize: "vertical", lineHeight: 1.5 }} onFocus={onFG} onBlur={onBG} />
+          {error && <div style={{ padding: "10px 12px", borderRadius: "8px", background: C.redBg, color: C.red, fontSize: "13px" }}>{error}</div>}
+          {sent && <div style={{ padding: "10px 12px", borderRadius: "8px", background: C.greenLite, color: C.green, fontSize: "13px", fontWeight: 700 }}>Thanks — we will get back to you.</div>}
+          <button type="submit" disabled={loading} style={loading ? disBtn : greenBtn}>{loading ? "Sending..." : "Send message"}</button>
         </form>
       </div>
     </div>
@@ -384,12 +401,14 @@ export default function AuthPage() {
             : <LoginPanel onSwitch={() => setTab("signup")} />
           }
 
+          <ContactPanel />
+
           <div style={{ marginTop: "24px", textAlign: "center", display: "flex", flexDirection: "column", gap: "10px" }}>
             <button type="button" onClick={() => navigate("/register-sacco")} style={{ background: "none", border: "none", color: C.goldMid, fontSize: "14px", fontWeight: 700, cursor: "pointer", fontFamily: C.font }}>
               Register your SACCO on SenteChain →
             </button>
             <p style={{ fontSize: "13px", color: C.textDim, margin: 0, fontFamily: C.font }}>
-              Questions? <a href="mailto:support@sentechain.app" style={{ color: C.green, textDecoration: "none", fontWeight: 600 }}>support@sentechain.app</a>
+              Or email <a href="mailto:support@sentechain.app" style={{ color: C.green, textDecoration: "none", fontWeight: 600 }}>support@sentechain.app</a>
             </p>
           </div>
 

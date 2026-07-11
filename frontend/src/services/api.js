@@ -121,15 +121,15 @@ function mapTransaction(t) {
 
 function mapMember(m) {
   return {
-    member_id: m.membership_id,
-    membership_id: m.membership_id,
+    member_id: m.membership_id || m.member_id,
+    membership_id: m.membership_id || m.member_id,
     user_id: m.user_id,
-    name: m.full_name,
+    name: m.full_name || m.name,
     phone: m.phone,
-    role: m.role,
-    status: m.status,
-    joined: m.joined_at,
-    balance_kes: m.savings_balance ?? 0,
+    role: m.role || "member",
+    status: m.status || "active",
+    joined: m.joined_at || m.joined,
+    balance_kes: m.savings_balance ?? m.balance_kes ?? 0,
   }
 }
 

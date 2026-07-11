@@ -62,7 +62,7 @@ export default function SACCOPublicView() {
               borderRadius:"9px", border:`1.5px solid ${T.border}`,
               background:T.surface, color:T.textMid, fontFamily:T.font,
             }}>
-              {UGANDA.flag} {UGANDA.currency}
+              {UGANDA.currency}
             </span>
           )}
           

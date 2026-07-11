@@ -7,6 +7,7 @@ import { UGANDA } from "../data/countries"
 import Nav from "../components/Nav"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
+import PhoneInput, { toFullPhone, toLocalPhone } from "../components/PhoneInput"
 
 // Mobile detection hook
 function useWindowSize() {
@@ -29,8 +30,8 @@ const TH = (h) => (
 const statCard = (label, value, accent, isMobile) => (
   <div style={{ ...card(), padding: isMobile ? "18px 16px" : "22px 20px", position: "relative", overflow: "hidden" }}>
     <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: accent }} />
-    <p style={{ fontSize: "11px", fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>{label}</p>
-    <p style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: 700, color: T.textHi, margin: 0, letterSpacing: "-0.02em" }}>{value}</p>
+    <p style={{ fontSize: "12px", fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "8px" }}>{label}</p>
+    <p style={{ fontSize: isMobile ? "22px" : "26px", fontWeight: 800, color: T.textHi, margin: 0, letterSpacing: "-0.02em" }}>{value}</p>
   </div>
 )
 
@@ -77,8 +78,8 @@ export default function AdminDashboard() {
         const mtn = payAccounts.find((a) => a.provider === "mtn_momo")
         const airtel = payAccounts.find((a) => a.provider === "airtel_money")
         setPayForm({
-          mtn_phone: mtn?.phone_number?.replace("+256", "0") || "",
-          airtel_phone: airtel?.phone_number?.replace("+256", "0") || "",
+          mtn_phone: toLocalPhone(mtn?.phone_number || ""),
+          airtel_phone: toLocalPhone(airtel?.phone_number || ""),
           account_name: mtn?.account_name || airtel?.account_name || summary?.name || "",
         })
         if (summary) setSaccoInfo({ name: summary.name })
@@ -116,7 +117,7 @@ export default function AdminDashboard() {
   async function handleRegister(e) {
     e.preventDefault(); setRegErr(""); setRegLoading(true)
     try {
-      const phone = UGANDA.prefix + regForm.phone.replace(/^0+/, "")
+      const phone = toFullPhone(regForm.phone)
       await apiStaffRegisterMember({
         name: regForm.name,
         phone,
@@ -143,7 +144,7 @@ export default function AdminDashboard() {
       if (payForm.mtn_phone.trim()) {
         accounts.push({
           provider: "mtn_momo",
-          phone_number: UGANDA.prefix + payForm.mtn_phone.replace(/^0+/, ""),
+          phone_number: toFullPhone(payForm.mtn_phone),
           account_name: payForm.account_name || saccoInfo.name,
           is_primary: true,
         })
@@ -151,7 +152,7 @@ export default function AdminDashboard() {
       if (payForm.airtel_phone.trim()) {
         accounts.push({
           provider: "airtel_money",
-          phone_number: UGANDA.prefix + payForm.airtel_phone.replace(/^0+/, ""),
+          phone_number: toFullPhone(payForm.airtel_phone),
           account_name: payForm.account_name || saccoInfo.name,
           is_primary: !payForm.mtn_phone.trim(),
         })
@@ -212,9 +213,9 @@ export default function AdminDashboard() {
           </button>
         )}
 
-        <div style={{ display: "flex", gap: "6px", marginBottom: isMobile ? "20px" : "28px", flexWrap: "wrap", padding: "4px", background: "#fff", borderRadius: "12px", border: `1.5px solid ${T.border}`, boxShadow: T.shadow, width: "fit-content" }}>
+        <div style={{ display: "flex", gap: "6px", marginBottom: isMobile ? "20px" : "28px", flexWrap: "nowrap", overflowX: "auto", WebkitOverflowScrolling: "touch", padding: "4px", background: "#fff", borderRadius: "12px", border: `1.5px solid ${T.border}`, boxShadow: T.shadow, width: isMobile ? "100%" : "fit-content", maxWidth: "100%" }}>
           {TABS.map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ padding: isMobile ? "8px 12px" : "9px 18px", borderRadius: "9px", fontFamily: T.font, border: "none", cursor: "pointer", fontSize: isMobile ? "12px" : "13px", fontWeight: 700, background: tab === t ? T.green : "transparent", color: tab === t ? "#fff" : T.textDim, transition: "all 0.18s", boxShadow: tab === t ? `0 2px 8px ${T.green}44` : "none" }}>{t}</button>
+            <button key={t} onClick={() => setTab(t)} style={{ padding: isMobile ? "8px 14px" : "9px 18px", borderRadius: "9px", fontFamily: T.font, border: "none", cursor: "pointer", fontSize: isMobile ? "12px" : "13px", fontWeight: 700, background: tab === t ? T.green : "transparent", color: tab === t ? "#fff" : T.textDim, transition: "all 0.18s", boxShadow: tab === t ? `0 2px 8px ${T.green}44` : "none", whiteSpace: "nowrap", flexShrink: 0 }}>{t}</button>
           ))}
         </div>
 
@@ -410,10 +411,7 @@ export default function AdminDashboard() {
                   ))}
                   <div>
                     <Lbl text="Phone (Uganda)" />
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <span style={{ ...inp(), width: "auto", minWidth: "72px", textAlign: "center", fontWeight: 700, background: T.surface }}>{UGANDA.prefix}</span>
-                      <input type="tel" value={regForm.phone} onChange={e => setRegForm(p => ({ ...p, phone: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="700 123 456" required style={{ ...inp(), flex: 1 }} onFocus={onF} onBlur={onB} />
-                    </div>
+                    <PhoneInput value={regForm.phone} onChange={(v) => setRegForm(p => ({ ...p, phone: v }))} required onFocus={onF} onBlur={onB} />
                   </div>
                   <div>
                     <Lbl text="Role" />
@@ -454,17 +452,11 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <Lbl text="MTN MoMo Number (official)" />
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <span style={{ ...inp(), width: "auto", minWidth: "72px", textAlign: "center", fontWeight: 700, background: T.surface }}>{UGANDA.prefix}</span>
-                      <input type="tel" value={payForm.mtn_phone} onChange={(e) => setPayForm((p) => ({ ...p, mtn_phone: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="700 123 456" style={{ ...inp(), flex: 1 }} onFocus={onF} onBlur={onB} />
-                    </div>
+                    <PhoneInput value={payForm.mtn_phone} onChange={(v) => setPayForm((p) => ({ ...p, mtn_phone: v }))} onFocus={onF} onBlur={onB} />
                   </div>
                   <div>
                     <Lbl text="Airtel Money Number (optional)" />
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <span style={{ ...inp(), width: "auto", minWidth: "72px", textAlign: "center", fontWeight: 700, background: T.surface }}>{UGANDA.prefix}</span>
-                      <input type="tel" value={payForm.airtel_phone} onChange={(e) => setPayForm((p) => ({ ...p, airtel_phone: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="750 123 456" style={{ ...inp(), flex: 1 }} onFocus={onF} onBlur={onB} />
-                    </div>
+                    <PhoneInput value={payForm.airtel_phone} onChange={(v) => setPayForm((p) => ({ ...p, airtel_phone: v }))} placeholder="750 123 456" onFocus={onF} onBlur={onB} />
                   </div>
                   {payErr && <div style={{ padding: "12px", borderRadius: "10px", background: T.redBg, color: T.red, fontSize: "14px" }}>{payErr}</div>}
                   {payOk && <div style={{ padding: "12px", borderRadius: "10px", background: T.greenLite, color: T.green, fontSize: "14px", fontWeight: 700 }}>Payment numbers saved</div>}

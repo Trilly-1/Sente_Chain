@@ -33,8 +33,8 @@ const TH = (h) => (
 const statCard = (label, value, accent, isMobile) => (
   <div style={{ ...card(), padding: isMobile ? "18px 16px" : "22px 20px", position:"relative", overflow:"hidden" }}>
     <div style={{ position:"absolute", top:0, left:0, right:0, height:"2px", background:accent }} />
-    <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"8px" }}>{label}</p>
-    <p style={{ fontSize: isMobile ? "20px" : "24px", fontWeight:700, color: T.textHi, margin: 0, letterSpacing:"-0.02em" }}>{value}</p>
+    <p style={{ fontSize: isMobile ? "12px" : "12px", fontWeight:700, color:T.textDim, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:"8px" }}>{label}</p>
+    <p style={{ fontSize: isMobile ? "22px" : "26px", fontWeight:800, color: T.textHi, margin: 0, letterSpacing:"-0.02em" }}>{value}</p>
   </div>
 )
 
@@ -57,18 +57,39 @@ export default function CashierDashboard() {
   const [repayAmounts, setRepayAmounts] = useState({})
   const [repayLoading, setRepayLoading] = useState(null)
   const [repayErr, setRepayErr] = useState("")
+  const [summaryActive, setSummaryActive] = useState(null)
+  const [summaryTotal, setSummaryTotal] = useState(null)
 
   useEffect(() => {
     if (!auth?.sacco_id) return
     apiGetSaccoSummary(auth.sacco_id)
-      .then((data) => setSaccoName(data.name || ""))
+      .then((data) => {
+        setSaccoName(data.name || "")
+        if (data.active_members != null) setSummaryActive(data.active_members)
+        if (data.total_members != null) setSummaryTotal(data.total_members)
+      })
       .catch(() => setSaccoName(""))
   }, [auth?.sacco_id])
 
   useEffect(() => {
     if (!auth?.sacco_id) { setLoading(false); return }
-    Promise.all([apiGetLoans(auth.sacco_id), apiGetMembers(auth.sacco_id), apiListTransactions({ saccoId: auth.sacco_id, limit: 100 })])
-      .then(([l, m, txs]) => { setLoans(l); setMembers(m); setAllTxs(txs) })
+    setLoading(true)
+    Promise.all([
+      apiGetLoans(auth.sacco_id).catch(() => []),
+      apiGetMembers(auth.sacco_id).catch(() => []),
+      apiListTransactions({ saccoId: auth.sacco_id, limit: 100 }).catch(() => []),
+      apiGetSaccoSummary(auth.sacco_id).catch(() => null),
+    ])
+      .then(([l, m, txs, summary]) => {
+        setLoans(l || [])
+        setMembers(Array.isArray(m) ? m : [])
+        setAllTxs(txs || [])
+        if (summary?.name) setSaccoName(summary.name)
+        if (summary?.active_members != null) {
+          setSummaryActive(summary.active_members)
+          setSummaryTotal(summary.active_members)
+        }
+      })
       .finally(() => setLoading(false))
   }, [auth?.sacco_id])
 
@@ -184,8 +205,13 @@ export default function CashierDashboard() {
   const completedLoans = loans.filter(l=>l.status==="completed")
   const rejectedLoans  = loans.filter(l=>l.status==="rejected")
   const filtered       = members.filter(m=>m.name.toLowerCase().includes(search.toLowerCase())||m.phone.includes(search)||m.member_id.toLowerCase().includes(search.toLowerCase()))
-  const totalMembers   = members.filter(m=>m.role==="member").length
-  const activeMembers  = members.filter(m=>m.role==="member"&&m.status==="active").length
+  // Count savings members (exclude staff). Fallback to SACCO summary if list is empty/partial.
+  const memberAccounts = members.filter((m) => {
+    const role = (m.role || "member").toLowerCase()
+    return role === "member" || role === ""
+  })
+  const totalMembers   = memberAccounts.length || summaryTotal || members.length
+  const activeMembers  = memberAccounts.filter((m) => m.status === "active").length || summaryActive || 0
 
   const btnGreen = (onClick, label) => (
     <button onClick={onClick} style={{ padding: isMobile ? "8px 12px" : "8px 18px", borderRadius:"8px", border:"none", background:T.green, color:"#fff", fontSize: isMobile ? "12px" : "13px", fontWeight:700, cursor:"pointer", fontFamily:T.font, transition:"opacity 0.18s" }}
@@ -217,10 +243,10 @@ export default function CashierDashboard() {
           </div>
         </div>
 
-        <div style={{ display:"flex", gap:"6px", marginBottom:"24px", flexWrap:"wrap", padding:"4px", background:"#fff", borderRadius:"12px", border:`1.5px solid ${T.border}`, boxShadow:T.shadow, width:"fit-content" }}>
+        <div style={{ display:"flex", gap:"6px", marginBottom:"24px", flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch", padding:"4px", background:"#fff", borderRadius:"12px", border:`1.5px solid ${T.border}`, boxShadow:T.shadow, width: isMobile ? "100%" : "fit-content", maxWidth:"100%" }}>
           {TABS.map(t => (
-            <div key={t} style={{ position:"relative" }}>
-              <button onClick={()=>setTab(t)} style={{ padding:"9px 18px", borderRadius:"9px", fontFamily:T.font, border:"none", cursor:"pointer", fontSize:"13px", fontWeight:700, background:tab===t?T.green:"transparent", color:tab===t?"#fff":T.textDim, transition:"all 0.18s", boxShadow:tab===t?`0 2px 8px ${T.green}44`:"none" }}>{t}</button>
+            <div key={t} style={{ position:"relative", flexShrink:0 }}>
+              <button onClick={()=>setTab(t)} style={{ padding: isMobile ? "9px 14px" : "9px 18px", borderRadius:"9px", fontFamily:T.font, border:"none", cursor:"pointer", fontSize: isMobile ? "12px" : "13px", fontWeight:700, background:tab===t?T.green:"transparent", color:tab===t?"#fff":T.textDim, transition:"all 0.18s", boxShadow:tab===t?`0 2px 8px ${T.green}44`:"none", whiteSpace:"nowrap" }}>{t}</button>
               {t==="Loan Requests" && pendingLoans.length>0 && (
                 <span style={{ position:"absolute", top:"-6px", right:"-6px", background:T.goldMid, color:"#fff", borderRadius:"99px", fontSize:"10px", fontWeight:800, padding:"2px 6px", fontFamily:T.fontMono }}>{pendingLoans.length}</span>
               )}

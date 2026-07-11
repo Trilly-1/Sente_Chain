@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { apiRegister, apiCreateSacco, apiUpdateSacco, apiUploadSaccoDocuments, apiSubmitSacco, SKIP_KYC } from "../services/api"
 import { UGANDA } from "../data/countries"
+import PhoneInput, { toFullPhone } from "../components/PhoneInput"
 
 // Mobile detection hook
 function useWindowSize() {
@@ -18,7 +19,7 @@ function useWindowSize() {
 const C = {
   green: "#15803d", greenMid: "#16a34a", greenLite: "#dcfce7", greenBdr: "#bbf7d0", greenDark: "#14532d",
   gold: "#b45309", goldMid: "#d97706", goldLite: "#fef3c7", goldBdr: "#fde68a",
-  textHi: "#0a0a0a", textMid: "#374151", textDim: "#6b7280",
+  textHi: "#0a0a0a", textMid: "#1f2937", textDim: "#374151",
   border: "#e5e7eb", surface: "#f9fafb",
   font: "'Inter', sans-serif"
 }
@@ -30,7 +31,7 @@ const inpStyle = {
 }
 
 const Label = ({ children }) => (
-  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: C.textDim, marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+  <label style={{ display: "block", fontSize: "13px", fontWeight: 700, color: C.textDim, marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
     {children}
   </label>
 )
@@ -124,7 +125,7 @@ export default function SACCORegistration() {
       setErrors({})
       setLoading(true)
       try {
-        const fullPhone = country.prefix + adminData.phoneNo.replace(/^0+/, "")
+        const fullPhone = toFullPhone(adminData.phoneNo)
         const user = await apiRegister({ name: adminData.name, phone: fullPhone, role: "admin", pin: adminData.pin, country: country.code })
         login(user)
         setStep(s => s + 1)
@@ -161,7 +162,7 @@ export default function SACCORegistration() {
       setErrors({})
       setLoading(true)
       try {
-        const officialPhone = country.prefix + formData.phone.replace(/^0+/, "")
+        const officialPhone = toFullPhone(formData.phone)
         await apiUpdateSacco(saccoId, {
           profile: { address: formData.address, phone: officialPhone, email: formData.email },
         })
@@ -307,15 +308,11 @@ export default function SACCORegistration() {
                 </div>
                 <div>
                   <Label>Phone (Uganda)</Label>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <div style={{ ...inpStyle, width: "100px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, background: C.surface }}>
-                      {UGANDA.flag} {UGANDA.prefix}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <input style={{ ...inpStyle, borderColor: errors.adminPhone ? "#dc2626" : C.border }} type="tel" placeholder="700 000 000" value={adminData.phoneNo} onChange={e => { setAdminData({ ...adminData, phoneNo: e.target.value.replace(/[^0-9]/g, "") }); setErrors({...errors, adminPhone: null}) }} />
-                      {errors.adminPhone && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.adminPhone}</span>}
-                    </div>
-                  </div>
+                  <PhoneInput
+                    value={adminData.phoneNo}
+                    onChange={(v) => { setAdminData({ ...adminData, phoneNo: v }); setErrors({ ...errors, adminPhone: null }) }}
+                  />
+                  {errors.adminPhone && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.adminPhone}</span>}
                 </div>
                 <div>
                   <Label>Create PIN (4 Digits)</Label>
@@ -365,15 +362,11 @@ export default function SACCORegistration() {
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "20px" }}>
                   <div>
                     <Label>Official Phone</Label>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <div style={{ ...inpStyle, width: "100px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, background: C.surface }}>
-                        {UGANDA.prefix}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <input style={{ ...inpStyle, borderColor: errors.phone ? "#dc2626" : C.border }} placeholder="700 000 000" value={formData.phone} onChange={e => { setFormData({ ...formData, phone: e.target.value }); setErrors({...errors, phone: null}) }} />
-                        {errors.phone && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.phone}</span>}
-                      </div>
-                    </div>
+                    <PhoneInput
+                      value={formData.phone}
+                      onChange={(v) => { setFormData({ ...formData, phone: v }); setErrors({ ...errors, phone: null }) }}
+                    />
+                    {errors.phone && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.phone}</span>}
                   </div>
                   <div><Label>Official Email</Label><input style={inpStyle} placeholder="info@sacco.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
                 </div>

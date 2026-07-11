@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { T } from "../styles/theme"
 import { apiGetDefaultSaccoId } from "../services/api"
-import { UGANDA } from "../data/countries"
 import { roleLabel } from "../utils/roleRouting"
 
 // Mobile detection hook
@@ -94,7 +93,7 @@ export default function Nav({ hidePublicView }) {
             borderRadius:"9px", border:`1.5px solid ${T.border}`,
             background:T.surface, color:T.textMid, fontFamily:T.font,
           }}>
-            {UGANDA.flag} {UGANDA.currency}
+            UGX
           </span>
         )}
 
