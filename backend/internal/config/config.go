@@ -82,6 +82,9 @@ func (c *Config) validate() {
 	if c.IsProduction() && c.ExposeEmailLinksInResponse {
 		log.Fatalf("❌ EXPOSE_EMAIL_LINKS_IN_RESPONSE must be false in production")
 	}
+	if c.IsProduction() && (c.FrontendURL == "" || strings.Contains(c.FrontendURL, "localhost")) {
+		log.Fatalf("❌ FRONTEND_URL must be set to your production web app URL in production (e.g. https://sentechain.vercel.app)")
+	}
 }
 
 func getEnv(key, defaultValue string) string {
