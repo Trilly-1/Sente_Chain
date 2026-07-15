@@ -52,7 +52,7 @@ export default function SACCORegistration() {
   })
 
   const [adminData, setAdminData] = useState({
-    name: "", phoneNo: "", pin: "", showPin: false
+    name: "", email: "", phoneNo: "", pin: "", showPin: false
   })
 
   const [activeCamera, setActiveCamera] = useState(null)
@@ -118,6 +118,7 @@ export default function SACCORegistration() {
     const newErrors = {}
     if (step === 1) {
       if (!adminData.name) newErrors.adminName = "Full name is required"
+      if (!adminData.email) newErrors.adminEmail = "Email is required"
       if (!adminData.phoneNo) newErrors.adminPhone = "Phone number is required"
       if (!adminData.pin) newErrors.adminPin = "PIN is required"
       
@@ -126,7 +127,11 @@ export default function SACCORegistration() {
       setLoading(true)
       try {
         const fullPhone = toFullPhone(adminData.phoneNo)
-        const user = await apiRegister({ name: adminData.name, phone: fullPhone, role: "admin", pin: adminData.pin, country: country.code })
+        const user = await apiRegister({ name: adminData.name, email: adminData.email, phone: fullPhone, role: "admin", pin: adminData.pin, country: country.code })
+        if (user.requires_email_verification) {
+          setErrors({ form: `Check your email (${adminData.email}) to confirm your account, then return here to continue SACCO registration.` })
+          return
+        }
         login(user)
         setStep(s => s + 1)
       } catch (err) {
@@ -305,6 +310,11 @@ export default function SACCORegistration() {
                   <Label>Full Name</Label>
                   <input style={{ ...inpStyle, borderColor: errors.adminName ? "#dc2626" : C.border }} placeholder="e.g. Sarah Nambi" value={adminData.name} onChange={e => { setAdminData({ ...adminData, name: e.target.value }); setErrors({...errors, adminName: null}) }} />
                   {errors.adminName && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.adminName}</span>}
+                </div>
+                <div>
+                  <Label>Email</Label>
+                  <input type="email" style={{ ...inpStyle, borderColor: errors.adminEmail ? "#dc2626" : C.border }} placeholder="you@example.com" value={adminData.email} onChange={e => { setAdminData({ ...adminData, email: e.target.value }); setErrors({...errors, adminEmail: null}) }} />
+                  {errors.adminEmail && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.adminEmail}</span>}
                 </div>
                 <div>
                   <Label>Phone (Uganda)</Label>

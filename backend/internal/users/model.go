@@ -11,7 +11,8 @@ type User struct {
 	ID               uuid.UUID `db:"id" json:"id"`
 	FullName         string    `db:"full_name" json:"full_name"`
 	Phone            string    `db:"phone" json:"phone"`
-	Email            *string   `db:"email" json:"email,omitempty"`
+	Email            *string    `db:"email" json:"email,omitempty"`
+	EmailVerifiedAt  *time.Time `db:"email_verified_at" json:"email_verified_at,omitempty"`
 	GoogleID         *string   `db:"google_id" json:"google_id,omitempty"`
 	StellarPublicKey *string   `db:"stellar_public_key" json:"stellar_public_key,omitempty"`
 	Country          *string   `db:"country" json:"country,omitempty"`

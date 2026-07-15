@@ -12,7 +12,8 @@ import VerificationPending from "./pages/VerificationPending"
 import MemberOnboarding from "./pages/MemberOnboarding"
 import MemberVerificationPending from "./pages/MemberVerificationPending"
 import ProjectAdminDashboard from "./pages/ProjectAdminDashboard"
-import LedgerProof from "./pages/LedgerProof"
+import VerifyEmail from "./pages/VerifyEmail"
+import ResetPIN from "./pages/ResetPIN"
 import { SKIP_KYC } from "./services/api"
 import { getPostLoginPath } from "./utils/roleRouting"
 
@@ -61,6 +62,8 @@ export default function App() {
         <Routes>
           <Route path="/"               element={<RootRoute />} />
           <Route path="/auth"           element={<AuthRoute />} />
+          <Route path="/verify-email"   element={<VerifyEmail />} />
+          <Route path="/reset-pin"      element={<ResetPIN />} />
           <Route path="/sacco/:saccoId" element={<SACCOPublicView />} />
           <Route path="/ledger/:stellarHash" element={<LedgerProof />} />
           <Route path="/register-sacco" element={<SACCORegistration />} />

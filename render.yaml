@@ -75,6 +75,16 @@ services:
       # TESTING ONLY — set "false" before pilot to restore document KYC
       - key: SKIP_KYC
         value: "true"
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: SenteChain
+      - key: FRONTEND_URL
+        value: https://sentechain.vercel.app
+      - key: EXPOSE_EMAIL_LINKS_IN_RESPONSE
+        value: "false"
 
   - type: web
     name: sentechain-web

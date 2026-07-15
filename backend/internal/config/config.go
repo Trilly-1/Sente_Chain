@@ -23,6 +23,11 @@ type Config struct {
 	EnableDocs            bool
 	AuthRateLimit         int
 	AuthRateWindowSec     int
+	BrevoAPIKey           string
+	BrevoSenderEmail      string
+	BrevoSenderName       string
+	FrontendURL           string
+	ExposeEmailLinksInResponse bool
 }
 
 // Load reads environment variables and returns a Config struct.
@@ -41,6 +46,11 @@ func Load() *Config {
 		EnableDocs:            getEnvBool("ENABLE_DOCS", getEnv("APP_ENV", "development") != "production"),
 		AuthRateLimit:         getEnvInt("AUTH_RATE_LIMIT", 20),
 		AuthRateWindowSec:     getEnvInt("AUTH_RATE_WINDOW_SEC", 60),
+		BrevoAPIKey:           getEnv("BREVO_API_KEY", ""),
+		BrevoSenderEmail:      getEnv("BREVO_SENDER_EMAIL", ""),
+		BrevoSenderName:       getEnv("BREVO_SENDER_NAME", "SenteChain"),
+		FrontendURL:           strings.TrimRight(getEnv("FRONTEND_URL", "http://localhost:5173"), "/"),
+		ExposeEmailLinksInResponse: getEnvBool("EXPOSE_EMAIL_LINKS_IN_RESPONSE", false),
 	}
 
 	cfg.validate()
@@ -68,6 +78,9 @@ func (c *Config) validate() {
 	}
 	if c.IsProduction() && c.ExposeOTPInResponse {
 		log.Fatalf("❌ EXPOSE_OTP_IN_RESPONSE must be false in production")
+	}
+	if c.IsProduction() && c.ExposeEmailLinksInResponse {
+		log.Fatalf("❌ EXPOSE_EMAIL_LINKS_IN_RESPONSE must be false in production")
 	}
 }
 

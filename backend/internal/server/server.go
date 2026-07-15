@@ -13,6 +13,7 @@ import (
 	"sentechain-backend/internal/auth"
 	"sentechain-backend/internal/config"
 	"sentechain-backend/internal/documents"
+	"sentechain-backend/internal/email"
 	"sentechain-backend/internal/memberships"
 	"sentechain-backend/internal/loans"
 	"sentechain-backend/internal/middleware"
@@ -102,7 +103,14 @@ func (s *Server) registerAuthRoutes() {
 	saccoRepo := sacco.NewRepository(s.pool)
 
 	jwtSecret := s.jwtSecret()
-	service := auth.NewService(authRepo, userRepo, membershipRepo, saccoRepo, jwtSecret, s.cfg.JWTExpiryHours)
+	emailClient := email.NewClient(email.Config{
+		APIKey:      s.cfg.BrevoAPIKey,
+		SenderEmail: s.cfg.BrevoSenderEmail,
+		SenderName:  s.cfg.BrevoSenderName,
+		FrontendURL: s.cfg.FrontendURL,
+		Enabled:     s.cfg.BrevoAPIKey != "" && s.cfg.BrevoSenderEmail != "",
+	})
+	service := auth.NewService(authRepo, userRepo, membershipRepo, saccoRepo, emailClient, jwtSecret, s.cfg.JWTExpiryHours, s.cfg.FrontendURL, s.cfg.ExposeEmailLinksInResponse)
 	handler := auth.NewHandler(service, s.cfg.ExposeOTPInResponse)
 
 	authLimiter := middleware.NewRateLimiter(s.cfg.AuthRateLimit, time.Duration(s.cfg.AuthRateWindowSec)*time.Second)
@@ -113,6 +121,10 @@ func (s *Server) registerAuthRoutes() {
 		authGroup.POST("/login", handler.HandleLogin)
 		authGroup.POST("/otp/send", handler.HandleSendOTP)
 		authGroup.POST("/otp/verify", handler.HandleVerifyOTP)
+		authGroup.POST("/email/verify", handler.HandleVerifyEmail)
+		authGroup.POST("/email/resend", handler.HandleResendVerification)
+		authGroup.POST("/pin/forgot", handler.HandleForgotPIN)
+		authGroup.POST("/pin/reset", handler.HandleResetPIN)
 		authGroup.GET("/me", middleware.AuthMiddleware(jwtSecret), handler.HandleGetMe)
 	}
 }

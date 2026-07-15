@@ -19,7 +19,7 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
 
-const userColumns = `id, full_name, phone, email, google_id, stellar_public_key, country, pin_hash, is_project_admin, created_at, updated_at`
+const userColumns = `id, full_name, phone, email, email_verified_at, google_id, stellar_public_key, country, pin_hash, is_project_admin, created_at, updated_at`
 
 func scanUser(row pgx.Row) (*User, error) {
 	user := &User{}
@@ -28,6 +28,7 @@ func scanUser(row pgx.Row) (*User, error) {
 		&user.FullName,
 		&user.Phone,
 		&user.Email,
+		&user.EmailVerifiedAt,
 		&user.GoogleID,
 		&user.StellarPublicKey,
 		&user.Country,
@@ -106,4 +107,24 @@ func (r *Repository) GetByEmail(ctx context.Context, email string) (*User, error
 	}
 
 	return user, nil
+}
+
+// MarkEmailVerified sets email_verified_at for a user.
+func (r *Repository) MarkEmailVerified(ctx context.Context, userID string) error {
+	query := `UPDATE users SET email_verified_at = NOW(), updated_at = NOW() WHERE id = $1`
+	_, err := r.db.Exec(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to mark email verified: %w", err)
+	}
+	return nil
+}
+
+// UpdatePinHash updates the bcrypt PIN hash for a user.
+func (r *Repository) UpdatePinHash(ctx context.Context, userID, pinHash string) error {
+	query := `UPDATE users SET pin_hash = $2, updated_at = NOW() WHERE id = $1`
+	_, err := r.db.Exec(ctx, query, userID, pinHash)
+	if err != nil {
+		return fmt.Errorf("failed to update pin hash: %w", err)
+	}
+	return nil
 }

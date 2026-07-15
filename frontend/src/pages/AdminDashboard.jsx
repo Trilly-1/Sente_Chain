@@ -45,7 +45,7 @@ export default function AdminDashboard() {
   const [allTxs, setAllTxs] = useState([])
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
-  const [regForm, setRegForm] = useState({ name: "", phone: "", role: "member", pin: "1234" })
+  const [regForm, setRegForm] = useState({ name: "", email: "", phone: "", role: "member", pin: "1234" })
   const [regOk, setRegOk] = useState(false)
   const [regLoading, setRegLoading] = useState(false)
   const [saccoInfo, setSaccoInfo] = useState({ name: "SACCO" })
@@ -120,6 +120,7 @@ export default function AdminDashboard() {
       const phone = toFullPhone(regForm.phone)
       await apiStaffRegisterMember({
         name: regForm.name,
+        email: regForm.email,
         phone,
         pin: regForm.pin,
         country: UGANDA.code,
@@ -130,7 +131,7 @@ export default function AdminDashboard() {
       const mems = await apiGetMembers(auth.sacco_id)
       setMembers(mems)
       setRegOk(true)
-      setTimeout(() => { setRegOk(false); setRegForm({ name: "", phone: "", role: "member", pin: "1234" }) }, 3000)
+      setTimeout(() => { setRegOk(false); setRegForm({ name: "", email: "", phone: "", role: "member", pin: "1234" }) }, 3000)
     } catch (err) { setRegErr(err.message || "Registration failed.") }
     finally { setRegLoading(false) }
   }
@@ -402,6 +403,7 @@ export default function AdminDashboard() {
                 <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   {[
                     { label: "Full Name", key: "name", type: "text", placeholder: "e.g. Sarah Nambi" },
+                    { label: "Email", key: "email", type: "email", placeholder: "member@example.com" },
                     { label: "PIN (4 digits)", key: "pin", type: "password", placeholder: "1234" },
                   ].map(f => (
                     <div key={f.key}>
@@ -421,7 +423,7 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   {regErr && <div style={{ padding: "12px 16px", borderRadius: "10px", background: T.redBg, border: `1px solid ${T.redBdr}`, color: T.red, fontSize: "14px" }}>{regErr}</div>}
-                  {regOk && <div style={{ padding: "13px 16px", borderRadius: "10px", background: T.greenLite, border: `1px solid ${T.greenBdr}`, color: T.green, fontSize: "14px", fontWeight: 700 }}>Account created. They can sign in with phone + PIN.</div>}
+                  {regOk && <div style={{ padding: "13px 16px", borderRadius: "10px", background: T.greenLite, border: `1px solid ${T.greenBdr}`, color: T.green, fontSize: "14px", fontWeight: 700 }}>Account created. They must confirm email (if enabled), then sign in with phone + PIN.</div>}
                   <button type="submit" disabled={regLoading} style={{ padding: "14px", borderRadius: "10px", border: "none", fontFamily: T.font, background: regLoading ? T.border2 : T.green, color: regLoading ? T.textXdim : "#fff", fontSize: "15px", fontWeight: 800, cursor: regLoading ? "not-allowed" : "pointer" }}>
                     {regLoading ? "Registering..." : "Register & Activate"}
                   </button>

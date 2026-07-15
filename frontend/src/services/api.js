@@ -79,6 +79,8 @@ function mapAuthUser(data) {
     name: u.full_name,
     full_name: u.full_name,
     phone: u.phone,
+    email: u.email,
+    email_verified: u.email_verified,
     country: u.country,
     role: u.is_project_admin ? "project_admin" : (u.role || "member"),
     sacco_id: u.sacco_id,
@@ -178,7 +180,7 @@ export async function apiLogin({ phone, pin, countryPrefix = "+256" }) {
   return mapAuthUser(data)
 }
 
-export async function apiRegister({ name, phone, role = "member", saccoId, pin, country = "UG" }) {
+export async function apiRegister({ name, phone, email, role = "member", saccoId, pin, country = "UG" }) {
   if (USE_DEMO) { 
     await new Promise((r) => setTimeout(r, 900))
     return { 
@@ -186,29 +188,47 @@ export async function apiRegister({ name, phone, role = "member", saccoId, pin, 
       member_id: "MBR_NEW",
       membership_id: "MBR_NEW",
       name, 
-      phone, 
+      phone,
+      email,
+      email_verified: true,
       role: "member", 
       sacco_id: saccoId, 
       status: "pending_kyc", 
       balance_kes: 0,
+      requires_email_verification: false,
     }
   }
   // Never persist the new user's JWT — staff-assisted register must keep the caller's session.
   const body = {
     full_name: name,
     phone: phone.replace(/\s/g, "").startsWith("+") ? phone.replace(/\s/g, "") : normalizePhone(phone),
+    email: (email || "").trim().toLowerCase(),
     pin,
     country,
     role: role === "admin" && !saccoId ? "admin" : "member",
   }
   if (saccoId) body.sacco_id = saccoId
   const data = await apiFetch("/auth/register", { method: "POST", body: JSON.stringify(body) })
+  if (data.requires_email_verification) {
+    return {
+      requires_email_verification: true,
+      message: data.message,
+      dev_verification_url: data.dev_verification_url,
+      email: data.user?.email,
+      name: data.user?.full_name,
+      phone: data.user?.phone,
+      membership_id: data.user?.membership_id,
+      member_id: data.user?.membership_id,
+      sacco_id: data.user?.sacco_id,
+      status: data.user?.status,
+    }
+  }
   return mapAuthUser(data)
 }
 
 /** Staff-assisted: register member, optionally activate + promote to cashier (keeps admin session). */
-export async function apiStaffRegisterMember({ name, phone, pin, country = "UG", saccoId, role = "member", activate = true }) {
-  const created = await apiRegister({ name, phone, role: "member", saccoId, pin, country })
+export async function apiStaffRegisterMember({ name, phone, email, pin, country = "UG", saccoId, role = "member", activate = true }) {
+  const created = await apiRegister({ name, phone, email, role: "member", saccoId, pin, country })
   const membershipId = created.membership_id || created.member_id
   if (!membershipId) {
     return { ...created, activated: false, promoted: false }
@@ -259,6 +279,39 @@ export async function apiVerifyOTP({ phone, code, fullName }) {
     body: JSON.stringify({ phone: normalizePhone(phone), code, full_name: fullName }),
   })
   return mapAuthUser({ token: data.token, user: data.user })
+}
+
+export async function apiVerifyEmail(token) {
+  if (USE_DEMO) return { token: "demo-token", email_verified: true }
+  const data = await apiFetch("/auth/email/verify", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  })
+  return mapAuthUser(data)
+}
+
+export async function apiResendVerification(email) {
+  if (USE_DEMO) return { message: "Verification email sent." }
+  return apiFetch("/auth/email/resend", {
+    method: "POST",
+    body: JSON.stringify({ email: (email || "").trim().toLowerCase() }),
+  })
+}
+
+export async function apiForgotPIN(email) {
+  if (USE_DEMO) return { message: "If an account exists for that email, a PIN reset link has been sent." }
+  return apiFetch("/auth/pin/forgot", {
+    method: "POST",
+    body: JSON.stringify({ email: (email || "").trim().toLowerCase() }),
+  })
+}
+
+export async function apiResetPIN({ token, pin, confirmPin }) {
+  if (USE_DEMO) return { message: "PIN reset successful." }
+  return apiFetch("/auth/pin/reset", {
+    method: "POST",
+    body: JSON.stringify({ token, pin, confirm_pin: confirmPin }),
+  })
 }
 
 export async function apiGetPublicStats(country = "UG") {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { apiLogin, apiRegister, apiListSaccos, apiContact, SKIP_KYC } from "../services/api"
+import { apiLogin, apiRegister, apiListSaccos, apiContact, apiForgotPIN, apiResendVerification, SKIP_KYC } from "../services/api"
 import { getPostLoginPath } from "../utils/roleRouting"
 import { UGANDA } from "../data/countries"
 import PhoneInput, { toFullPhone } from "../components/PhoneInput"
@@ -126,6 +126,7 @@ function SignUpPanel({ onSwitch }) {
 
   const preselectedSaccoId = location.state?.from?.split("/").pop()
   const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
   const [phoneNo, setPhoneNo] = useState("")
   const [saccos, setSaccos] = useState([])
   const [saccoId, setSaccoId] = useState(preselectedSaccoId || "")
@@ -146,6 +147,7 @@ function SignUpPanel({ onSwitch }) {
   const [pin, setPin] = useState("")
   const [showPin, setShowPin] = useState(false)
   const [ok, setOk] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -153,16 +155,35 @@ function SignUpPanel({ onSwitch }) {
     e.preventDefault(); setError(""); setLoading(true)
     const fullPhone = toFullPhone(phoneNo)
     try {
-      const user = await apiRegister({ name, phone: fullPhone, role: "member", saccoId, pin, country: UGANDA.code })
-      login(user)
-      // TESTING: SKIP_KYC skips document upload. Pilot: set VITE_SKIP_KYC=false.
-      if (!SKIP_KYC && user.status === "pending_kyc") {
+      const result = await apiRegister({ name, email, phone: fullPhone, role: "member", saccoId, pin, country: UGANDA.code })
+      if (result.requires_email_verification) {
+        setPendingEmail(result.email || email)
+        setOk(true)
+        return
+      }
+      login(result)
+      if (!SKIP_KYC && result.status === "pending_kyc") {
         navigate("/member-onboarding")
       } else {
         navigate("/dashboard")
       }
     } catch (err) { setError(err.message || "Registration failed.") }
     finally { setLoading(false) }
+  }
+
+  if (ok) {
+    return (
+      <div style={{ background: "#fff", border: `1.5px solid ${C.border}`, borderRadius: "20px", overflow: "hidden", boxShadow: "0 4px 32px rgba(0,0,0,0.06)" }}>
+        <div style={{ height: "4px", background: `linear-gradient(90deg, ${C.green}, ${C.greenMid})` }} />
+        <div style={{ padding: "36px 40px 32px" }}>
+          <h2 style={{ fontSize: "22px", fontWeight: 900, color: C.textHi, margin: "0 0 10px", fontFamily: C.font }}>Check your email</h2>
+          <p style={{ fontSize: "14px", color: C.textMid, margin: "0 0 18px", lineHeight: 1.6 }}>
+            We sent a confirmation link to <strong>{pendingEmail}</strong>. Open it to activate your account, then sign in with your phone and PIN.
+          </p>
+          <button type="button" onClick={onSwitch} style={greenBtn}>Go to sign in</button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -193,6 +214,7 @@ function SignUpPanel({ onSwitch }) {
             </p>
           </div>
           <div><Lbl text="Full Name" /><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sarah Nambi" required style={inp()} onFocus={onFG} onBlur={onBG} /></div>
+          <div><Lbl text="Email" /><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required style={inp()} onFocus={onFG} onBlur={onBG} /></div>
           <div>
             <Lbl text="Phone Number" />
             <PhoneInput value={phoneNo} onChange={setPhoneNo} required onFocus={onFG} onBlur={onBG} />
@@ -222,23 +244,42 @@ function SignUpPanel({ onSwitch }) {
   )
 }
 
-function LoginPanel({ onSwitch }) {
+function LoginPanel({ onSwitch, onForgot }) {
   const [phoneNo, setPhoneNo] = useState("")
   const [pin, setPin] = useState("")
   const [showPin, setShowPin] = useState(false)
   const [error, setError] = useState("")
+  const [resendEmail, setResendEmail] = useState("")
+  const [resendMsg, setResendMsg] = useState("")
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
 
   async function handleSubmit(e) {
-    e.preventDefault(); setError(""); setLoading(true)
+    e.preventDefault(); setError(""); setResendMsg(""); setLoading(true)
     try {
       const user = await apiLogin({ phone: toFullPhone(phoneNo), pin })
       login(user)
       navigate(getPostLoginPath(user), { replace: true })
-    } catch (err) { setError(err.message || "Invalid phone or PIN.") }
+    } catch (err) {
+      const message = err.message || "Invalid phone or PIN."
+      setError(message)
+      if (message.toLowerCase().includes("verify your email")) {
+        setResendEmail("")
+      }
+    }
     finally { setLoading(false) }
+  }
+
+  async function handleResend() {
+    if (!resendEmail) return
+    setResendMsg("")
+    try {
+      const res = await apiResendVerification(resendEmail)
+      setResendMsg(res.message || "Verification email sent.")
+    } catch (err) {
+      setResendMsg(err.message || "Could not resend verification email.")
+    }
   }
 
   return (
@@ -262,13 +303,66 @@ function LoginPanel({ onSwitch }) {
             </div>
           </div>
           {error && <div style={{ padding: "12px 16px", borderRadius: "10px", background: C.redBg, border: `1px solid ${C.redBdr}`, color: C.red, fontSize: "14px" }}>{error}</div>}
+          {error.toLowerCase().includes("verify your email") && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <input type="email" value={resendEmail} onChange={e => setResendEmail(e.target.value)} placeholder="Your registration email" style={inp()} onFocus={onFG} onBlur={onBG} />
+              <button type="button" onClick={handleResend} style={{ ...greenBtn, background: C.goldMid }}>Resend verification email</button>
+              {resendMsg && <div style={{ fontSize: "13px", color: C.green, fontWeight: 700 }}>{resendMsg}</div>}
+            </div>
+          )}
           <button type="submit" disabled={loading} style={loading ? disBtn : greenBtn}
             onMouseEnter={e => { if (!loading) e.currentTarget.style.background = C.greenDark }}
             onMouseLeave={e => { if (!loading) e.currentTarget.style.background = C.green }}>
             {loading ? "Signing in..." : "Sign In"}
           </button>
           <p style={{ textAlign: "center", fontSize: "13px", color: C.textDim, margin: 0, fontFamily: C.font }}>
+            <span onClick={onForgot} style={{ color: C.green, cursor: "pointer", fontWeight: 700 }}>Forgot PIN?</span>
+            {" · "}
             New member?{" "}<span onClick={onSwitch} style={{ color: C.green, cursor: "pointer", fontWeight: 700 }}>Create account</span>
+          </p>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function ForgotPINPanel({ onSwitch }) {
+  const [email, setEmail] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [message, setMessage] = useState("")
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError("")
+    setMessage("")
+    setLoading(true)
+    try {
+      const res = await apiForgotPIN(email)
+      setMessage(res.message || "If an account exists for that email, a PIN reset link has been sent.")
+    } catch (err) {
+      setError(err.message || "Could not send reset email.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ background: "#fff", border: `1.5px solid ${C.border}`, borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
+      <div style={{ height: "4px", background: `linear-gradient(90deg, ${C.green}, ${C.goldMid})` }} />
+      <div style={{ padding: "32px 28px" }}>
+        <h2 style={{ fontSize: "22px", fontWeight: 900, color: C.textHi, margin: "0 0 6px", fontFamily: C.font }}>Forgot PIN</h2>
+        <p style={{ fontSize: "14px", color: C.textMid, margin: "0 0 24px", lineHeight: 1.5 }}>Enter the email on your account. We will send a secure link to reset your PIN.</p>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div>
+            <Lbl text="Email" />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required style={inp()} onFocus={onFG} onBlur={onBG} />
+          </div>
+          {error && <div style={{ padding: "12px 16px", borderRadius: "10px", background: C.redBg, border: `1px solid ${C.redBdr}`, color: C.red, fontSize: "14px" }}>{error}</div>}
+          {message && <div style={{ padding: "12px 16px", borderRadius: "10px", background: C.greenLite, border: `1px solid ${C.greenBdr}`, color: C.green, fontSize: "14px", fontWeight: 700 }}>{message}</div>}
+          <button type="submit" disabled={loading} style={loading ? disBtn : greenBtn}>{loading ? "Sending..." : "Send reset link"}</button>
+          <p style={{ textAlign: "center", fontSize: "13px", color: C.textDim, margin: 0 }}>
+            Remembered it?{" "}<span onClick={onSwitch} style={{ color: C.green, cursor: "pointer", fontWeight: 700 }}>Back to sign in</span>
           </p>
         </form>
       </div>
@@ -321,13 +415,18 @@ function ContactPanel() {
 export default function AuthPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [tab, setTab] = useState(searchParams.get("tab") === "signup" ? "signup" : "login")
+  const [tab, setTab] = useState(
+    searchParams.get("tab") === "signup" ? "signup"
+      : searchParams.get("tab") === "forgot" ? "forgot"
+      : "login"
+  )
   const { width } = useWindowSize()
   const isMobile = width < 900
 
   useEffect(() => {
     const t = searchParams.get("tab")
     if (t === "signup") setTab("signup")
+    else if (t === "forgot") setTab("forgot")
     else if (t === "login") setTab("login")
   }, [searchParams])
 
@@ -379,26 +478,32 @@ export default function AuthPage() {
 
           <div style={{ textAlign: "center", marginBottom: isMobile ? "28px" : "36px" }}>
             <h1 style={{ fontSize: isMobile ? "28px" : "34px", fontWeight: 900, color: C.textHi, margin: "0 0 10px", fontFamily: C.font, letterSpacing: "-0.5px" }}>
-              {tab === "signup" ? "Join your SACCO" : "Welcome back"}
+              {tab === "signup" ? "Join your SACCO" : tab === "forgot" ? "Reset your PIN" : "Welcome back"}
             </h1>
             <p style={{ fontSize: "15px", color: C.textMid, fontFamily: C.font, lineHeight: 1.5 }}>
               {tab === "signup"
                 ? "Members sign up here. SACCOs register separately."
+                : tab === "forgot"
+                ? "We will email you a secure link to choose a new PIN."
                 : "Sign in with phone and PIN — your role is detected automatically."}
             </p>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
-            <div style={{ display: "flex", background: "rgba(255,255,255,0.90)", border: `1.5px solid ${C.border}`, borderRadius: "12px", padding: "4px", gap: "4px", width: "100%", maxWidth: "320px" }}>
-              {[["login", "Sign In"], ["signup", "Join SACCO"]].map(([t, lbl]) => (
-                <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "10px 16px", borderRadius: "9px", fontFamily: C.font, fontSize: "14px", fontWeight: 700, cursor: "pointer", border: "none", background: tab === t ? C.green : "transparent", color: tab === t ? "#fff" : C.textMid, transition: "all 0.18s" }}>{lbl}</button>
-              ))}
+          {tab !== "forgot" && (
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
+              <div style={{ display: "flex", background: "rgba(255,255,255,0.90)", border: `1.5px solid ${C.border}`, borderRadius: "12px", padding: "4px", gap: "4px", width: "100%", maxWidth: "320px" }}>
+                {[["login", "Sign In"], ["signup", "Join SACCO"]].map(([t, lbl]) => (
+                  <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "10px 16px", borderRadius: "9px", fontFamily: C.font, fontSize: "14px", fontWeight: 700, cursor: "pointer", border: "none", background: tab === t ? C.green : "transparent", color: tab === t ? "#fff" : C.textMid, transition: "all 0.18s" }}>{lbl}</button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {tab === "signup"
             ? <SignUpPanel onSwitch={() => setTab("login")} />
-            : <LoginPanel onSwitch={() => setTab("signup")} />
+            : tab === "forgot"
+            ? <ForgotPINPanel onSwitch={() => setTab("login")} />
+            : <LoginPanel onSwitch={() => setTab("signup")} onForgot={() => setTab("forgot")} />
           }
 
           <ContactPanel />

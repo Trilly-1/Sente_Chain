@@ -14,6 +14,15 @@ const (
 	ProviderSEP10    = "sep10"
 )
 
+// Email token types
+const (
+	TokenEmailVerification = "email_verification"
+	TokenPINReset          = "pin_reset"
+)
+
+// ValidEmailTokenTypes lists supported email token purposes.
+var ValidEmailTokenTypes = []string{TokenEmailVerification, TokenPINReset}
+
 // ValidProviders is a set of valid auth providers
 var ValidProviders = []string{ProviderPhoneOTP, ProviderPhonePIN, ProviderGoogle, ProviderSEP10}
 
@@ -31,6 +40,17 @@ type OTPCode struct {
 	ID        uuid.UUID `db:"id" json:"id"`
 	Phone     string    `db:"phone" json:"phone"`
 	CodeHash  string    `db:"code_hash" json:"-"`
+	ExpiresAt time.Time `db:"expires_at" json:"expires_at"`
+	Used      bool      `db:"used" json:"used"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
+// EmailToken represents a one-time email action token.
+type EmailToken struct {
+	ID        uuid.UUID `db:"id" json:"id"`
+	UserID    uuid.UUID `db:"user_id" json:"user_id"`
+	TokenHash string    `db:"token_hash" json:"-"`
+	TokenType string    `db:"token_type" json:"token_type"`
 	ExpiresAt time.Time `db:"expires_at" json:"expires_at"`
 	Used      bool      `db:"used" json:"used"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
@@ -76,6 +96,7 @@ type SendOTPResponse struct {
 type RegisterRequest struct {
 	FullName string `json:"full_name"`
 	Phone    string `json:"phone"`
+	Email    string `json:"email"`
 	PIN      string `json:"pin"`
 	Country  string `json:"country"`
 	SaccoID  string `json:"sacco_id"`
@@ -90,16 +111,55 @@ type LoginRequest struct {
 
 // AuthUserResponse is returned after register/login and from /auth/me
 type AuthUserResponse struct {
-	ID             string `json:"id"`
-	FullName       string `json:"full_name"`
-	Phone          string `json:"phone"`
-	Country        string `json:"country,omitempty"`
-	MembershipID   string `json:"membership_id,omitempty"`
-	SaccoID        string `json:"sacco_id,omitempty"`
-	Role           string `json:"role,omitempty"`
-	Status         string `json:"status,omitempty"`
-	SaccoStatus    string `json:"sacco_status,omitempty"`
-	IsProjectAdmin bool   `json:"is_project_admin"`
+	ID              string `json:"id"`
+	FullName        string `json:"full_name"`
+	Phone           string `json:"phone"`
+	Email           string `json:"email,omitempty"`
+	EmailVerified   bool   `json:"email_verified"`
+	Country         string `json:"country,omitempty"`
+	MembershipID    string `json:"membership_id,omitempty"`
+	SaccoID         string `json:"sacco_id,omitempty"`
+	Role            string `json:"role,omitempty"`
+	Status          string `json:"status,omitempty"`
+	SaccoStatus     string `json:"sacco_status,omitempty"`
+	IsProjectAdmin  bool   `json:"is_project_admin"`
+}
+
+// RegisterResponse is returned after successful registration.
+type RegisterResponse struct {
+	Token                     string `json:"token,omitempty"`
+	User                      AuthUserResponse `json:"user"`
+	RequiresEmailVerification bool   `json:"requires_email_verification"`
+	Message                   string `json:"message,omitempty"`
+	DevVerificationURL        string `json:"dev_verification_url,omitempty"`
+}
+
+// VerifyEmailRequest confirms a registration email.
+type VerifyEmailRequest struct {
+	Token string `json:"token"`
+}
+
+// ResendVerificationRequest resends a verification email.
+type ResendVerificationRequest struct {
+	Email string `json:"email"`
+}
+
+// ForgotPINRequest starts a PIN reset email flow.
+type ForgotPINRequest struct {
+	Email string `json:"email"`
+}
+
+// ResetPINRequest completes a PIN reset from an email link.
+type ResetPINRequest struct {
+	Token      string `json:"token"`
+	PIN        string `json:"pin"`
+	ConfirmPIN string `json:"confirm_pin"`
+}
+
+// MessageResponse is a simple success payload.
+type MessageResponse struct {
+	Message string `json:"message"`
+	DevResetURL string `json:"dev_reset_url,omitempty"`
 }
 
 // AuthTokenResponse wraps token and user for auth endpoints

@@ -88,7 +88,7 @@ func (h *Handler) HandleRegister(c *gin.Context) {
 		return
 	}
 
-	token, user, err := h.service.Register(c.Request.Context(), &req)
+	resp, err := h.service.Register(c.Request.Context(), &req)
 	if err != nil {
 		status := http.StatusBadRequest
 		if strings.Contains(err.Error(), "already registered") {
@@ -98,10 +98,7 @@ func (h *Handler) HandleRegister(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, response.Success(AuthTokenResponse{
-		Token: token,
-		User:  *user,
-	}))
+	c.JSON(http.StatusCreated, response.Success(resp))
 }
 
 // HandleLogin handles POST /auth/login
@@ -139,4 +136,79 @@ func (h *Handler) HandleGetMe(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response.Success(profile))
+}
+
+// HandleVerifyEmail handles POST /auth/email/verify
+func (h *Handler) HandleVerifyEmail(c *gin.Context) {
+	var req VerifyEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("invalid request: "+err.Error()))
+		return
+	}
+	if req.Token == "" {
+		c.JSON(http.StatusBadRequest, response.Error("token is required"))
+		return
+	}
+
+	token, user, err := h.service.VerifyEmail(c.Request.Context(), req.Token)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, response.Error(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(AuthTokenResponse{
+		Token: token,
+		User:  *user,
+	}))
+}
+
+// HandleResendVerification handles POST /auth/email/resend
+func (h *Handler) HandleResendVerification(c *gin.Context) {
+	var req ResendVerificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("invalid request: "+err.Error()))
+		return
+	}
+
+	resp, err := h.service.ResendVerificationEmail(c.Request.Context(), req.Email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(resp))
+}
+
+// HandleForgotPIN handles POST /auth/pin/forgot
+func (h *Handler) HandleForgotPIN(c *gin.Context) {
+	var req ForgotPINRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("invalid request: "+err.Error()))
+		return
+	}
+
+	resp, err := h.service.ForgotPIN(c.Request.Context(), req.Email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(resp))
+}
+
+// HandleResetPIN handles POST /auth/pin/reset
+func (h *Handler) HandleResetPIN(c *gin.Context) {
+	var req ResetPINRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("invalid request: "+err.Error()))
+		return
+	}
+
+	resp, err := h.service.ResetPIN(c.Request.Context(), req.Token, req.PIN, req.ConfirmPIN)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(resp))
 }
