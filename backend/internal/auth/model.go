@@ -158,8 +158,9 @@ type ResetPINRequest struct {
 
 // MessageResponse is a simple success payload.
 type MessageResponse struct {
-	Message string `json:"message"`
-	DevResetURL string `json:"dev_reset_url,omitempty"`
+	Message            string `json:"message"`
+	DevVerificationURL string `json:"dev_verification_url,omitempty"`
+	DevResetURL        string `json:"dev_reset_url,omitempty"`
 }
 
 // AuthTokenResponse wraps token and user for auth endpoints
