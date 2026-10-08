@@ -15,6 +15,7 @@ import ProjectAdminDashboard from "./pages/ProjectAdminDashboard"
 import LedgerProof from "./pages/LedgerProof"
 import VerifyEmail from "./pages/VerifyEmail"
 import ResetPIN from "./pages/ResetPIN"
+import AcceptInvite from "./pages/AcceptInvite"
 import { SKIP_KYC } from "./services/api"
 import { getPostLoginPath } from "./utils/roleRouting"
 
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="/auth"           element={<AuthRoute />} />
           <Route path="/verify-email"   element={<VerifyEmail />} />
           <Route path="/reset-pin"      element={<ResetPIN />} />
+          <Route path="/accept-invite" element={<AcceptInvite />} />
           <Route path="/sacco/:saccoId" element={<SACCOPublicView />} />
           <Route path="/ledger/:stellarHash" element={<LedgerProof />} />
           <Route path="/register-sacco" element={<SACCORegistration />} />

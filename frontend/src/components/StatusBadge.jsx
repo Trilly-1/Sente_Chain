@@ -3,6 +3,8 @@ import { T } from "../styles/theme"
 const MAP = {
   confirmed:{ bg:T.greenLite, color:T.green,   bdr:T.greenBdr,  label:"Confirmed" },
   pending:  { bg:T.goldLite,  color:T.goldMid, bdr:T.goldBdr,   label:"Pending"   },
+  pending_kyc: { bg:T.goldLite, color:T.goldMid, bdr:T.goldBdr, label:"Pending" },
+  under_review: { bg:T.goldLite, color:T.goldMid, bdr:T.goldBdr, label:"Pending" },
   rejected: { bg:T.redBg,     color:T.red,     bdr:T.redBdr,    label:"Rejected"  },
   active:   { bg:T.greenLite, color:T.green,   bdr:T.greenBdr,  label:"Active"    },
   completed:{ bg:"rgba(124,58,237,0.08)", color:T.purple, bdr:T.purpleBdr, label:"Completed" },

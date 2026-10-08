@@ -130,6 +130,7 @@ function mapMember(m) {
     phone: m.phone,
     role: m.role || "member",
     status: m.status || "active",
+    email_verified: m.email_verified === true,
     joined: m.joined_at || m.joined,
     balance_kes: m.savings_balance ?? m.balance_kes ?? 0,
   }
@@ -226,36 +227,38 @@ export async function apiRegister({ name, phone, email, role = "member", saccoId
   return mapAuthUser(data)
 }
 
-/** Staff-assisted: register member, optionally activate + promote to cashier (keeps admin session). */
-export async function apiStaffRegisterMember({ name, phone, email, pin, country = "UG", saccoId, role = "member", activate = true }) {
-  const created = await apiRegister({ name, phone, email, role: "member", saccoId, pin, country })
-  const membershipId = created.membership_id || created.member_id
-  if (!membershipId) {
-    return { ...created, activated: false, promoted: false }
+/** Staff invite: save the member as pending and email them a personal link. They set their own PIN. */
+export async function apiStaffRegisterMember({ name, phone, email, country = "UG", saccoId, role = "member" }) {
+  if (USE_DEMO) {
+    return {
+      name,
+      phone,
+      email,
+      role: role === "cashier" ? "cashier" : "member",
+      status: "pending_kyc",
+      membership_id: "MBR_INVITE",
+      message: "Invite sent. They stay pending until they confirm the email and choose a PIN.",
+    }
   }
-  let activated = false
-  let promoted = false
-  let status = created.status
-  let finalRole = "member"
-  if (activate) {
-    await apiUpdateMemberStatus(membershipId, "active", saccoId)
-    activated = true
-    status = "active"
-  }
-  if (role === "cashier" && activated) {
-    await apiUpdateMemberRole(membershipId, "cashier", saccoId)
-    promoted = true
-    finalRole = "cashier"
-  }
-  return {
-    ...created,
-    membership_id: membershipId,
-    member_id: membershipId,
-    role: finalRole,
-    status,
-    activated,
-    promoted,
-  }
+  const id = saccoId || _saccoId
+  if (!id) throw new Error("SACCO context is required")
+  return apiFetch(`/saccos/${id}/members/invite`, {
+    method: "POST",
+    body: JSON.stringify({
+      full_name: name,
+      phone: phone.replace(/\s/g, "").startsWith("+") ? phone.replace(/\s/g, "") : normalizePhone(phone),
+      email: (email || "").trim().toLowerCase(),
+      country,
+      role: role === "cashier" ? "cashier" : "member",
+    }),
+  })
+}
+
+export async function apiAcceptInvite({ token, pin, confirmPin }) {
+  return apiFetch("/auth/invite/accept", {
+    method: "POST",
+    body: JSON.stringify({ token, pin, confirm_pin: confirmPin }),
+  })
 }
 
 export async function apiGetMe() {

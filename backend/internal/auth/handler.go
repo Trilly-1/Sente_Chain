@@ -10,7 +10,7 @@ import (
 
 // Handler handles auth HTTP requests
 type Handler struct {
-	service            *Service
+	service             *Service
 	exposeOTPInResponse bool
 }
 
@@ -188,6 +188,40 @@ func (h *Handler) HandleForgotPIN(c *gin.Context) {
 	}
 
 	resp, err := h.service.ForgotPIN(c.Request.Context(), req.Email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(resp))
+}
+
+// HandleInviteMember handles POST /saccos/:saccoId/members/invite
+func (h *Handler) HandleInviteMember(c *gin.Context) {
+	var req InviteMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("invalid request: "+err.Error()))
+		return
+	}
+
+	resp, err := h.service.InviteMember(c.Request.Context(), c.Param("saccoId"), &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusCreated, response.Success(resp))
+}
+
+// HandleAcceptInvite handles POST /auth/invite/accept
+func (h *Handler) HandleAcceptInvite(c *gin.Context) {
+	var req AcceptInviteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("invalid request: "+err.Error()))
+		return
+	}
+
+	resp, err := h.service.AcceptInvite(c.Request.Context(), req.Token, req.PIN, req.ConfirmPIN)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, response.Error(err.Error()))
 		return

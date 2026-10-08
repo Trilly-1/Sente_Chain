@@ -11,22 +11,22 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"golang.org/x/crypto/bcrypt"
+	"sentechain-backend/internal/email"
 	"sentechain-backend/internal/memberships"
 	"sentechain-backend/internal/sacco"
 	"sentechain-backend/internal/users"
-	"sentechain-backend/internal/email"
 )
 
 // Service handles authentication business logic
 type Service struct {
-	authRepo       *Repository
-	userRepo       *users.Repository
-	membershipRepo *memberships.Repository
-	saccoRepo      *sacco.Repository
-	emailClient    *email.Client
-	jwtSecret      string
-	jwtExpiryHours int
-	frontendURL    string
+	authRepo         *Repository
+	userRepo         *users.Repository
+	membershipRepo   *memberships.Repository
+	saccoRepo        *sacco.Repository
+	emailClient      *email.Client
+	jwtSecret        string
+	jwtExpiryHours   int
+	frontendURL      string
 	exposeEmailLinks bool
 }
 
@@ -36,14 +36,14 @@ func NewService(authRepo *Repository, userRepo *users.Repository, membershipRepo
 		jwtExpiryHours = 24
 	}
 	return &Service{
-		authRepo:       authRepo,
-		userRepo:       userRepo,
-		membershipRepo: membershipRepo,
-		saccoRepo:      saccoRepo,
-		emailClient:    emailClient,
-		jwtSecret:      jwtSecret,
-		jwtExpiryHours: jwtExpiryHours,
-		frontendURL:    frontendURL,
+		authRepo:         authRepo,
+		userRepo:         userRepo,
+		membershipRepo:   membershipRepo,
+		saccoRepo:        saccoRepo,
+		emailClient:      emailClient,
+		jwtSecret:        jwtSecret,
+		jwtExpiryHours:   jwtExpiryHours,
+		frontendURL:      frontendURL,
 		exposeEmailLinks: exposeEmailLinks,
 	}
 }
@@ -288,7 +288,10 @@ func (s *Service) Login(ctx context.Context, phone, pin string) (string, *AuthUs
 		return "", nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
-	if user.PinHash == nil || !verifySecret(pin, *user.PinHash) {
+	if user.PinHash == nil {
+		return "", nil, errors.New("check your email to set your PIN and activate your account")
+	}
+	if !verifySecret(pin, *user.PinHash) {
 		return "", nil, errors.New("invalid phone or PIN")
 	}
 

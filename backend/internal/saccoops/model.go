@@ -21,12 +21,13 @@ type UpdateRoleRequest struct {
 
 // PendingMemberItem is a member awaiting SACCO admin approval.
 type PendingMemberItem struct {
-	MembershipID string `json:"membership_id"`
-	UserID       string `json:"user_id"`
-	FullName     string `json:"full_name"`
-	Phone        string `json:"phone"`
-	Status       string `json:"status"`
-	SubmittedAt  string `json:"submitted_at,omitempty"`
+	MembershipID  string `json:"membership_id"`
+	UserID        string `json:"user_id"`
+	FullName      string `json:"full_name"`
+	Phone         string `json:"phone"`
+	Status        string `json:"status"`
+	EmailVerified bool   `json:"email_verified"`
+	SubmittedAt   string `json:"submitted_at,omitempty"`
 }
 
 // MemberActionResponse is returned after suspend/activate/role change.

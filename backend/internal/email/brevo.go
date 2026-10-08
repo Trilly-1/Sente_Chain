@@ -66,10 +66,10 @@ type recipient struct {
 }
 
 type sendPayload struct {
-	Sender      recipient `json:"sender"`
+	Sender      recipient   `json:"sender"`
 	To          []recipient `json:"to"`
-	Subject     string    `json:"subject"`
-	HTMLContent string    `json:"htmlContent"`
+	Subject     string      `json:"subject"`
+	HTMLContent string      `json:"htmlContent"`
 }
 
 func (c *Client) send(toEmail, toName, subject, html string) error {
@@ -125,6 +125,17 @@ func (c *Client) SendVerificationEmail(toEmail, fullName, token string) error {
 <p>Or copy this link: <a href="%s">%s</a></p>
 <p>This link expires in 24 hours.</p>
 <p>If you did not create this account, you can ignore this email.</p>`, escapeHTML(fullName), link, link, link)
+	return c.send(toEmail, fullName, subject, html)
+}
+
+func (c *Client) SendMemberInviteEmail(toEmail, fullName, saccoName, token string) error {
+	link := fmt.Sprintf("%s/accept-invite?token=%s", c.cfg.FrontendURL, token)
+	subject := "You're invited to join " + saccoName + " on SenteChain"
+	html := fmt.Sprintf(`<p>Hi %s,</p>
+<p>%s added you as a member on SenteChain. This link is only for you. Open it, confirm, and choose your own 4-digit PIN. Your account stays pending until you do.</p>
+<p><a href="%s" style="display:inline-block;padding:12px 20px;background:#15803d;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Accept invite</a></p>
+<p>Or copy this link: <a href="%s">%s</a></p>
+<p>This link expires in 72 hours. If you were not expecting this, you can ignore this email.</p>`, escapeHTML(fullName), escapeHTML(saccoName), link, link, link)
 	return c.send(toEmail, fullName, subject, html)
 }
 

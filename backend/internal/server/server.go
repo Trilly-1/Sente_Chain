@@ -14,8 +14,8 @@ import (
 	"sentechain-backend/internal/config"
 	"sentechain-backend/internal/documents"
 	"sentechain-backend/internal/email"
-	"sentechain-backend/internal/memberships"
 	"sentechain-backend/internal/loans"
+	"sentechain-backend/internal/memberships"
 	"sentechain-backend/internal/middleware"
 	"sentechain-backend/internal/onboarding"
 	"sentechain-backend/internal/payments"
@@ -29,10 +29,11 @@ import (
 )
 
 type Server struct {
-	engine *gin.Engine
-	pool   *pgxpool.Pool
-	cfg    *config.Config
-	server *http.Server
+	engine      *gin.Engine
+	pool        *pgxpool.Pool
+	cfg         *config.Config
+	server      *http.Server
+	authHandler *auth.Handler
 }
 
 func New(cfg *config.Config, db *pgxpool.Pool) *Server {
@@ -112,6 +113,7 @@ func (s *Server) registerAuthRoutes() {
 	})
 	service := auth.NewService(authRepo, userRepo, membershipRepo, saccoRepo, emailClient, jwtSecret, s.cfg.JWTExpiryHours, s.cfg.FrontendURL, s.cfg.ExposeEmailLinksInResponse)
 	handler := auth.NewHandler(service, s.cfg.ExposeOTPInResponse)
+	s.authHandler = handler
 
 	authLimiter := middleware.NewRateLimiter(s.cfg.AuthRateLimit, time.Duration(s.cfg.AuthRateWindowSec)*time.Second)
 
@@ -125,6 +127,7 @@ func (s *Server) registerAuthRoutes() {
 		authGroup.POST("/email/resend", handler.HandleResendVerification)
 		authGroup.POST("/pin/forgot", handler.HandleForgotPIN)
 		authGroup.POST("/pin/reset", handler.HandleResetPIN)
+		authGroup.POST("/invite/accept", handler.HandleAcceptInvite)
 		authGroup.GET("/me", middleware.AuthMiddleware(jwtSecret), handler.HandleGetMe)
 	}
 }
@@ -202,6 +205,9 @@ func (s *Server) registerSaccoOpsRoutes() {
 		adminGroup.PATCH("/members/:membershipId/activate", handler.HandleActivate)
 		adminGroup.PATCH("/members/:membershipId/approve", handler.HandleApproveMember)
 		adminGroup.PATCH("/members/:membershipId/reject", handler.HandleRejectMember)
+		if s.authHandler != nil {
+			adminGroup.POST("/members/invite", s.authHandler.HandleInviteMember)
+		}
 	}
 }
 

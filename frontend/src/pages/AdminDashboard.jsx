@@ -47,7 +47,7 @@ export default function AdminDashboard() {
   const [allTxs, setAllTxs] = useState([])
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
-  const [regForm, setRegForm] = useState({ name: "", email: "", phone: "", role: "member", pin: "1234" })
+  const [regForm, setRegForm] = useState({ name: "", email: "", phone: "", role: "member" })
   const [regOk, setRegOk] = useState(false)
   const [regLoading, setRegLoading] = useState(false)
   const [saccoInfo, setSaccoInfo] = useState({ name: "SACCO" })
@@ -124,17 +124,25 @@ export default function AdminDashboard() {
         name: regForm.name,
         email: regForm.email,
         phone,
-        pin: regForm.pin,
         country: UGANDA.code,
         saccoId: auth.sacco_id,
         role: regForm.role === "cashier" ? "cashier" : "member",
-        activate: true,
       })
-      const mems = await apiGetMembers(auth.sacco_id)
+      const [mems, pending] = await Promise.all([apiGetMembers(auth.sacco_id), apiGetPendingMembers(auth.sacco_id)])
       setMembers(mems)
+      setPendingMembers(pending)
       setRegOk(true)
-      setTimeout(() => { setRegOk(false); setRegForm({ name: "", email: "", phone: "", role: "member", pin: "1234" }) }, 3000)
-    } catch (err) { setRegErr(err.message || "Registration failed.") }
+      setTimeout(() => { setRegOk(false); setRegForm({ name: "", email: "", phone: "", role: "member" }) }, 4000)
+    } catch (err) {
+      setRegErr(err.message || "Could not send the invite.")
+      try {
+        const [mems, pending] = await Promise.all([apiGetMembers(auth.sacco_id), apiGetPendingMembers(auth.sacco_id)])
+        setMembers(mems)
+        setPendingMembers(pending)
+      } catch {
+        // The invite may already be saved even when the email fails.
+      }
+    }
     finally { setRegLoading(false) }
   }
 
@@ -230,7 +238,7 @@ export default function AdminDashboard() {
 
         {pendingMembers.length > 0 && tab !== "Members" && (
           <button type="button" onClick={() => setTab("Members")} style={{ marginBottom: "16px", padding: "10px 16px", borderRadius: "10px", border: `1px solid ${T.goldBdr}`, background: T.goldBg, color: T.goldMid, fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: T.font }}>
-            {pendingMembers.length} member{pendingMembers.length !== 1 ? "s" : ""} awaiting approval →
+            {pendingMembers.length} pending member{pendingMembers.length !== 1 ? "s" : ""} →
           </button>
         )}
 
@@ -314,7 +322,7 @@ export default function AdminDashboard() {
           <div style={{ ...cardMd(), overflow: "hidden" }}>
             <div style={{ padding: "18px 24px", borderBottom: `1.5px solid ${T.border}`, background: "#fff" }}>
               <h2 style={{ fontSize: "17px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Pending Member Approvals</h2>
-              <p style={{ fontSize: "13px", color: T.textDim, margin: 0 }}>New members who joined your SACCO — approve them here before they can use their dashboard.</p>
+              <p style={{ fontSize: "13px", color: T.textDim, margin: 0 }}>Invited members stay here until they confirm the email. People who joined on their own can be approved after they confirm theirs.</p>
             </div>
             {pendingMembers.length === 0 ? (
               <p style={{ padding: "32px", textAlign: "center", color: T.textDim }}>No pending applications.</p>
@@ -326,9 +334,15 @@ export default function AdminDashboard() {
                       <p style={{ fontSize: "15px", fontWeight: 700, color: T.textHi, margin: "0 0 2px" }}>{m.name}</p>
                       <p style={{ fontSize: "12px", color: T.textDim, margin: 0 }}>{m.phone} • <StatusBadge status={m.status} /></p>
                     </div>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button onClick={() => handleApprovePending(m.member_id)} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: T.green, color: "#fff", fontWeight: 700, cursor: "pointer" }}>Approve</button>
-                      <button onClick={() => handleRejectPending(m.member_id)} style={{ padding: "8px 16px", borderRadius: "8px", border: `1px solid ${T.redBdr}`, background: T.redBg, color: T.red, fontWeight: 700, cursor: "pointer" }}>Reject</button>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      {m.email_verified ? (
+                        <>
+                          <button onClick={() => handleApprovePending(m.member_id)} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: T.green, color: "#fff", fontWeight: 700, cursor: "pointer" }}>Approve</button>
+                          <button onClick={() => handleRejectPending(m.member_id)} style={{ padding: "8px 16px", borderRadius: "8px", border: `1px solid ${T.redBdr}`, background: T.redBg, color: T.red, fontWeight: 700, cursor: "pointer" }}>Reject</button>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: "13px", fontWeight: 700, color: T.goldMid }}>Waiting for email confirmation</span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -372,9 +386,13 @@ export default function AdminDashboard() {
                         </select>
                       </div>
                     </div>
-                    <button onClick={() => toggleSuspend(m.member_id)} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "none", background: m.status === "active" ? T.redBg : T.greenLite, color: m.status === "active" ? T.red : T.green, fontSize: "13px", fontWeight: 700 }}>
-                      {m.status === "active" ? "Suspend Member" : "Reactivate Member"}
-                    </button>
+                    {m.status === "pending_kyc" || m.status === "under_review" ? (
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: T.goldMid }}>Invite pending</p>
+                    ) : (
+                      <button onClick={() => toggleSuspend(m.member_id)} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "none", background: m.status === "active" ? T.redBg : T.greenLite, color: m.status === "active" ? T.red : T.green, fontSize: "13px", fontWeight: 700 }}>
+                        {m.status === "active" ? "Suspend Member" : "Reactivate Member"}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -401,11 +419,15 @@ export default function AdminDashboard() {
                         </td>
                         <td style={{ padding: "15px 20px" }}><StatusBadge status={m.status} /></td>
                         <td style={{ padding: "15px 20px" }}>
-                          <button onClick={() => toggleSuspend(m.member_id)} style={{ padding: "7px 16px", borderRadius: "8px", border: "none", fontFamily: T.font, background: m.status === "active" ? T.redBg : T.greenLite, color: m.status === "active" ? T.red : T.green, fontSize: "13px", fontWeight: 700, cursor: "pointer", transition: "opacity 0.18s" }}
-                            onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
-                            onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                            {m.status === "active" ? "Suspend" : "Reactivate"}
-                          </button>
+                          {m.status === "pending_kyc" || m.status === "under_review" ? (
+                            <span style={{ fontSize: "13px", fontWeight: 700, color: T.goldMid }}>Invite pending</span>
+                          ) : (
+                            <button onClick={() => toggleSuspend(m.member_id)} style={{ padding: "7px 16px", borderRadius: "8px", border: "none", fontFamily: T.font, background: m.status === "active" ? T.redBg : T.greenLite, color: m.status === "active" ? T.red : T.green, fontSize: "13px", fontWeight: 700, cursor: "pointer", transition: "opacity 0.18s" }}
+                              onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
+                              onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+                              {m.status === "active" ? "Suspend" : "Reactivate"}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -418,13 +440,12 @@ export default function AdminDashboard() {
         {/* REGISTER MEMBER */}
             <div style={{ ...cardMd(), overflow: "hidden" }}>
               <div style={{ padding: "28px 32px" }}>
-                <h2 style={{ fontSize: "19px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Register Member or Cashier</h2>
-                <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 24px" }}>Staff-assisted signup — account is active immediately.</p>
+                <h2 style={{ fontSize: "19px", fontWeight: 800, color: T.textHi, margin: "0 0 4px" }}>Invite Member or Cashier</h2>
+                <p style={{ fontSize: "14px", color: T.textDim, margin: "0 0 24px" }}>An invite email goes to the address you enter. They stay pending until they open it and choose their own PIN.</p>
                 <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   {[
                     { label: "Full Name", key: "name", type: "text", placeholder: "e.g. Sarah Nambi" },
                     { label: "Email", key: "email", type: "email", placeholder: "member@example.com" },
-                    { label: "PIN (4 digits)", key: "pin", type: "password", placeholder: "1234" },
                   ].map(f => (
                     <div key={f.key}>
                       <Lbl text={f.label} />
@@ -438,14 +459,14 @@ export default function AdminDashboard() {
                   <div>
                     <Lbl text="Role" />
                     <select value={regForm.role} onChange={e => setRegForm(p => ({ ...p, role: e.target.value }))} style={{ ...inp(), cursor: "pointer" }}>
-                      <option value="member">Member (active)</option>
-                      <option value="cashier">Cashier (active)</option>
+                      <option value="member">Member (pending until they confirm)</option>
+                      <option value="cashier">Cashier (pending until they confirm)</option>
                     </select>
                   </div>
                   {regErr && <div style={{ padding: "12px 16px", borderRadius: "10px", background: T.redBg, border: `1px solid ${T.redBdr}`, color: T.red, fontSize: "14px" }}>{regErr}</div>}
-                  {regOk && <div style={{ padding: "13px 16px", borderRadius: "10px", background: T.greenLite, border: `1px solid ${T.greenBdr}`, color: T.green, fontSize: "14px", fontWeight: 700 }}>Account created. They must confirm email (if enabled), then sign in with phone + PIN.</div>}
+                  {regOk && <div style={{ padding: "13px 16px", borderRadius: "10px", background: T.greenLite, border: `1px solid ${T.greenBdr}`, color: T.green, fontSize: "14px", fontWeight: 700 }}>Invite sent. They stay pending until they confirm the email and choose a PIN.</div>}
                   <button type="submit" disabled={regLoading} style={{ padding: "14px", borderRadius: "10px", border: "none", fontFamily: T.font, background: regLoading ? T.border2 : T.green, color: regLoading ? T.textXdim : "#fff", fontSize: "15px", fontWeight: 800, cursor: regLoading ? "not-allowed" : "pointer" }}>
-                    {regLoading ? "Registering..." : "Register & Activate"}
+                    {regLoading ? "Sending..." : "Send invite"}
                   </button>
                 </form>
               </div>

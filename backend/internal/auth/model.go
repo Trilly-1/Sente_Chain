@@ -18,10 +18,11 @@ const (
 const (
 	TokenEmailVerification = "email_verification"
 	TokenPINReset          = "pin_reset"
+	TokenMemberInvite      = "member_invite"
 )
 
 // ValidEmailTokenTypes lists supported email token purposes.
-var ValidEmailTokenTypes = []string{TokenEmailVerification, TokenPINReset}
+var ValidEmailTokenTypes = []string{TokenEmailVerification, TokenPINReset, TokenMemberInvite}
 
 // ValidProviders is a set of valid auth providers
 var ValidProviders = []string{ProviderPhoneOTP, ProviderPhonePIN, ProviderGoogle, ProviderSEP10}
@@ -111,27 +112,27 @@ type LoginRequest struct {
 
 // AuthUserResponse is returned after register/login and from /auth/me
 type AuthUserResponse struct {
-	ID              string `json:"id"`
-	FullName        string `json:"full_name"`
-	Phone           string `json:"phone"`
-	Email           string `json:"email,omitempty"`
-	EmailVerified   bool   `json:"email_verified"`
-	Country         string `json:"country,omitempty"`
-	MembershipID    string `json:"membership_id,omitempty"`
-	SaccoID         string `json:"sacco_id,omitempty"`
-	Role            string `json:"role,omitempty"`
-	Status          string `json:"status,omitempty"`
-	SaccoStatus     string `json:"sacco_status,omitempty"`
-	IsProjectAdmin  bool   `json:"is_project_admin"`
+	ID             string `json:"id"`
+	FullName       string `json:"full_name"`
+	Phone          string `json:"phone"`
+	Email          string `json:"email,omitempty"`
+	EmailVerified  bool   `json:"email_verified"`
+	Country        string `json:"country,omitempty"`
+	MembershipID   string `json:"membership_id,omitempty"`
+	SaccoID        string `json:"sacco_id,omitempty"`
+	Role           string `json:"role,omitempty"`
+	Status         string `json:"status,omitempty"`
+	SaccoStatus    string `json:"sacco_status,omitempty"`
+	IsProjectAdmin bool   `json:"is_project_admin"`
 }
 
 // RegisterResponse is returned after successful registration.
 type RegisterResponse struct {
-	Token                     string `json:"token,omitempty"`
+	Token                     string           `json:"token,omitempty"`
 	User                      AuthUserResponse `json:"user"`
-	RequiresEmailVerification bool   `json:"requires_email_verification"`
-	Message                   string `json:"message,omitempty"`
-	DevVerificationURL        string `json:"dev_verification_url,omitempty"`
+	RequiresEmailVerification bool             `json:"requires_email_verification"`
+	Message                   string           `json:"message,omitempty"`
+	DevVerificationURL        string           `json:"dev_verification_url,omitempty"`
 }
 
 // VerifyEmailRequest confirms a registration email.
@@ -161,6 +162,34 @@ type MessageResponse struct {
 	Message            string `json:"message"`
 	DevVerificationURL string `json:"dev_verification_url,omitempty"`
 	DevResetURL        string `json:"dev_reset_url,omitempty"`
+}
+
+// InviteMemberRequest is the SACCO admin payload for inviting a member.
+type InviteMemberRequest struct {
+	FullName string `json:"full_name"`
+	Phone    string `json:"phone"`
+	Email    string `json:"email"`
+	Country  string `json:"country"`
+	Role     string `json:"role"`
+}
+
+// InviteMemberResponse is returned after a pending member is saved.
+type InviteMemberResponse struct {
+	Message      string `json:"message"`
+	MembershipID string `json:"membership_id"`
+	Status       string `json:"status"`
+	FullName     string `json:"full_name"`
+	Phone        string `json:"phone"`
+	Email        string `json:"email"`
+	Role         string `json:"role"`
+	DevInviteURL string `json:"dev_invite_url,omitempty"`
+}
+
+// AcceptInviteRequest is the member payload from the invite link.
+type AcceptInviteRequest struct {
+	Token      string `json:"token"`
+	PIN        string `json:"pin"`
+	ConfirmPIN string `json:"confirm_pin"`
 }
 
 // AuthTokenResponse wraps token and user for auth endpoints

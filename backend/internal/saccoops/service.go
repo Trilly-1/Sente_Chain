@@ -143,10 +143,10 @@ func (s *Service) UpdateRole(ctx context.Context, actorUserID, saccoID, membersh
 		EntityType:  "membership",
 		EntityID:    updated.ID,
 		Details: map[string]interface{}{
-			"sacco_id":   saccoID,
-			"new_role":   req.Role,
-			"old_role":   target.Role,
-			"user_id":    target.UserID.String(),
+			"sacco_id": saccoID,
+			"new_role": req.Role,
+			"old_role": target.Role,
+			"user_id":  target.UserID.String(),
 		},
 	})
 
@@ -261,13 +261,13 @@ func (s *Service) GetPublicSummary(ctx context.Context, saccoID string) (*Public
 	}
 
 	summary := &PublicSummary{
-		SaccoID:           record.ID.String(),
-		Name:              record.Name,
-		Code:              record.Code,
-		Status:            record.Status,
-		ActiveMemberCount: memberCount,
-		TransactionCount:  stats.Total,
-		AnchoredCount:     stats.Anchored,
+		SaccoID:            record.ID.String(),
+		Name:               record.Name,
+		Code:               record.Code,
+		Status:             record.Status,
+		ActiveMemberCount:  memberCount,
+		TransactionCount:   stats.Total,
+		AnchoredCount:      stats.Anchored,
 		RecentTransactions: make([]PublicTransaction, 0, len(recent)),
 	}
 	if record.Country != nil {
@@ -314,11 +314,12 @@ func (s *Service) ListPendingMembers(ctx context.Context, saccoID string) ([]Pen
 			continue
 		}
 		item := PendingMemberItem{
-			MembershipID: m.ID.String(),
-			UserID:       user.ID.String(),
-			FullName:     user.FullName,
-			Phone:        user.Phone,
-			Status:       m.Status,
+			MembershipID:  m.ID.String(),
+			UserID:        user.ID.String(),
+			FullName:      user.FullName,
+			Phone:         user.Phone,
+			Status:        m.Status,
+			EmailVerified: user.EmailVerifiedAt != nil,
 		}
 		if !m.UpdatedAt.IsZero() {
 			item.SubmittedAt = m.UpdatedAt.UTC().Format(time.RFC3339)
