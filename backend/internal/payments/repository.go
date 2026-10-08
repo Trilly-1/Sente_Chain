@@ -156,12 +156,12 @@ func (r *Repository) InsertInboundEvent(ctx context.Context, event *InboundEvent
 		INSERT INTO inbound_payment_events (
 			sacco_id, provider, external_id, payer_phone, payee_phone,
 			amount, currency, reference_text, status, membership_id, transaction_id, raw_payload
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)
 		RETURNING id, created_at`
 	err := r.db.QueryRow(ctx, q,
 		event.SaccoID, event.Provider, event.ExternalID, event.PayerPhone, event.PayeePhone,
 		event.Amount, event.Currency, event.ReferenceText, event.Status,
-		event.MembershipID, event.TransactionID, event.RawPayload,
+		event.MembershipID, event.TransactionID, string(event.RawPayload),
 	).Scan(&event.ID, &event.CreatedAt)
 	return event, err
 }

@@ -33,12 +33,12 @@ func (r *Repository) Create(ctx context.Context, req *CreateRequest) (*Log, erro
 	log := &Log{}
 	query := `
 		INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, details)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, $3, $4, $5::jsonb)
 		RETURNING id, actor_user_id, action, entity_type, entity_id, details, created_at
 	`
 
 	err = r.db.QueryRow(ctx, query,
-		req.ActorUserID, req.Action, req.EntityType, req.EntityID, detailsJSON,
+		req.ActorUserID, req.Action, req.EntityType, req.EntityID, string(detailsJSON),
 	).Scan(
 		&log.ID,
 		&log.ActorUserID,

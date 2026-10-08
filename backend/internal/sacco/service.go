@@ -159,16 +159,12 @@ func (s *Service) Submit(ctx context.Context, userID, saccoID string) (*StatusRe
 		return nil, fmt.Errorf("only draft SACCOs can be submitted (current: %s)", record.Status)
 	}
 
-	// TESTING: SKIP_KYC=true skips compliance doc requirement.
-	// Pilot: set SKIP_KYC=false (or unset) to require documents again.
-	if !memberships.SkipKYC() {
-		docs, err := s.documentRepo.ListByOwner(ctx, documents.OwnerTypeSacco, saccoID)
-		if err != nil {
-			return nil, err
-		}
-		if len(docs) == 0 {
-			return nil, errors.New("upload at least one compliance document before submitting")
-		}
+	docs, err := s.documentRepo.ListByOwner(ctx, documents.OwnerTypeSacco, saccoID)
+	if err != nil {
+		return nil, err
+	}
+	if msg := missingApplicationFields(ProfileToMap(record.Profile), docs); msg != "" {
+		return nil, errors.New(msg)
 	}
 
 	updated, err := s.saccoRepo.UpdateStatus(ctx, saccoID, StatusUnderReview)
@@ -183,6 +179,59 @@ func (s *Service) Submit(ctx context.Context, userID, saccoID string) (*StatusRe
 	}
 
 	return s.toStatusResponse(updated), nil
+}
+
+func missingApplicationFields(profile map[string]interface{}, docs []*documents.Document) string {
+	requiredProfile := []struct{ key, label string }{
+		{"type", "SACCO type"},
+		{"address", "headquarters address"},
+		{"phone", "official phone"},
+		{"email", "official email"},
+		{"chairman_name", "chairman name"},
+		{"chairman_id", "chairman national ID"},
+		{"chairman_image", "chairman face photo"},
+		{"secretary_name", "secretary name"},
+		{"secretary_id", "secretary national ID"},
+		{"secretary_image", "secretary face photo"},
+	}
+	for _, field := range requiredProfile {
+		if profileString(profile, field.key) == "" {
+			return field.label + " is required before submitting"
+		}
+	}
+
+	have := map[string]bool{}
+	for _, doc := range docs {
+		if doc != nil && strings.TrimSpace(doc.FileURL) != "" {
+			have[doc.DocumentType] = true
+		}
+	}
+	requiredDocs := []struct{ key, label string }{
+		{"registration_certificate", "registration certificate"},
+		{"operational_license", "operational license"},
+		{"tin_certificate", "TIN certificate"},
+	}
+	for _, doc := range requiredDocs {
+		if !have[doc.key] {
+			return "upload the " + doc.label + " before submitting"
+		}
+	}
+	return ""
+}
+
+func profileString(profile map[string]interface{}, key string) string {
+	if profile == nil {
+		return ""
+	}
+	value, ok := profile[key]
+	if !ok || value == nil {
+		return ""
+	}
+	text, ok := value.(string)
+	if !ok {
+		text = fmt.Sprint(value)
+	}
+	return strings.TrimSpace(text)
 }
 
 func (s *Service) GetStatus(ctx context.Context, userID, saccoID string) (*StatusResponse, error) {

@@ -34,10 +34,10 @@ func scanSACCO(row pgx.Row) (*SACCO, error) {
 func (r *Repository) CreateDraft(ctx context.Context, name, code, country, createdBy string, profile json.RawMessage) (*SACCO, error) {
 	query := `
 		INSERT INTO saccos (name, code, status, country, created_by, profile)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		VALUES ($1, $2, $3, $4, $5, $6::jsonb)
 		RETURNING ` + saccoColumns
 
-	s, err := scanSACCO(r.db.QueryRow(ctx, query, name, code, StatusDraft, country, createdBy, profile))
+	s, err := scanSACCO(r.db.QueryRow(ctx, query, name, code, StatusDraft, country, createdBy, string(profile)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SACCO draft: %w", err)
 	}
@@ -71,11 +71,11 @@ func (r *Repository) GetByCode(ctx context.Context, code string) (*SACCO, error)
 func (r *Repository) UpdateDraft(ctx context.Context, id, name, country string, profile json.RawMessage) (*SACCO, error) {
 	query := `
 		UPDATE saccos
-		SET name = $1, country = $2, profile = $3, updated_at = NOW()
+		SET name = $1, country = $2, profile = $3::jsonb, updated_at = NOW()
 		WHERE id = $4 AND status = $5
 		RETURNING ` + saccoColumns
 
-	s, err := scanSACCO(r.db.QueryRow(ctx, query, name, country, profile, id, StatusDraft))
+	s, err := scanSACCO(r.db.QueryRow(ctx, query, name, country, string(profile), id, StatusDraft))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, pgx.ErrNoRows

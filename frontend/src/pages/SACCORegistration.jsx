@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { apiRegister, apiCreateSacco, apiUpdateSacco, apiUploadSaccoDocuments, apiSubmitSacco, SKIP_KYC } from "../services/api"
+import { apiRegister, apiCreateSacco, apiUpdateSacco, apiUploadSaccoDocuments, apiSubmitSacco } from "../services/api"
 import { UGANDA } from "../data/countries"
 import PhoneInput, { toFullPhone } from "../components/PhoneInput"
 
@@ -28,6 +28,23 @@ const inpStyle = {
   width: "100%", padding: "14px", borderRadius: "10px", border: `1.5px solid ${C.border}`,
   fontSize: "15px", fontFamily: C.font, outline: "none", transition: "all 0.2s",
   color: C.textHi, background: "#ffffff"
+}
+
+const REQUIRED_DOCS = [
+  { type: "registration_certificate", label: "Registration Certificate" },
+  { type: "operational_license", label: "Operational License" },
+  { type: "tin_certificate", label: "TIN/PIN Certificate" },
+]
+
+const MAX_DOC_BYTES = 2 * 1024 * 1024
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error("Could not read that file"))
+    reader.readAsDataURL(file)
+  })
 }
 
 const Label = ({ children }) => (
@@ -84,10 +101,11 @@ export default function SACCORegistration() {
     const video = videoRef.current
     const canvas = canvasRef.current
     if (video && canvas) {
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      canvas.getContext("2d").drawImage(video, 0, 0)
-      const img = canvas.toDataURL("image/png")
+      const scale = Math.min(1, 480 / (video.videoWidth || 480))
+      canvas.width = Math.round((video.videoWidth || 480) * scale)
+      canvas.height = Math.round((video.videoHeight || 360) * scale)
+      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height)
+      const img = canvas.toDataURL("image/jpeg", 0.7)
       if (activeCamera === 'chairman') {
         setFormData({ ...formData, chairmanImage: img, chairmanVerified: true })
       } else {
@@ -97,9 +115,29 @@ export default function SACCORegistration() {
     }
   }
 
+  const [docFiles, setDocFiles] = useState({})
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
   const [saccoId, setSaccoId] = useState(null)
+
+  const onPickDocument = async (type, file) => {
+    if (!file) return
+    if (file.size > MAX_DOC_BYTES) {
+      setErrors({ form: "Each document must be 2MB or smaller." })
+      return
+    }
+    const allowed = ["application/pdf", "image/png", "image/jpeg"]
+    if (file.type && !allowed.includes(file.type)) {
+      setErrors({ form: "Use a PDF, PNG, or JPG." })
+      return
+    }
+    setErrors({})
+    const dataUrl = await readFileAsDataURL(file)
+    setDocFiles((prev) => ({
+      ...prev,
+      [type]: { name: file.name, mime: file.type || "application/octet-stream", dataUrl },
+    }))
+  }
 
   const submitSaccoApplication = async () => {
     setLoading(true)
@@ -120,7 +158,7 @@ export default function SACCORegistration() {
       if (!adminData.name) newErrors.adminName = "Full name is required"
       if (!adminData.email) newErrors.adminEmail = "Email is required"
       if (!adminData.phoneNo) newErrors.adminPhone = "Phone number is required"
-      if (!adminData.pin) newErrors.adminPin = "PIN is required"
+      if (!/^\d{4}$/.test(adminData.pin || "")) newErrors.adminPin = "PIN must be 4 digits"
       
       if (Object.keys(newErrors).length > 0) return setErrors(newErrors)
       setErrors({})
@@ -163,6 +201,7 @@ export default function SACCORegistration() {
     } else if (step === 3) {
       if (!formData.address) newErrors.address = "Address is required"
       if (!formData.phone) newErrors.phone = "Phone number is required"
+      if (!formData.email || !formData.email.includes("@")) newErrors.email = "Official email is required"
       if (Object.keys(newErrors).length > 0) return setErrors(newErrors)
       setErrors({})
       setLoading(true)
@@ -178,18 +217,19 @@ export default function SACCORegistration() {
         setLoading(false)
       }
     } else if (step === 4) {
-      // TESTING: SKIP_KYC skips compliance uploads. Pilot: set VITE_SKIP_KYC=false.
-      if (SKIP_KYC) {
-        setStep(s => s + 1)
-        return
+      const missing = REQUIRED_DOCS.filter((doc) => !docFiles[doc.type])
+      if (missing.length > 0) {
+        return setErrors({ form: "Upload the registration certificate, operational license, and TIN certificate." })
       }
+      setErrors({})
       setLoading(true)
       try {
-        await apiUploadSaccoDocuments(saccoId, [
-          { document_type: "registration_certificate", file_url: "https://placeholder.sentechain.app/reg-cert.pdf", file_name: "registration_certificate.pdf" },
-          { document_type: "operational_license", file_url: "https://placeholder.sentechain.app/license.pdf", file_name: "operational_license.pdf" },
-          { document_type: "tin_certificate", file_url: "https://placeholder.sentechain.app/tin.pdf", file_name: "tin_certificate.pdf" },
-        ])
+        await apiUploadSaccoDocuments(saccoId, REQUIRED_DOCS.map((doc) => ({
+          document_type: doc.type,
+          file_url: docFiles[doc.type].dataUrl,
+          file_name: docFiles[doc.type].name,
+          mime_type: docFiles[doc.type].mime,
+        })))
         setStep(s => s + 1)
       } catch (err) {
         setErrors({ form: err.message || "Failed to upload documents" })
@@ -197,27 +237,25 @@ export default function SACCORegistration() {
         setLoading(false)
       }
     } else if (step === 5) {
-      // TESTING: SKIP_KYC skips National ID + liveliness. Pilot: VITE_SKIP_KYC=false.
-      if (!SKIP_KYC) {
-        if (!formData.chairmanName) newErrors.chairmanName = "Required"
-        if (!formData.chairmanID) newErrors.chairmanID = "Required"
-        if (!formData.secretaryName) newErrors.secretaryName = "Required"
-        if (!formData.secretaryID) newErrors.secretaryID = "Required"
-        if (!formData.chairmanVerified) newErrors.chairmanVerified = "Verification required"
-        if (!formData.secretaryVerified) newErrors.secretaryVerified = "Verification required"
-      }
+      if (!formData.chairmanName) newErrors.chairmanName = "Required"
+      if (!formData.chairmanID) newErrors.chairmanID = "Required"
+      if (!formData.secretaryName) newErrors.secretaryName = "Required"
+      if (!formData.secretaryID) newErrors.secretaryID = "Required"
+      if (!formData.chairmanVerified) newErrors.chairmanVerified = "Verification required"
+      if (!formData.secretaryVerified) newErrors.secretaryVerified = "Verification required"
 
       if (Object.keys(newErrors).length > 0) return setErrors(newErrors)
       setErrors({})
       setLoading(true)
       try {
-        const chairmanName = formData.chairmanName || adminData.name || "SACCO Admin"
         await apiUpdateSacco(saccoId, {
           profile: {
-            chairman_name: chairmanName,
-            chairman_id: SKIP_KYC ? (formData.chairmanID || "SKIPPED-TEST") : formData.chairmanID,
-            secretary_name: formData.secretaryName || (SKIP_KYC ? "TBD" : ""),
-            secretary_id: SKIP_KYC ? (formData.secretaryID || "SKIPPED-TEST") : formData.secretaryID,
+            chairman_name: formData.chairmanName,
+            chairman_id: formData.chairmanID,
+            chairman_image: formData.chairmanImage,
+            secretary_name: formData.secretaryName,
+            secretary_id: formData.secretaryID,
+            secretary_image: formData.secretaryImage,
           },
         })
         setStep(s => s + 1)
@@ -378,7 +416,11 @@ export default function SACCORegistration() {
                     />
                     {errors.phone && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.phone}</span>}
                   </div>
-                  <div><Label>Official Email</Label><input style={inpStyle} placeholder="info@sacco.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
+                  <div>
+                    <Label>Official Email</Label>
+                    <input style={{ ...inpStyle, borderColor: errors.email ? "#dc2626" : C.border }} placeholder="info@sacco.com" value={formData.email} onChange={e => { setFormData({ ...formData, email: e.target.value }); setErrors({ ...errors, email: null }) }} />
+                    {errors.email && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.email}</span>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -387,13 +429,14 @@ export default function SACCORegistration() {
           {step === 4 && (
             <div>
               <h2 style={{ fontSize: "20px", fontWeight: 800, marginBottom: "24px", color: C.textHi }}>Document Uploads</h2>
-              <p style={{ color: C.textDim, fontSize: "14px", marginBottom: "20px" }}>Please upload clear PDF or Image scans of your official documents.</p>
+              <p style={{ color: C.textDim, fontSize: "14px", marginBottom: "20px" }}>Upload all three documents before continuing. PDF, PNG, or JPG, up to 2MB each.</p>
               <div style={{ display: "grid", gap: "16px" }}>
-                {["Registration Certificate", "Operational License", "TIN/PIN Certificate"].map(doc => (
-                  <div key={doc} style={{ padding: "20px", border: `2px dashed ${C.border}`, borderRadius: "12px", textAlign: "center", cursor: "pointer", background: "#fff" }} onMouseEnter={e => e.currentTarget.style.borderColor = C.green} onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: "14px", color: C.textHi }}>Upload {doc}</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "11px", color: C.textMid }}>Max size 5MB (PDF, PNG, JPG)</p>
-                  </div>
+                {REQUIRED_DOCS.map(doc => (
+                  <label key={doc.type} style={{ padding: "20px", border: `2px dashed ${docFiles[doc.type] ? C.green : C.border}`, borderRadius: "12px", textAlign: "center", cursor: "pointer", background: docFiles[doc.type] ? C.greenLite : "#fff", display: "block" }}>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: "14px", color: C.textHi }}>{docFiles[doc.type] ? `Selected: ${docFiles[doc.type].name}` : `Upload ${doc.label}`}</p>
+                    <p style={{ margin: "4px 0 0", fontSize: "11px", color: C.textMid }}>PDF, PNG, or JPG, max 2MB</p>
+                    <input type="file" accept="application/pdf,image/png,image/jpeg" style={{ display: "none" }} onChange={(e) => onPickDocument(doc.type, e.target.files?.[0])} />
+                  </label>
                 ))}
               </div>
             </div>
@@ -402,33 +445,23 @@ export default function SACCORegistration() {
           {step === 5 && (
             <div>
               <h2 style={{ fontSize: isMobile ? "18px" : "20px", fontWeight: 800, marginBottom: isMobile ? "16px" : "24px" }}>
-                {SKIP_KYC ? "Key Officials (KYC skipped for testing)" : "Key Officials Verification"}
+                Key Officials Verification
               </h2>
-              {SKIP_KYC && (
-                <p style={{ fontSize: "13px", color: C.goldMid, fontWeight: 600, marginBottom: "16px" }}>
-                  Testing mode: National ID and face verification are off. Names optional — click Continue.
-                </p>
-              )}
               <div style={{ display: "grid", gap: isMobile ? "16px" : "24px" }}>
                 <div style={{ padding: isMobile ? "16px" : "20px", background: C.surface, borderRadius: "12px", border: errors.chairmanVerified ? "1px solid #dc2626" : "none" }}>
                   <h3 style={{ fontSize: "14px", fontWeight: 800, marginBottom: "12px", color: C.green }}>Chairman Details</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile || SKIP_KYC ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: SKIP_KYC ? 0 : "16px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                     <div>
-                      <Label>Full Name{SKIP_KYC ? " (optional)" : ""}</Label>
+                      <Label>Full Name</Label>
                       <input style={{ ...inpStyle, borderColor: errors.chairmanName ? "#dc2626" : C.border }} placeholder={adminData.name || "Name"} value={formData.chairmanName} onChange={e => { setFormData({ ...formData, chairmanName: e.target.value }); setErrors({...errors, chairmanName: null}) }} />
                       {errors.chairmanName && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.chairmanName}</span>}
                     </div>
-                    {/* TESTING: National ID hidden when SKIP_KYC. Pilot: VITE_SKIP_KYC=false */}
-                    {!SKIP_KYC && (
                     <div>
                       <Label>National ID Number</Label>
                       <input style={{ ...inpStyle, borderColor: errors.chairmanID ? "#dc2626" : C.border }} placeholder="ID Number" value={formData.chairmanID} onChange={e => { setFormData({ ...formData, chairmanID: e.target.value }); setErrors({...errors, chairmanID: null}) }} />
                       {errors.chairmanID && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.chairmanID}</span>}
                     </div>
-                    )}
                   </div>
-                  {/* TESTING: Liveliness hidden when SKIP_KYC. Pilot: VITE_SKIP_KYC=false */}
-                  {!SKIP_KYC && (
                   <div>
                     <Label>Liveliness Check</Label>
                     {!formData.chairmanVerified ? (
@@ -457,25 +490,21 @@ export default function SACCORegistration() {
                       </div>
                     )}
                   </div>
-                  )}
                 </div>
                 <div style={{ padding: isMobile ? "16px" : "20px", background: C.surface, borderRadius: "12px", border: errors.secretaryVerified ? "1px solid #dc2626" : "none" }}>
                   <h3 style={{ fontSize: "14px", fontWeight: 800, marginBottom: "12px", color: C.green }}>Secretary Details</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile || SKIP_KYC ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: SKIP_KYC ? 0 : "16px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                     <div>
-                      <Label>Full Name{SKIP_KYC ? " (optional)" : ""}</Label>
+                      <Label>Full Name</Label>
                       <input style={{ ...inpStyle, borderColor: errors.secretaryName ? "#dc2626" : C.border }} placeholder="Name" value={formData.secretaryName} onChange={e => { setFormData({ ...formData, secretaryName: e.target.value }); setErrors({...errors, secretaryName: null}) }} />
                       {errors.secretaryName && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.secretaryName}</span>}
                     </div>
-                    {!SKIP_KYC && (
                     <div>
                       <Label>National ID Number</Label>
                       <input style={{ ...inpStyle, borderColor: errors.secretaryID ? "#dc2626" : C.border }} placeholder="ID Number" value={formData.secretaryID} onChange={e => { setFormData({ ...formData, secretaryID: e.target.value }); setErrors({...errors, secretaryID: null}) }} />
                       {errors.secretaryID && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.secretaryID}</span>}
                     </div>
-                    )}
                   </div>
-                  {!SKIP_KYC && (
                   <div>
                     <Label>Liveliness Check</Label>
                     {!formData.secretaryVerified ? (
@@ -504,7 +533,6 @@ export default function SACCORegistration() {
                       </div>
                     )}
                   </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -521,9 +549,11 @@ export default function SACCORegistration() {
               </p>
               
               <div style={{ textAlign: "left", background: C.surface, padding: "20px", borderRadius: "12px", border: `1px solid ${C.border}`, marginBottom: "24px" }}>
-                <p style={{ fontSize: "13px", margin: "0 0 8px", color: C.textHi }}><strong>SACCO:</strong> {formData.name || "N/A"}</p>
-
-                <p style={{ fontSize: "13px", margin: 0, color: C.textHi }}><strong>Chairman:</strong> {formData.chairmanName || "N/A"}</p>
+                <p style={{ fontSize: "13px", margin: "0 0 8px", color: C.textHi }}><strong>SACCO:</strong> {formData.name || "N/A"} ({formData.type})</p>
+                <p style={{ fontSize: "13px", margin: "0 0 8px", color: C.textHi }}><strong>Contact:</strong> {formData.address || "N/A"} · {formData.phone || "N/A"} · {formData.email || "N/A"}</p>
+                <p style={{ fontSize: "13px", margin: "0 0 8px", color: C.textHi }}><strong>Documents:</strong> {REQUIRED_DOCS.filter((doc) => docFiles[doc.type]).length} of 3 uploaded</p>
+                <p style={{ fontSize: "13px", margin: "0 0 8px", color: C.textHi }}><strong>Chairman:</strong> {formData.chairmanName || "N/A"}</p>
+                <p style={{ fontSize: "13px", margin: 0, color: C.textHi }}><strong>Secretary:</strong> {formData.secretaryName || "N/A"}</p>
               </div>
 
               <div style={{ marginTop: "24px", display: "flex", alignItems: "flex-start", gap: "12px", cursor: "pointer", textAlign: "left" }} onClick={() => setAgreed(!agreed)}>

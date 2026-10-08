@@ -60,13 +60,13 @@ func (r *Repository) Create(ctx context.Context, p *CreateParams) (*Transaction,
 		INSERT INTO transactions (
 			reference_number, sacco_id, membership_id, initiated_by,
 			transaction_type, amount, currency, description, status, proof_hash, metadata
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)
 		RETURNING ` + txnColumns
 
 	return scanTransaction(r.db.QueryRow(ctx, query,
 		p.ReferenceNumber, p.SaccoID, p.MembershipID, p.InitiatedBy,
 		p.TransactionType, p.Amount, p.Currency, p.Description,
-		StatusRecorded, p.ProofHash, p.Metadata,
+		StatusRecorded, p.ProofHash, string(p.Metadata),
 	))
 }
 
