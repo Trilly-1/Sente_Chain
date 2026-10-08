@@ -273,7 +273,7 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 			"source":     "request_to_pay",
 			"externalId": result.ExternalID,
 		})
-		if _, recErr := s.ProcessInbound(ctx, &WebhookPayload{
+		event, recErr := s.ProcessInbound(ctx, &WebhookPayload{
 			ExternalID: result.ExternalID,
 			Amount:     req.Amount,
 			Currency:   currency,
@@ -282,8 +282,12 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 			Reference:  paymentRef,
 			Purpose:    purpose,
 			Provider:   provider,
-		}, raw); recErr != nil {
+		}, raw)
+		if recErr != nil {
 			return nil, fmt.Errorf("payment succeeded but could not record it: %w", recErr)
+		}
+		if event == nil || event.Status != EventMatched || event.TransactionID == nil {
+			return nil, errors.New("payment succeeded at MTN but was not recorded on your account")
 		}
 		if s.mtnSandbox() {
 			result.Message = "Sandbox payment succeeded and was added to your transactions."
@@ -395,6 +399,10 @@ func (s *Service) ProcessInbound(ctx context.Context, payload *WebhookPayload, r
 	memUUID, _ := uuid.Parse(membershipID)
 	saccoUUID, _ := uuid.Parse(saccoID)
 	sid := saccoUUID
+	initiatedBy := memUUID
+	if mem, memErr := s.membershipRepo.GetByID(ctx, membershipID); memErr == nil {
+		initiatedBy = mem.UserID
+	}
 
 	txnType := transactions.TypeDeposit
 	descText := fmt.Sprintf("Mobile money %s via %s", purpose, payload.Provider)
@@ -432,7 +440,7 @@ func (s *Service) ProcessInbound(ctx context.Context, payload *WebhookPayload, r
 		ReferenceNumber: transactions.GenerateReferenceNumber(),
 		SaccoID:         saccoUUID,
 		MembershipID:    memUUID,
-		InitiatedBy:     memUUID,
+		InitiatedBy:     initiatedBy,
 		TransactionType: txnType,
 		Amount:          FormatAmount(creditAmount),
 		Currency:        strings.ToUpper(payload.Currency),
@@ -456,7 +464,7 @@ func (s *Service) ProcessInbound(ctx context.Context, payload *WebhookPayload, r
 			ReferenceNumber: transactions.GenerateReferenceNumber(),
 			SaccoID:         saccoUUID,
 			MembershipID:    memUUID,
-			InitiatedBy:     memUUID,
+			InitiatedBy:     initiatedBy,
 			TransactionType: transactions.TypeFee,
 			Amount:          FormatAmount(platformFee),
 			Currency:        strings.ToUpper(payload.Currency),
