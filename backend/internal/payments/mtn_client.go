@@ -110,10 +110,7 @@ func (c *MTNClient) RequestToPay(ctx context.Context, in *RequestToPayInput) (*R
 		case "SUCCESSFUL":
 			message = "Sandbox payment succeeded. No prompt is sent to a real phone."
 		case "FAILED":
-			if reason == "" {
-				reason = "UNKNOWN"
-			}
-			message = "Sandbox payment failed: " + reason
+			message = paymentFailureMessage(reason, true)
 		default:
 			message = "Sandbox payment is still processing (" + status + ")."
 		}
@@ -123,6 +120,20 @@ func (c *MTNClient) RequestToPay(ctx context.Context, in *RequestToPayInput) (*R
 		Status:     strings.ToLower(status),
 		Message:    message,
 	}, nil
+}
+
+func paymentFailureMessage(reason string, sandbox bool) string {
+	r := strings.ToUpper(strings.TrimSpace(reason))
+	if strings.Contains(r, "NOT_ENOUGH") || strings.Contains(r, "INSUFFICIENT") {
+		return "Insufficient balance. Your MoMo wallet must cover the amount plus the fee."
+	}
+	if r == "" {
+		r = "UNKNOWN"
+	}
+	if sandbox {
+		return "Sandbox payment failed: " + r
+	}
+	return "Payment failed: " + r
 }
 
 func (c *MTNClient) sandbox() bool {
