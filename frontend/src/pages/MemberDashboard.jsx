@@ -301,6 +301,11 @@ export default function MemberDashboard() {
           <div style={{ padding:"20px 22px" }}>
           {payInfo ? (
             <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+              {payInfo.mtn_sandbox && (
+                <div style={{ padding:"12px 14px", background:T.goldLite, borderRadius:"8px", border:`1px solid ${T.goldBdr}`, fontSize:"13px", color:T.textMid, lineHeight:1.5 }}>
+                  Sandbox test. Pay Now does not prompt your phone. MTN marks the test successful in {payInfo.mtn_currency || "EUR"}.
+                </div>
+              )}
               <form onSubmit={handlePayNow} style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 160px auto", gap:"10px", alignItems:"end" }}>
                 <div>
                   <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Purpose</p>
@@ -311,7 +316,7 @@ export default function MemberDashboard() {
                   </select>
                 </div>
                 <div>
-                  <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Amount (UGX)</p>
+                  <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Amount ({payInfo.mtn_sandbox ? (payInfo.mtn_currency || "EUR") : "UGX"})</p>
                   <input type="number" min="1" placeholder="e.g. 50000" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required disabled={payLoading} style={inp} />
                 </div>
                 <div>

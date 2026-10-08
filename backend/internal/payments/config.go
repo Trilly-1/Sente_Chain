@@ -15,6 +15,7 @@ type MTNConfig struct {
 	TargetEnvironment  string
 	Currency           string
 	WebhookSecret      string
+	SandboxPayer       string
 	Enabled            bool
 }
 
@@ -68,7 +69,16 @@ func LoadProvidersConfigFromEnv() ProvidersConfig {
 
 	mtnCurrency := strings.TrimSpace(os.Getenv("MTN_MOMO_CURRENCY"))
 	if mtnCurrency == "" {
-		mtnCurrency = "UGX"
+		if strings.EqualFold(mtnEnv, "sandbox") {
+			mtnCurrency = "EUR"
+		} else {
+			mtnCurrency = "UGX"
+		}
+	}
+	sandboxPayer := strings.TrimSpace(os.Getenv("MTN_MOMO_SANDBOX_PAYER"))
+	if sandboxPayer == "" && strings.EqualFold(mtnEnv, "sandbox") {
+		// Any number except MTN's built-in failure cases (46733123450–54).
+		sandboxPayer = "46733123499"
 	}
 
 	return ProvidersConfig{
@@ -81,6 +91,7 @@ func LoadProvidersConfigFromEnv() ProvidersConfig {
 			TargetEnvironment: mtnEnv,
 			Currency:          mtnCurrency,
 			WebhookSecret:     strings.TrimSpace(os.Getenv("MTN_MOMO_WEBHOOK_SECRET")),
+			SandboxPayer:      sandboxPayer,
 			Enabled:           mtnUser != "" && mtnKey != "" && mtnSub != "",
 		},
 		Airtel: AirtelConfig{

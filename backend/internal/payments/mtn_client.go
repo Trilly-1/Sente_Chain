@@ -62,7 +62,7 @@ func (c *MTNClient) RequestToPay(ctx context.Context, in *RequestToPayInput) (*R
 	}
 
 	referenceID := uuid.New().String()
-	payerMSISDN := strings.TrimPrefix(NormalizePhone(in.PayerPhone), "+")
+	payerMSISDN := c.payerMSISDN(in.PayerPhone)
 
 	payload := map[string]interface{}{
 		"amount":     fmt.Sprintf("%.0f", in.Amount),
@@ -103,9 +103,101 @@ func (c *MTNClient) RequestToPay(ctx context.Context, in *RequestToPayInput) (*R
 		return nil, fmt.Errorf("MTN request-to-pay failed (%d): %s", res.StatusCode, string(resBody))
 	}
 
+	status, reason := c.waitForStatus(ctx, token, referenceID)
+	message := "Check your phone for the MTN MoMo payment prompt"
+	if c.sandbox() {
+		switch strings.ToUpper(status) {
+		case "SUCCESSFUL":
+			message = "Sandbox payment succeeded. No prompt is sent to a real phone."
+		case "FAILED":
+			if reason == "" {
+				reason = "UNKNOWN"
+			}
+			message = "Sandbox payment failed: " + reason
+		default:
+			message = "Sandbox payment is still processing (" + status + ")."
+		}
+	}
 	return &RequestToPayResult{
 		ExternalID: referenceID,
-		Status:     "pending",
-		Message:    "Check your phone for the MTN MoMo payment prompt",
+		Status:     strings.ToLower(status),
+		Message:    message,
 	}, nil
+}
+
+func (c *MTNClient) sandbox() bool {
+	return strings.EqualFold(c.cfg.TargetEnvironment, "sandbox")
+}
+
+func (c *MTNClient) payerMSISDN(phone string) string {
+	if c.sandbox() && strings.TrimSpace(c.cfg.SandboxPayer) != "" {
+		return digitsOnly(c.cfg.SandboxPayer)
+	}
+	return strings.TrimPrefix(NormalizePhone(phone), "+")
+}
+
+func digitsOnly(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func (c *MTNClient) waitForStatus(ctx context.Context, token, referenceID string) (string, string) {
+	if !c.sandbox() {
+		return "pending", ""
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	status, reason := "PENDING", ""
+	for {
+		st, rsn, err := c.getRequestStatus(ctx, token, referenceID)
+		if err == nil && st != "" {
+			status, reason = st, rsn
+			upper := strings.ToUpper(st)
+			if upper == "SUCCESSFUL" || upper == "FAILED" {
+				return status, reason
+			}
+		}
+		if time.Now().After(deadline) {
+			return status, reason
+		}
+		select {
+		case <-ctx.Done():
+			return status, reason
+		case <-time.After(2 * time.Second):
+		}
+	}
+}
+
+func (c *MTNClient) getRequestStatus(ctx context.Context, token, referenceID string) (string, string, error) {
+	url := strings.TrimRight(c.cfg.BaseURL, "/") + "/collection/v1_0/requesttopay/" + referenceID
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Target-Environment", c.cfg.TargetEnvironment)
+	req.Header.Set("Ocp-Apim-Subscription-Key", c.cfg.SubscriptionKey)
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	res, err := client.Do(req)
+	if err != nil {
+		return "", "", err
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return "", "", fmt.Errorf("MTN status failed (%d)", res.StatusCode)
+	}
+	var parsed struct {
+		Status string `json:"status"`
+		Reason string `json:"reason"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return "", "", err
+	}
+	return parsed.Status, parsed.Reason, nil
 }

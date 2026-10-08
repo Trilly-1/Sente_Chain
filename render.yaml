@@ -53,7 +53,9 @@ services:
       - key: MTN_MOMO_TARGET_ENVIRONMENT
         value: sandbox
       - key: MTN_MOMO_CURRENCY
-        value: UGX
+        value: EUR
+      - key: MTN_MOMO_SANDBOX_PAYER
+        value: "46733123499"
       - key: MTN_MOMO_CALLBACK_URL
         value: https://sente-chain.onrender.com/webhooks/mtn/momo
       - key: MTN_MOMO_WEBHOOK_SECRET

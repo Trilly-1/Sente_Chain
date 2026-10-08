@@ -85,6 +85,10 @@ func (g *ProviderGateway) Status() IntegrationStatus {
 	return g.cfg.Status()
 }
 
+func (g *ProviderGateway) MTNConfig() MTNConfig {
+	return g.cfg.MTN
+}
+
 func (g *ProviderGateway) VerifyMTNWebhook(signature string) bool {
 	secret := g.cfg.MTN.WebhookSecret
 	if secret == "" {

@@ -151,7 +151,24 @@ func (s *Service) GetInstructions(ctx context.Context, saccoID, membershipID str
 		PlatformFee:    PlatformFeeConfigPublic(),
 		MTNApiReady:    s.gateway != nil && s.gateway.MTN.Configured(),
 		AirtelApiReady: s.gateway != nil && s.gateway.Airtel.Configured(),
+		MTNSandbox:     s.mtnSandbox(),
+		MTNCurrency:    s.mtnCurrency(),
 	}, nil
+}
+
+func (s *Service) mtnSandbox() bool {
+	return s.gateway != nil && strings.EqualFold(s.gateway.MTNConfig().TargetEnvironment, "sandbox") && s.gateway.MTN.Configured()
+}
+
+func (s *Service) mtnCurrency() string {
+	if s.gateway == nil {
+		return "UGX"
+	}
+	cur := strings.TrimSpace(s.gateway.MTNConfig().Currency)
+	if cur == "" {
+		return "UGX"
+	}
+	return cur
 }
 
 func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestToPayBody) (*RequestToPayResponse, error) {
@@ -210,11 +227,15 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 		return nil, errors.New("could not resolve your phone number")
 	}
 
+	currency := "UGX"
+	if provider == ProviderMTNMoMo {
+		currency = s.mtnCurrency()
+	}
 	in := &RequestToPayInput{
 		SaccoID:      req.SaccoID,
 		MembershipID: membership.ID.String(),
 		Amount:       req.Amount,
-		Currency:     "UGX",
+		Currency:     currency,
 		PayerPhone:   payerPhone,
 		PayeePhone:   payee.PhoneNumber,
 		Reference:    paymentRef,
@@ -244,6 +265,9 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 		}
 		return nil, err
 	}
+	if strings.EqualFold(result.Status, "failed") {
+		return nil, errors.New(result.Message)
+	}
 
 	net, fee := payFeeBreakdown(purpose, req.Amount)
 	return &RequestToPayResponse{
@@ -256,7 +280,7 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 		NetAmount:   net,
 		PlatformFee: fee,
 		FeePercent:  PlatformFeePercent(),
-		Currency:    "UGX",
+		Currency:    currency,
 		Mode:        "stk",
 	}, nil
 }

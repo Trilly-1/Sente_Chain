@@ -53,6 +53,8 @@ type PaymentInstructions struct {
 	PlatformFee        PlatformFeeConfig `json:"platform_fee"`
 	MTNApiReady        bool             `json:"mtn_api_ready"`
 	AirtelApiReady     bool             `json:"airtel_api_ready"`
+	MTNSandbox         bool             `json:"mtn_sandbox"`
+	MTNCurrency        string           `json:"mtn_currency,omitempty"`
 }
 
 type PurposeOption struct {
