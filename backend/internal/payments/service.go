@@ -145,7 +145,7 @@ func (s *Service) GetInstructions(ctx context.Context, saccoID, membershipID str
 			fmt.Sprintf("Savings: use reference %s", EncodeReference(PurposeSavings, shortRef)),
 			fmt.Sprintf("Loan repayment: use reference %s", EncodeReference(PurposeLoanRepayment, shortRef)),
 			fmt.Sprintf("Interest: use reference %s", EncodeReference(PurposeInterest, shortRef)),
-			fmt.Sprintf("SenteChain service fee on savings: %.2f%% (deducted from credited amount)", PlatformFeePercent()),
+			fmt.Sprintf("SenteChain service fee on savings: %.2f%% added on top, so the amount you enter is credited in full", PlatformFeePercent()),
 			"Your balance updates automatically once the payment is confirmed.",
 		},
 		PlatformFee:    PlatformFeeConfigPublic(),
@@ -231,10 +231,11 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 	if provider == ProviderMTNMoMo {
 		currency = s.mtnCurrency()
 	}
+	charge, fee := payFeeBreakdown(purpose, req.Amount)
 	in := &RequestToPayInput{
 		SaccoID:      req.SaccoID,
 		MembershipID: membership.ID.String(),
-		Amount:       req.Amount,
+		Amount:       charge,
 		Currency:     currency,
 		PayerPhone:   payerPhone,
 		PayeePhone:   payee.PhoneNumber,
@@ -274,14 +275,15 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 			"externalId": result.ExternalID,
 		})
 		event, recErr := s.ProcessInbound(ctx, &WebhookPayload{
-			ExternalID: result.ExternalID,
-			Amount:     req.Amount,
-			Currency:   currency,
-			PayerPhone: payerPhone,
-			PayeePhone: payee.PhoneNumber,
-			Reference:  paymentRef,
-			Purpose:    purpose,
-			Provider:   provider,
+			ExternalID:   result.ExternalID,
+			Amount:       charge,
+			CreditAmount: req.Amount,
+			Currency:     currency,
+			PayerPhone:   payerPhone,
+			PayeePhone:   payee.PhoneNumber,
+			Reference:    paymentRef,
+			Purpose:      purpose,
+			Provider:     provider,
 		}, raw)
 		if recErr != nil {
 			return nil, fmt.Errorf("payment succeeded but could not record it: %w", recErr)
@@ -294,15 +296,14 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 		}
 	}
 
-	net, fee := payFeeBreakdown(purpose, req.Amount)
 	return &RequestToPayResponse{
 		Status:      result.Status,
 		Message:     result.Message,
 		ExternalID:  result.ExternalID,
 		Provider:    provider,
-		Amount:      req.Amount,
-		GrossAmount: req.Amount,
-		NetAmount:   net,
+		Amount:      charge,
+		GrossAmount: charge,
+		NetAmount:   req.Amount,
 		PlatformFee: fee,
 		FeePercent:  PlatformFeePercent(),
 		Currency:    currency,
@@ -310,11 +311,11 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 	}, nil
 }
 
-func payFeeBreakdown(purpose string, gross float64) (net, fee float64) {
+func payFeeBreakdown(purpose string, net float64) (gross, fee float64) {
 	if purpose == PurposeSavings {
-		return SplitGrossAmount(gross)
+		return GrossUpFromNet(net)
 	}
-	return gross, 0
+	return net, 0
 }
 
 func manualPayResponse(provider string, amount float64, ref, payeePhone, purpose string) *RequestToPayResponse {
@@ -329,22 +330,22 @@ func manualPayResponse(provider string, amount float64, ref, payeePhone, purpose
 	case PurposeInterest:
 		purposeLabel = "interest"
 	}
-	net, fee := payFeeBreakdown(purpose, amount)
+	charge, fee := payFeeBreakdown(purpose, amount)
 	msg := fmt.Sprintf(
 		"USSD: dial *334# (MTN) or *185# (Airtel), send %s to %s on %s for %s. Include reference %s in the reason.",
-		FormatAmount(amount), payeePhone, label, purposeLabel, ref,
+		FormatAmount(charge), payeePhone, label, purposeLabel, ref,
 	)
 	if fee > 0 {
-		msg += fmt.Sprintf(" Service fee %.2f%%: %s UGX — net to savings: %s UGX.",
-			PlatformFeePercent(), FormatAmount(fee), FormatAmount(net))
+		msg += fmt.Sprintf(" Service fee %.2f%%: %s added on top — savings credited: %s.",
+			PlatformFeePercent(), FormatAmount(fee), FormatAmount(amount))
 	}
 	return &RequestToPayResponse{
 		Status:      "manual",
 		Mode:        "manual",
 		Provider:    provider,
-		Amount:      amount,
-		GrossAmount: amount,
-		NetAmount:   net,
+		Amount:      charge,
+		GrossAmount: charge,
+		NetAmount:   amount,
 		PlatformFee: fee,
 		FeePercent:  PlatformFeePercent(),
 		Currency:    "UGX",
@@ -420,7 +421,16 @@ func (s *Service) ProcessInbound(ctx context.Context, payload *WebhookPayload, r
 	creditAmount := gross
 	var platformFee float64
 	if purpose == PurposeSavings && txnType == transactions.TypeDeposit {
-		creditAmount, platformFee = SplitGrossAmount(gross)
+		if payload.CreditAmount > 0 {
+			creditAmount = payload.CreditAmount
+			platformFee = roundMoney(gross - creditAmount)
+			if platformFee < 0 {
+				platformFee = 0
+				creditAmount = gross
+			}
+		} else {
+			creditAmount, platformFee = SplitGrossAmount(gross)
+		}
 	}
 
 	meta, _ := json.Marshal(map[string]interface{}{

@@ -334,8 +334,8 @@ export async function apiGetPlatformConfig() {
   if (USE_DEMO) {
     return {
       fee_percent: 1.5,
-      fee_model: "net_deduction",
-      description: "Service fee deducted from credited savings amount.",
+      fee_model: "added_on_top",
+      description: "The amount you enter is credited in full. The service fee is added on top.",
       applies_to: ["savings"],
       max_recommended_percent: 2.5,
     }
@@ -343,18 +343,17 @@ export async function apiGetPlatformConfig() {
   return apiFetch("/public/platform-config")
 }
 
-export function calcPlatformFee(gross, feePercent, purpose = "savings") {
-  const amount = parseFloat(gross) || 0
+export function calcPlatformFee(netAmount, feePercent, purpose = "savings") {
+  const net = parseFloat(netAmount) || 0
   const pct = parseFloat(feePercent) || 0
-  if (!amount || purpose !== "savings" || pct <= 0) {
-    return { gross: amount, fee: 0, net: amount, percent: pct }
+  if (!net || purpose !== "savings" || pct <= 0) {
+    return { gross: net, fee: 0, net, percent: pct }
   }
-  const fee = Math.round(amount * pct) / 100
-  const roundedFee = Math.round(fee * 100) / 100
+  const fee = Math.round((net * pct) / 100 * 100) / 100
   return {
-    gross: amount,
-    fee: roundedFee,
-    net: Math.round((amount - roundedFee) * 100) / 100,
+    gross: Math.round((net + fee) * 100) / 100,
+    fee,
+    net,
     percent: pct,
   }
 }

@@ -312,7 +312,7 @@ export default function MemberDashboard() {
                   </select>
                 </div>
                 <div>
-                  <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Amount ({payInfo.mtn_sandbox ? (payInfo.mtn_currency || "EUR") : "UGX"})</p>
+                  <p style={{ fontSize:"11px", fontWeight:600, color:T.textDim, margin:"0 0 6px", textTransform:"uppercase", letterSpacing:"0.05em" }}>{payPurpose === "savings" ? "Amount to save" : "Amount"} ({payInfo.mtn_sandbox ? (payInfo.mtn_currency || "EUR") : currency})</p>
                   <input type="number" min="1" placeholder="e.g. 50000" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required disabled={payLoading} style={inp} />
                 </div>
                 <div>
@@ -328,7 +328,7 @@ export default function MemberDashboard() {
               </form>
               {payAmount && payBreakdown.fee > 0 && payPurpose === "savings" && (
                 <div style={{ padding:"12px 14px", background:T.surface, borderRadius:"8px", border:`1px solid ${T.border}`, fontSize:"13px", color:T.textMid }}>
-                  You pay <strong>{currency} {payBreakdown.gross.toLocaleString()}</strong> · Fee {payBreakdown.percent}%: {currency} {payBreakdown.fee.toLocaleString()} · <strong>Net savings: {currency} {payBreakdown.net.toLocaleString()}</strong>
+                  You pay <strong>{payBreakdown.gross.toLocaleString()}</strong> · Fee {payBreakdown.percent}% ({payBreakdown.fee.toLocaleString()}) is added on top · <strong>Credited: {payBreakdown.net.toLocaleString()}</strong>
                 </div>
               )}
               {payErr && <p style={{ fontSize:"13px", color:T.red, margin:0 }}>{payErr}</p>}

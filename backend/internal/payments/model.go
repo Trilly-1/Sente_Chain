@@ -120,4 +120,6 @@ type WebhookPayload struct {
 	Reference   string  `json:"reference"`
 	Provider    string  `json:"provider"`
 	Purpose     string  `json:"purpose,omitempty"`
+	// CreditAmount is the exact sum to record when the collected Amount includes a fee on top.
+	CreditAmount float64 `json:"credit_amount,omitempty"`
 }

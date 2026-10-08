@@ -31,8 +31,8 @@ func PlatformFeePercent() float64 {
 func PlatformFeeConfigPublic() PlatformFeeConfig {
 	return PlatformFeeConfig{
 		FeePercent:     PlatformFeePercent(),
-		FeeModel:       "net_deduction",
-		Description:    "Service fee is deducted from the member's credited amount. The SACCO receives the net; platform fee is tracked for monthly settlement.",
+		FeeModel:       "added_on_top",
+		Description:    "The amount you enter is credited in full. The service fee is added on top and collected with the payment.",
 		AppliesTo:      []string{"savings"},
 		MaxRecommended: 2.5,
 	}
@@ -50,6 +50,16 @@ func SplitGrossAmount(gross float64) (net, fee float64) {
 	}
 	net = roundMoney(gross - fee)
 	return net, fee
+}
+
+// GrossUpFromNet adds the platform fee on top of the amount the member wants credited.
+func GrossUpFromNet(net float64) (gross, fee float64) {
+	if net <= 0 {
+		return 0, 0
+	}
+	fee = roundMoney(net * PlatformFeePercent() / 100)
+	gross = roundMoney(net + fee)
+	return gross, fee
 }
 
 func roundMoney(v float64) float64 {

@@ -9,4 +9,8 @@ func TestSplitGrossAmount(t *testing.T) {
 	if fee != 1500 || net != 98500 {
 		t.Fatalf("got net=%v fee=%v", net, fee)
 	}
+	gross, topFee := GrossUpFromNet(3000)
+	if topFee != 45 || gross != 3045 {
+		t.Fatalf("gross-up got gross=%v fee=%v", gross, topFee)
+	}
 }
