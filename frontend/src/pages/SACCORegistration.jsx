@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { apiRegister, apiCreateSacco, apiUpdateSacco, apiUploadSaccoDocuments, apiSubmitSacco, apiGetSacco } from "../services/api"
+import { apiRegister, apiCreateSacco, apiUpdateSacco, apiSubmitSacco, apiGetSacco } from "../services/api"
 import { UGANDA } from "../data/countries"
 import PhoneInput, { toFullPhone, toLocalPhone } from "../components/PhoneInput"
 
@@ -30,23 +30,6 @@ const inpStyle = {
   color: C.textHi, background: "#ffffff"
 }
 
-const REQUIRED_DOCS = [
-  { type: "registration_certificate", label: "Registration Certificate" },
-  { type: "operational_license", label: "Operational License" },
-  { type: "tin_certificate", label: "TIN/PIN Certificate" },
-]
-
-const MAX_DOC_BYTES = 2 * 1024 * 1024
-
-function readFileAsDataURL(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = () => reject(new Error("Could not read that file"))
-    reader.readAsDataURL(file)
-  })
-}
-
 const Label = ({ children }) => (
   <label style={{ display: "block", fontSize: "13px", fontWeight: 700, color: C.textDim, marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
     {children}
@@ -64,58 +47,14 @@ export default function SACCORegistration({ continueSetup = false }) {
   const [formData, setFormData] = useState({
     name: "", type: "Deposit-taking",
     address: "", phone: "", email: "",
-    chairmanName: "", chairmanID: "", chairmanVerified: false, chairmanImage: null,
-    secretaryName: "", secretaryID: "", secretaryVerified: false, secretaryImage: null,
+    chairmanName: "", chairmanID: "",
+    secretaryName: "", secretaryID: "",
   })
 
   const [adminData, setAdminData] = useState({
     name: "", email: "", phoneNo: "", pin: "", showPin: false
   })
 
-  const [activeCamera, setActiveCamera] = useState(null)
-  const videoRef = useRef(null)
-  const canvasRef = useRef(null)
-
-  const startCamera = async (type) => {
-    setActiveCamera(type)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-      }
-    } catch (err) {
-      console.error("Camera error:", err)
-      alert("Could not access camera. Please ensure you have given permission.")
-      setActiveCamera(null)
-    }
-  }
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach(t => t.stop())
-    }
-    setActiveCamera(null)
-  }
-
-  const capturePhoto = () => {
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    if (video && canvas) {
-      const scale = Math.min(1, 480 / (video.videoWidth || 480))
-      canvas.width = Math.round((video.videoWidth || 480) * scale)
-      canvas.height = Math.round((video.videoHeight || 360) * scale)
-      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height)
-      const img = canvas.toDataURL("image/jpeg", 0.7)
-      if (activeCamera === 'chairman') {
-        setFormData({ ...formData, chairmanImage: img, chairmanVerified: true })
-      } else {
-        setFormData({ ...formData, secretaryImage: img, secretaryVerified: true })
-      }
-      stopCamera()
-    }
-  }
-
-  const [docFiles, setDocFiles] = useState({})
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
   const [saccoId, setSaccoId] = useState(continueSetup ? auth?.sacco_id || null : null)
@@ -136,40 +75,17 @@ export default function SACCORegistration({ continueSetup = false }) {
         email: profile.email || "",
         chairmanName: profile.chairman_name || "",
         chairmanID: profile.chairman_id || "",
-        chairmanImage: profile.chairman_image || null,
-        chairmanVerified: Boolean(profile.chairman_image),
         secretaryName: profile.secretary_name || "",
         secretaryID: profile.secretary_id || "",
-        secretaryImage: profile.secretary_image || null,
-        secretaryVerified: Boolean(profile.secretary_image),
       }))
       if (!profile.address) setStep(3)
       else if (!profile.chairman_name) setStep(4)
-      else setStep(6)
+      else setStep(5)
     }).catch(() => { if (!cancelled) setStep(2) })
     return () => { cancelled = true }
     // Resume once for an existing draft. A SACCO created later in this form should not reset the step.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const onPickDocument = async (type, file) => {
-    if (!file) return
-    if (file.size > MAX_DOC_BYTES) {
-      setErrors({ form: "Each document must be 2MB or smaller." })
-      return
-    }
-    const allowed = ["application/pdf", "image/png", "image/jpeg"]
-    if (file.type && !allowed.includes(file.type)) {
-      setErrors({ form: "Use a PDF, PNG, or JPG." })
-      return
-    }
-    setErrors({})
-    const dataUrl = await readFileAsDataURL(file)
-    setDocFiles((prev) => ({
-      ...prev,
-      [type]: { name: file.name, mime: file.type || "application/octet-stream", dataUrl },
-    }))
-  }
 
   const submitSaccoApplication = async () => {
     setLoading(true)
@@ -254,32 +170,10 @@ export default function SACCORegistration({ continueSetup = false }) {
         setLoading(false)
       }
     } else if (step === 4) {
-      const missing = REQUIRED_DOCS.filter((doc) => !docFiles[doc.type])
-      if (missing.length > 0) {
-        return setErrors({ form: "Upload the registration certificate, operational license, and TIN certificate." })
-      }
-      setErrors({})
-      setLoading(true)
-      try {
-        await apiUploadSaccoDocuments(saccoId, REQUIRED_DOCS.map((doc) => ({
-          document_type: doc.type,
-          file_url: docFiles[doc.type].dataUrl,
-          file_name: docFiles[doc.type].name,
-          mime_type: docFiles[doc.type].mime,
-        })))
-        setStep(s => s + 1)
-      } catch (err) {
-        setErrors({ form: err.message || "Failed to upload documents" })
-      } finally {
-        setLoading(false)
-      }
-    } else if (step === 5) {
       if (!formData.chairmanName) newErrors.chairmanName = "Required"
       if (!formData.chairmanID) newErrors.chairmanID = "Required"
       if (!formData.secretaryName) newErrors.secretaryName = "Required"
       if (!formData.secretaryID) newErrors.secretaryID = "Required"
-      if (!formData.chairmanVerified) newErrors.chairmanVerified = "Verification required"
-      if (!formData.secretaryVerified) newErrors.secretaryVerified = "Verification required"
 
       if (Object.keys(newErrors).length > 0) return setErrors(newErrors)
       setErrors({})
@@ -289,10 +183,8 @@ export default function SACCORegistration({ continueSetup = false }) {
           profile: {
             chairman_name: formData.chairmanName,
             chairman_id: formData.chairmanID,
-            chairman_image: formData.chairmanImage,
             secretary_name: formData.secretaryName,
             secretary_id: formData.secretaryID,
-            secretary_image: formData.secretaryImage,
           },
         })
         setStep(s => s + 1)
@@ -309,9 +201,8 @@ export default function SACCORegistration({ continueSetup = false }) {
     { id: 1, title: "Admin", sub: "Create chairman account" },
     { id: 2, title: "Identity", sub: "Legal SACCO details" },
     { id: 3, title: "Contact", sub: "Location & reach" },
-    { id: 4, title: "Documents", sub: "Compliance uploads" },
-    { id: 5, title: "Officials", sub: "Key board members" },
-    { id: 6, title: "Verify", sub: "Final submission" },
+    { id: 4, title: "Officials", sub: "Key board members" },
+    { id: 5, title: "Verify", sub: "Final submission" },
   ]
 
   return (
@@ -465,29 +356,13 @@ export default function SACCORegistration({ continueSetup = false }) {
 
           {step === 4 && (
             <div>
-              <h2 style={{ fontSize: "20px", fontWeight: 800, marginBottom: "24px", color: C.textHi }}>Document Uploads</h2>
-              <p style={{ color: C.textDim, fontSize: "14px", marginBottom: "20px" }}>Upload all three documents before continuing. PDF, PNG, or JPG, up to 2MB each.</p>
-              <div style={{ display: "grid", gap: "16px" }}>
-                {REQUIRED_DOCS.map(doc => (
-                  <label key={doc.type} style={{ padding: "20px", border: `2px dashed ${docFiles[doc.type] ? C.green : C.border}`, borderRadius: "12px", textAlign: "center", cursor: "pointer", background: docFiles[doc.type] ? C.greenLite : "#fff", display: "block" }}>
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: "14px", color: C.textHi }}>{docFiles[doc.type] ? `Selected: ${docFiles[doc.type].name}` : `Upload ${doc.label}`}</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "11px", color: C.textMid }}>PDF, PNG, or JPG, max 2MB</p>
-                    <input type="file" accept="application/pdf,image/png,image/jpeg" style={{ display: "none" }} onChange={(e) => onPickDocument(doc.type, e.target.files?.[0])} />
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {step === 5 && (
-            <div>
               <h2 style={{ fontSize: isMobile ? "18px" : "20px", fontWeight: 800, marginBottom: isMobile ? "16px" : "24px" }}>
                 Key Officials Verification
               </h2>
               <div style={{ display: "grid", gap: isMobile ? "16px" : "24px" }}>
-                <div style={{ padding: isMobile ? "16px" : "20px", background: C.surface, borderRadius: "12px", border: errors.chairmanVerified ? "1px solid #dc2626" : "none" }}>
+                <div style={{ padding: isMobile ? "16px" : "20px", background: C.surface, borderRadius: "12px" }}>
                   <h3 style={{ fontSize: "14px", fontWeight: 800, marginBottom: "12px", color: C.green }}>Chairman Details</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px" }}>
                     <div>
                       <Label>Full Name</Label>
                       <input style={{ ...inpStyle, borderColor: errors.chairmanName ? "#dc2626" : C.border }} placeholder={adminData.name || "Name"} value={formData.chairmanName} onChange={e => { setFormData({ ...formData, chairmanName: e.target.value }); setErrors({...errors, chairmanName: null}) }} />
@@ -499,38 +374,10 @@ export default function SACCORegistration({ continueSetup = false }) {
                       {errors.chairmanID && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.chairmanID}</span>}
                     </div>
                   </div>
-                  <div>
-                    <Label>Liveliness Check</Label>
-                    {!formData.chairmanVerified ? (
-                      activeCamera === 'chairman' ? (
-                        <div style={{ position: "relative", width: "100%", aspectRatio: isMobile ? "3/4" : "4/3", background: "#000", borderRadius: "12px", overflow: "hidden", marginBottom: "8px" }}>
-                          <video ref={videoRef} autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          <div style={{ position: "absolute", top: "45%", left: "50%", transform: "translate(-50%, -50%)", width: isMobile ? "60%" : "160px", height: isMobile ? "60%" : "200px", border: "2px dashed rgba(255,255,255,0.6)", borderRadius: "200px" }} />
-                          <button type="button" onClick={() => { capturePhoto(); setErrors({...errors, chairmanVerified: null}) }} style={{ position: "absolute", bottom: "16px", left: "50%", transform: "translateX(-50%)", width: "48px", height: "48px", borderRadius: "50%", background: "#fff", border: `4px solid ${C.green}`, cursor: "pointer", boxShadow: "0 0 0 4px rgba(255,255,255,0.3)", zIndex: 10 }} />
-                          <button type="button" onClick={stopCamera} style={{ position: "absolute", top: "12px", right: "12px", background: "rgba(0,0,0,0.5)", color: "#fff", border: "none", borderRadius: "50%", width: "28px", height: "28px", cursor: "pointer", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}>✕</button>
-                        </div>
-                      ) : (
-                        <div>
-                          <button type="button" onClick={() => startCamera('chairman')} style={{ ...inpStyle, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", background: "#fff", borderColor: errors.chairmanVerified ? "#dc2626" : C.border, color: C.textHi, cursor: "pointer", fontWeight: 700 }}>
-                            Start Face Verification
-                          </button>
-                          {errors.chairmanVerified && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.chairmanVerified}</span>}
-                        </div>
-                      )
-                    ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: "16px", padding: "12px 16px", borderRadius: "12px", border: `1px solid ${C.greenBdr}`, background: C.greenLite }}>
-                        <img src={formData.chairmanImage} alt="Chairman" style={{ width: "50px", height: "50px", borderRadius: "50%", objectFit: "cover", border: `2px solid ${C.green}` }} />
-                        <div>
-                          <p style={{ margin: "0 0 4px", fontWeight: 800, color: C.greenDark, fontSize: "14px" }}>✓ Verified</p>
-                          <button type="button" onClick={() => setFormData({...formData, chairmanVerified: false, chairmanImage: null})} style={{ background: "none", border: "none", color: C.green, fontSize: "12px", fontWeight: 700, cursor: "pointer", padding: 0 }}>Retake Photo</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
-                <div style={{ padding: isMobile ? "16px" : "20px", background: C.surface, borderRadius: "12px", border: errors.secretaryVerified ? "1px solid #dc2626" : "none" }}>
+                <div style={{ padding: isMobile ? "16px" : "20px", background: C.surface, borderRadius: "12px" }}>
                   <h3 style={{ fontSize: "14px", fontWeight: 800, marginBottom: "12px", color: C.green }}>Secretary Details</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px" }}>
                     <div>
                       <Label>Full Name</Label>
                       <input style={{ ...inpStyle, borderColor: errors.secretaryName ? "#dc2626" : C.border }} placeholder="Name" value={formData.secretaryName} onChange={e => { setFormData({ ...formData, secretaryName: e.target.value }); setErrors({...errors, secretaryName: null}) }} />
@@ -542,53 +389,24 @@ export default function SACCORegistration({ continueSetup = false }) {
                       {errors.secretaryID && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.secretaryID}</span>}
                     </div>
                   </div>
-                  <div>
-                    <Label>Liveliness Check</Label>
-                    {!formData.secretaryVerified ? (
-                      activeCamera === 'secretary' ? (
-                        <div style={{ position: "relative", width: "100%", aspectRatio: isMobile ? "3/4" : "4/3", background: "#000", borderRadius: "12px", overflow: "hidden", marginBottom: "8px" }}>
-                          <video ref={videoRef} autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          <div style={{ position: "absolute", top: "45%", left: "50%", transform: "translate(-50%, -50%)", width: isMobile ? "60%" : "160px", height: isMobile ? "60%" : "200px", border: "2px dashed rgba(255,255,255,0.6)", borderRadius: "200px" }} />
-                          <button type="button" onClick={() => { capturePhoto(); setErrors({...errors, secretaryVerified: null}) }} style={{ position: "absolute", bottom: "16px", left: "50%", transform: "translateX(-50%)", width: "48px", height: "48px", borderRadius: "50%", background: "#fff", border: `4px solid ${C.green}`, cursor: "pointer", boxShadow: "0 0 0 4px rgba(255,255,255,0.3)", zIndex: 10 }} />
-                          <button type="button" onClick={stopCamera} style={{ position: "absolute", top: "12px", right: "12px", background: "rgba(0,0,0,0.5)", color: "#fff", border: "none", borderRadius: "50%", width: "28px", height: "28px", cursor: "pointer", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}>✕</button>
-                        </div>
-                      ) : (
-                        <div>
-                          <button type="button" onClick={() => startCamera('secretary')} style={{ ...inpStyle, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", background: "#fff", borderColor: errors.secretaryVerified ? "#dc2626" : C.border, color: C.textHi, cursor: "pointer", fontWeight: 700 }}>
-                            Start Face Verification
-                          </button>
-                          {errors.secretaryVerified && <span style={{ color: "#dc2626", fontSize: "12px", marginTop: "4px", display: "block", fontWeight: 600 }}>{errors.secretaryVerified}</span>}
-                        </div>
-                      )
-                    ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: "16px", padding: "12px 16px", borderRadius: "12px", border: `1px solid ${C.greenBdr}`, background: C.greenLite }}>
-                        <img src={formData.secretaryImage} alt="Secretary" style={{ width: "50px", height: "50px", borderRadius: "50%", objectFit: "cover", border: `2px solid ${C.green}` }} />
-                        <div>
-                          <p style={{ margin: "0 0 4px", fontWeight: 800, color: C.greenDark, fontSize: "14px" }}>✓ Verified</p>
-                          <button type="button" onClick={() => setFormData({...formData, secretaryVerified: false, secretaryImage: null})} style={{ background: "none", border: "none", color: C.green, fontSize: "12px", fontWeight: 700, cursor: "pointer", padding: 0 }}>Retake Photo</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {step === 6 && (
+          {step === 5 && (
             <div style={{ textAlign: "center" }}>
               <div style={{ width: "80px", height: "80px", background: C.greenLite, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
               <h2 style={{ fontSize: "24px", fontWeight: 900, marginBottom: "12px", color: C.textHi }}>Ready for Verification</h2>
               <p style={{ color: C.textMid, lineHeight: 1.6, marginBottom: "32px" }}>
-                Please review your SACCO details below. Once submitted, your legal documentation will be verified against regional regulatory standards.
+                Please review your SACCO details below. Once submitted, a project admin will review the application.
               </p>
               
               <div style={{ textAlign: "left", background: C.surface, padding: "20px", borderRadius: "12px", border: `1px solid ${C.border}`, marginBottom: "24px" }}>
                 <p style={{ fontSize: "13px", margin: "0 0 8px", color: C.textHi }}><strong>SACCO:</strong> {formData.name || "N/A"} ({formData.type})</p>
                 <p style={{ fontSize: "13px", margin: "0 0 8px", color: C.textHi }}><strong>Contact:</strong> {formData.address || "N/A"} · {formData.phone || "N/A"} · {formData.email || "N/A"}</p>
-                <p style={{ fontSize: "13px", margin: "0 0 8px", color: C.textHi }}><strong>Documents:</strong> {REQUIRED_DOCS.filter((doc) => docFiles[doc.type]).length} of 3 uploaded</p>
                 <p style={{ fontSize: "13px", margin: "0 0 8px", color: C.textHi }}><strong>Chairman:</strong> {formData.chairmanName || "N/A"}</p>
                 <p style={{ fontSize: "13px", margin: 0, color: C.textHi }}><strong>Secretary:</strong> {formData.secretaryName || "N/A"}</p>
               </div>
@@ -625,22 +443,21 @@ export default function SACCORegistration({ continueSetup = false }) {
               </button>
             )}
             <button
-              onClick={step === 6 ? submitSaccoApplication : next}
-              disabled={loading || (step === 6 && !agreed)}
+              onClick={step === 5 ? submitSaccoApplication : next}
+              disabled={loading || (step === 5 && !agreed)}
               style={{ 
                 flex: 2, padding: "16px", borderRadius: "12px", border: "none", 
-                background: (loading || (step === 6 && !agreed)) ? C.border : C.green, 
-                color: (loading || (step === 6 && !agreed)) ? C.textDim : "#fff", 
-                fontWeight: 800, cursor: (loading || (step === 6 && !agreed)) ? "not-allowed" : "pointer", 
-                boxShadow: (loading || (step === 6 && !agreed)) ? "none" : `0 4px 20px ${C.green}44` 
+                background: (loading || (step === 5 && !agreed)) ? C.border : C.green, 
+                color: (loading || (step === 5 && !agreed)) ? C.textDim : "#fff", 
+                fontWeight: 800, cursor: (loading || (step === 5 && !agreed)) ? "not-allowed" : "pointer", 
+                boxShadow: (loading || (step === 5 && !agreed)) ? "none" : `0 4px 20px ${C.green}44` 
               }}
             >
-              {loading ? "Processing..." : (step === 6 ? "Submit Registration" : "Next Step")}
+              {loading ? "Processing..." : (step === 5 ? "Submit Registration" : "Next Step")}
             </button>
           </div>
         </div>
       </div>
-      <canvas ref={canvasRef} style={{ display: "none" }} />
     </div>
   )
 }

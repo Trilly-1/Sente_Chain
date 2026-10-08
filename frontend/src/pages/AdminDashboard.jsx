@@ -209,7 +209,7 @@ export default function AdminDashboard() {
         <div style={{ maxWidth: "860px", margin: "0 auto", padding: isMobile ? "24px 16px 60px" : "40px 24px 80px" }}>
           <h1 style={{ fontSize: isMobile ? "26px" : "32px", fontWeight: 900, margin: "0 0 8px" }}>Finish your SACCO setup</h1>
           <p style={{ color: T.textMid, margin: "0 0 28px", lineHeight: 1.5 }}>
-            You are the SACCO admin. Complete identity, contact, documents, officials, and verification before you can add members or use the rest of the app.
+            You are the SACCO admin. Complete identity, contact, officials, and verification before you can add members or use the rest of the app.
           </p>
           <SACCORegistration continueSetup />
         </div>
