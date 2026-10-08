@@ -5,6 +5,8 @@ import { useAuth } from "../context/AuthContext"
 import { apiGetMembers, apiListTransactions, apiStaffRegisterMember, apiUpdateMemberRole, apiUpdateMemberStatus, apiGetSaccoSummary, apiListLoanProducts, apiCreateLoanProduct, apiGetPaymentAccounts, apiSavePaymentAccounts, apiGetPaymentIntegrationStatus, apiGetPendingMembers, apiApproveMember, apiRejectMember } from "../services/api"
 import { UGANDA } from "../data/countries"
 import Nav from "../components/Nav"
+import SACCORegistration from "./SACCORegistration"
+import VerificationPending from "./VerificationPending"
 import StellarHashLink from "../components/StellarHashLink"
 import StatusBadge from "../components/StatusBadge"
 import PhoneInput, { toFullPhone, toLocalPhone } from "../components/PhoneInput"
@@ -196,6 +198,24 @@ export default function AdminDashboard() {
   const onF = (e) => { e.target.style.borderColor = T.green; e.target.style.boxShadow = `0 0 0 3px ${T.greenLite}` }
   const onB = (e) => { e.target.style.borderColor = T.border; e.target.style.boxShadow = "none" }
   const Lbl = ({ text }) => <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: T.textDim, marginBottom: "6px", letterSpacing: "0.8px", textTransform: "uppercase" }}>{text}</label>
+
+  const saccoReady = auth?.sacco_status === "approved"
+  if (auth?.role === "admin" && !saccoReady) {
+    const stillDraft = !auth.sacco_id || !auth.sacco_status || auth.sacco_status === "draft"
+    if (!stillDraft) return <VerificationPending />
+    return (
+      <div style={{ minHeight: "100vh", background: T.pageBg, fontFamily: T.font }}>
+        <Nav />
+        <div style={{ maxWidth: "860px", margin: "0 auto", padding: isMobile ? "24px 16px 60px" : "40px 24px 80px" }}>
+          <h1 style={{ fontSize: isMobile ? "26px" : "32px", fontWeight: 900, margin: "0 0 8px" }}>Finish your SACCO setup</h1>
+          <p style={{ color: T.textMid, margin: "0 0 28px", lineHeight: 1.5 }}>
+            You are the SACCO admin. Complete identity, contact, documents, officials, and verification before you can add members or use the rest of the app.
+          </p>
+          <SACCORegistration continueSetup />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: T.pageBg, fontFamily: T.font }}>

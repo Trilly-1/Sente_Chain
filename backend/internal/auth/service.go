@@ -334,6 +334,10 @@ func enrichAuthUser(ctx context.Context, s *Service, user *users.User, membershi
 		if saccoRecord, err := s.saccoRepo.GetByID(ctx, membership.SaccoID.String()); err == nil {
 			resp.SaccoStatus = saccoRecord.Status
 		}
+	} else if !user.IsProjectAdmin {
+		// A SACCO is created after email confirmation. Until then this person
+		// has no membership, but they registered as the SACCO admin.
+		resp.Role = memberships.RoleAdmin
 	}
 	return resp
 }

@@ -37,10 +37,8 @@ function RoleRoute() {
   }
   
   if (auth.role === "admin") {
-    // SACCO still needs platform approval — only document KYC is skipped for testing.
-    const saccoPending = auth.sacco_status && auth.sacco_status !== "approved"
-    if (saccoPending && !auth.sacco_id) return <Navigate to="/register-sacco" replace />
-    if (saccoPending) return <Navigate to="/verification-pending" replace />
+    // Setup and approval stay on the dashboard. The admin cannot use the
+    // rest of the app until the SACCO is approved.
     return <AdminDashboard />
   }
   if (auth.role === "cashier") return <CashierDashboard />

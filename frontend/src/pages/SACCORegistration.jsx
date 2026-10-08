@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { apiRegister, apiCreateSacco, apiUpdateSacco, apiUploadSaccoDocuments, apiSubmitSacco } from "../services/api"
+import { apiRegister, apiCreateSacco, apiUpdateSacco, apiUploadSaccoDocuments, apiSubmitSacco, apiGetSacco } from "../services/api"
 import { UGANDA } from "../data/countries"
-import PhoneInput, { toFullPhone } from "../components/PhoneInput"
+import PhoneInput, { toFullPhone, toLocalPhone } from "../components/PhoneInput"
 
 // Mobile detection hook
 function useWindowSize() {
@@ -53,12 +53,12 @@ const Label = ({ children }) => (
   </label>
 )
 
-export default function SACCORegistration() {
+export default function SACCORegistration({ continueSetup = false }) {
   const navigate = useNavigate()
-  const { login, updateAuth } = useAuth()
+  const { auth, login, updateAuth } = useAuth()
   const { width } = useWindowSize()
   const isMobile = width < 768
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(continueSetup ? 2 : 1)
   const [agreed, setAgreed] = useState(false)
   const [country] = useState(UGANDA)
   const [formData, setFormData] = useState({
@@ -118,7 +118,39 @@ export default function SACCORegistration() {
   const [docFiles, setDocFiles] = useState({})
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
-  const [saccoId, setSaccoId] = useState(null)
+  const [saccoId, setSaccoId] = useState(continueSetup ? auth?.sacco_id || null : null)
+
+  useEffect(() => {
+    if (!continueSetup || !auth?.sacco_id) return
+    let cancelled = false
+    apiGetSacco(auth.sacco_id).then((data) => {
+      if (cancelled) return
+      const profile = data.profile || {}
+      const sacco = data.sacco || {}
+      setFormData((prev) => ({
+        ...prev,
+        name: sacco.name || prev.name,
+        type: profile.type || prev.type,
+        address: profile.address || "",
+        phone: toLocalPhone(profile.phone || ""),
+        email: profile.email || "",
+        chairmanName: profile.chairman_name || "",
+        chairmanID: profile.chairman_id || "",
+        chairmanImage: profile.chairman_image || null,
+        chairmanVerified: Boolean(profile.chairman_image),
+        secretaryName: profile.secretary_name || "",
+        secretaryID: profile.secretary_id || "",
+        secretaryImage: profile.secretary_image || null,
+        secretaryVerified: Boolean(profile.secretary_image),
+      }))
+      if (!profile.address) setStep(3)
+      else if (!profile.chairman_name) setStep(4)
+      else setStep(6)
+    }).catch(() => { if (!cancelled) setStep(2) })
+    return () => { cancelled = true }
+    // Resume once for an existing draft. A SACCO created later in this form should not reset the step.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const onPickDocument = async (type, file) => {
     if (!file) return
@@ -144,7 +176,8 @@ export default function SACCORegistration() {
     setErrors({})
     try {
       await apiSubmitSacco(saccoId)
-      navigate("/verification-pending")
+      updateAuth({ sacco_id: saccoId, sacco_status: "under_review", role: "admin" })
+      if (!continueSetup) navigate("/dashboard")
     } catch (err) {
       setErrors({ form: err.message || "Submission failed" })
     } finally {
@@ -167,7 +200,7 @@ export default function SACCORegistration() {
         const fullPhone = toFullPhone(adminData.phoneNo)
         const user = await apiRegister({ name: adminData.name, email: adminData.email, phone: fullPhone, role: "admin", pin: adminData.pin, country: country.code })
         if (user.requires_email_verification) {
-          setErrors({ form: `Check your email (${adminData.email}) to confirm your account, then return here to continue SACCO registration.` })
+          setErrors({ form: `Check your email (${adminData.email}). After you confirm it, your dashboard will ask you to finish the SACCO setup.` })
           return
         }
         login(user)
@@ -184,14 +217,18 @@ export default function SACCORegistration() {
       setErrors({})
       setLoading(true)
       try {
-        const result = await apiCreateSacco({
-          name: formData.name,
-          country: country.code,
-          profile: { type: formData.type },
-        })
-        const id = result.sacco_id || result.sacco?.sacco_id
-        setSaccoId(id)
-        updateAuth({ sacco_id: id, sacco_status: "draft" })
+        if (saccoId) {
+          await apiUpdateSacco(saccoId, { name: formData.name, profile: { type: formData.type } })
+        } else {
+          const result = await apiCreateSacco({
+            name: formData.name,
+            country: country.code,
+            profile: { type: formData.type },
+          })
+          const id = result.sacco_id || result.sacco?.sacco_id
+          setSaccoId(id)
+          updateAuth({ sacco_id: id, sacco_status: "draft", role: "admin" })
+        }
         setStep(s => s + 1)
       } catch (err) {
         setErrors({ form: err.message || "Failed to create SACCO draft" })
@@ -280,7 +317,7 @@ export default function SACCORegistration() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: C.font }}>
 
-      <nav style={{
+      {!continueSetup && <nav style={{
         position: "sticky", top: 0, zIndex: 100,
         background: "#ffffff", borderBottom: `1px solid ${C.border}`,
         boxShadow: "0 1px 12px rgba(0,0,0,0.06)",
@@ -310,14 +347,14 @@ export default function SACCORegistration() {
           onMouseLeave={e => e.currentTarget.style.background = C.green}>
           Home
         </button>
-      </nav>
+      </nav>}
 
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: isMobile ? "20px 16px" : "40px 20px" }}>
         {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: isMobile ? "24px" : "40px" }}>
+        {!continueSetup && <div style={{ textAlign: "center", marginBottom: isMobile ? "24px" : "40px" }}>
           <h1 style={{ fontSize: isMobile ? "24px" : "32px", fontWeight: 900, color: C.textHi, marginBottom: "8px" }}>Register Your SACCO</h1>
           <p style={{ color: C.textMid, margin: 0, fontSize: isMobile ? "14px" : "16px" }}>Join SenteChain to digitize your records on the blockchain.</p>
-        </div>
+        </div>}
 
         {/* Stepper */}
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: isMobile ? "24px" : "40px", position: "relative" }}>
@@ -582,7 +619,7 @@ export default function SACCORegistration() {
 
           {/* Buttons */}
           <div style={{ display: "flex", gap: "16px", marginTop: "40px" }}>
-            {step > 1 && (
+            {step > 1 && !(continueSetup && step === 2) && (
               <button onClick={prev} style={{ flex: 1, padding: "16px", borderRadius: "12px", border: `1.5px solid ${C.border}`, background: "#fff", fontWeight: 700, cursor: "pointer" }}>
                 Back
               </button>
