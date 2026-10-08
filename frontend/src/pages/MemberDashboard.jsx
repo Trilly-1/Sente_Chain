@@ -170,12 +170,8 @@ export default function MemberDashboard() {
       const result = await apiRequestToPay(auth.sacco_id, amount, payProvider, payPurpose)
       setPayMsg(result.message || (result.mode === "stk" ? "Check your phone for the MoMo prompt." : "Payment initiated."))
       if (result.mode === "stk") setPayAmount("")
-      // Poll for balance update after USSD/MoMo payment
-      setTimeout(async () => {
-        await refreshBalance()
-        const txs = await apiGetTransactions(auth.member_id)
-        setTxs(txs)
-      }, 8000)
+      await refreshBalance()
+      setTxs(await apiGetTransactions(auth.member_id))
     } catch (err) {
       setPayErr(err.message || "Payment request failed")
     } finally {

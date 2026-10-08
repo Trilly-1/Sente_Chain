@@ -268,6 +268,27 @@ func (s *Service) RequestToPay(ctx context.Context, userID string, req *RequestT
 	if strings.EqualFold(result.Status, "failed") {
 		return nil, errors.New(result.Message)
 	}
+	if strings.EqualFold(result.Status, "successful") {
+		raw, _ := json.Marshal(map[string]string{
+			"source":     "request_to_pay",
+			"externalId": result.ExternalID,
+		})
+		if _, recErr := s.ProcessInbound(ctx, &WebhookPayload{
+			ExternalID: result.ExternalID,
+			Amount:     req.Amount,
+			Currency:   currency,
+			PayerPhone: payerPhone,
+			PayeePhone: payee.PhoneNumber,
+			Reference:  paymentRef,
+			Purpose:    purpose,
+			Provider:   provider,
+		}, raw); recErr != nil {
+			return nil, fmt.Errorf("payment succeeded but could not record it: %w", recErr)
+		}
+		if s.mtnSandbox() {
+			result.Message = "Sandbox payment succeeded and was added to your transactions."
+		}
+	}
 
 	net, fee := payFeeBreakdown(purpose, req.Amount)
 	return &RequestToPayResponse{
